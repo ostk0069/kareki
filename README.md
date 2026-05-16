@@ -1,5 +1,11 @@
 # kareki
 
+[![pub package](https://img.shields.io/pub/v/kareki.svg)](https://pub.dev/packages/kareki)
+[![pub points](https://img.shields.io/pub/points/kareki?logo=dart)](https://pub.dev/packages/kareki/score)
+[![likes](https://img.shields.io/pub/likes/kareki?logo=dart)](https://pub.dev/packages/kareki/score)
+[![CI](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml/badge.svg)](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
+
 > 枯木 (kareki, German *Totholz*): dead wood — the unused branches that need pruning.
 
 A multi-package dead-code detector for Dart and Flutter monorepos.

@@ -3,12 +3,13 @@ description: A multi-package dead code detector for Dart and Flutter monorepos. 
 version: 0.1.0
 repository: https://github.com/ostk0069/kareki
 issue_tracker: https://github.com/ostk0069/kareki/issues
+documentation: https://pub.dev/documentation/kareki/latest/
 topics:
   - dead-code
-  - unused
-  - lint
-  - melos
+  - linter
   - monorepo
+  - melos
+  - cli
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
