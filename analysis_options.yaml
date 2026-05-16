@@ -1,0 +1,15 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - test/fixtures/**
+    - example/**
+
+linter:
+  rules:
+    # Internal source files do not require exhaustive DartDoc; keep the rule
+    # available for the public re-export in lib/kareki.dart.
+    public_member_api_docs: false
+    one_member_abstracts: false
+    cascade_invocations: false
+    lines_longer_than_80_chars: false

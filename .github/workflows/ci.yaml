@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Dart ${{ matrix.sdk }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test against the minimum supported Dart SDK and the latest
+        # stable. Bump `min` when bumping `environment.sdk` in
+        # pubspec.yaml.
+        sdk: ["3.10.0", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+
+      - name: Print versions
+        run: dart --version
+
+      - name: Resolve dependencies
+        run: dart pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze --fatal-warnings
+
+      - name: Run tests
+        run: dart test
+
+      - name: Smoke test the CLI
+        # Just exercise the binary so build-only failures are caught.
+        run: dart run bin/kareki.dart --help

@@ -1,0 +1,11 @@
+name: sample
+description: Single-package fixture for kareki tests.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  meta: ^1.10.0
+  collection: ^1.18.0

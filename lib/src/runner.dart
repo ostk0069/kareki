@@ -1,0 +1,325 @@
+import 'dart:io';
+
+import 'package:glob/glob.dart';
+import 'package:kareki/src/config/kareki_config.dart';
+import 'package:kareki/src/dependency/pub_dependency_checker.dart';
+import 'package:kareki/src/entry_points/entry_point_resolver.dart';
+import 'package:kareki/src/model/declaration.dart';
+import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/model/package_info.dart';
+import 'package:kareki/src/parser/declaration_collector.dart';
+import 'package:kareki/src/preset/preset_registry.dart';
+import 'package:kareki/src/reachability/reachability_graph.dart';
+import 'package:kareki/src/reachability/unused_file_detector.dart';
+import 'package:kareki/src/workspace/workspace_loader.dart';
+import 'package:path/path.dart' as p;
+
+/// Configurable input for [KarekiRunner.run].
+class RunRequest {
+  /// Creates a run request. [rootPath] is the absolute path of the
+  /// workspace root (the directory holding `kareki-config.yaml`,
+  /// `melos.yaml`, and/or root `pubspec.yaml`).
+  RunRequest({
+    required this.rootPath,
+    required this.config,
+    this.includePackages,
+    this.enabledRules,
+    this.strictDependencies = false,
+  });
+
+  /// Workspace root used for package discovery, glob matching, and
+  /// relative-path reporting.
+  final String rootPath;
+
+  /// Parsed `kareki-config.yaml`, or [KarekiConfig.defaults] for
+  /// out-of-the-box behaviour.
+  final KarekiConfig config;
+
+  /// Optional override; restrict analysis to these package names.
+  /// `null` means "all packages in the workspace".
+  final Set<String>? includePackages;
+
+  /// Optional override; only run these rules. `null` means "all rules
+  /// not excluded by `KarekiConfig.ignoreRules`".
+  final Set<String>? enabledRules;
+
+  /// When `true`, `unused_pub_dependency` also flags entries under
+  /// `dev_dependencies:` (default: `false`).
+  final bool strictDependencies;
+}
+
+/// Result of one analysis run.
+class RunResult {
+  /// Creates a run result. Produced by [KarekiRunner.run]; user code
+  /// usually only consumes instances.
+  RunResult({
+    required this.findings,
+    required this.packagesAnalyzed,
+    required this.filesAnalyzed,
+    required this.elapsed,
+  });
+
+  /// All detections produced by the run, in deterministic order
+  /// suitable for direct rendering or baseline diffs.
+  final List<Finding> findings;
+
+  /// Number of workspace packages that were analyzed (after applying
+  /// `ignore.packages` and `--packages` filters).
+  final int packagesAnalyzed;
+
+  /// Number of non-generated `.dart` files contributing to the
+  /// reachability index.
+  final int filesAnalyzed;
+
+  /// Wall-clock duration of the run.
+  final Duration elapsed;
+}
+
+/// Orchestrates workspace discovery, parsing, entry-point resolution,
+/// reachability BFS, and rule evaluation.
+///
+/// Stateless — instantiate once and call [run] for each analysis.
+class KarekiRunner {
+  /// Executes a single analysis described by [request] and returns the
+  /// collected findings.
+  RunResult run(RunRequest request) {
+    final stopwatch = Stopwatch()..start();
+
+    final workspaceLoader = WorkspaceLoader(rootPath: request.rootPath);
+    final allPackages = workspaceLoader.load(
+      include: request.config.includePackages,
+      exclude: request.config.excludePackages,
+    );
+
+    final packages = allPackages.where((pkg) {
+      if (request.config.ignorePackages.contains(pkg.name)) return false;
+      if (request.includePackages != null &&
+          !request.includePackages!.contains(pkg.name)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final excludeGlobs = request.config.excludeFiles
+        .map((pattern) => Glob(pattern, recursive: true))
+        .toList();
+
+    final collector = DeclarationCollector();
+    final parsedFiles = <ParsedFile>[];
+    final generatedPaths = <String>{};
+
+    for (final pkg in packages) {
+      for (final file in _dartFilesIn(pkg)) {
+        final relForGlob = p.relative(file.path, from: request.rootPath);
+        final excluded = excludeGlobs.any(
+          (g) => g.matches(relForGlob) || g.matches(p.basename(file.path)),
+        );
+        ParsedFile? parsed;
+        try {
+          parsed = collector.collect(
+            path: file.path,
+            packageName: pkg.name,
+            content: file.readAsStringSync(),
+          );
+        } on Object {
+          // Skip files the parser cannot read.
+          continue;
+        }
+        parsedFiles.add(parsed);
+        if (excluded || parsed.isGeneratedByHeader) {
+          generatedPaths.add(file.path);
+        }
+      }
+    }
+
+    final presetRegistry = PresetRegistry(
+      enabledPresetNames: request.config.enabledPresetNames,
+      customPresets: request.config.customPresets,
+    );
+
+    final entryResolver = EntryPointResolver(
+      config: request.config,
+      presetRegistry: presetRegistry,
+    );
+    final entryPoints = entryResolver.resolve(
+      files: parsedFiles,
+      // Treat every excluded file as "generated" for keep-alive purposes:
+      // its internal identifier references seed the reachability root set,
+      // so symbols only used by excluded code (e.g. base classes inherited
+      // by *.fake.dart) are not falsely reported as unused.
+      generatedFilePaths: generatedPaths,
+      additionalKeepAlivePaths: generatedPaths,
+      rootPath: request.rootPath,
+    );
+
+    final declarationFiles = parsedFiles
+        .where((f) => !generatedPaths.contains(f.path))
+        .toList();
+    final index = DeclarationIndex.fromRecords(
+      declarationFiles.expand((f) => f.declarations),
+    );
+    final reachable = ReachabilityBfs().compute(
+      index: index,
+      roots: entryPoints.rootNames,
+    );
+
+    final fileIgnores = <String, Set<String>>{
+      for (final file in declarationFiles) file.path: file.fileLevelIgnores,
+    };
+
+    final findings = <Finding>[];
+
+    if (_ruleEnabled(RuleId.unusedElement, request)) {
+      for (final declaration in index.all) {
+        if (!declaration.isPublic) continue;
+        // Operator methods (`<`, `[]`, `+`, ...) are called via syntactic
+        // sugar (`a < b`, `obj[i]`), not via a SimpleIdentifier. The
+        // simple-name BFS can never reach them, so reporting is always a
+        // false positive.
+        if (_isOperatorName(declaration.name)) continue;
+        // A "public" member of a library-private type (`_Foo.bar`) is only
+        // reachable from inside the library and is already covered by
+        // `dart analyze`'s built-in unused_element. Skip to avoid duplicate
+        // reports.
+        final enclosingTypeName = declaration.enclosingTypeName;
+        if (enclosingTypeName != null && enclosingTypeName.startsWith('_')) {
+          continue;
+        }
+        if (request.config.excludeNames.contains(declaration.name)) continue;
+        if (entryPoints.rootNames.contains(declaration.name)) continue;
+        if (declaration.annotations.any(
+          entryPoints.keepAliveAnnotations.contains,
+        )) {
+          continue;
+        }
+        if (reachable.contains(declaration)) continue;
+        // `@override` declarations are framework / supertype contract
+        // implementations: invoked via dynamic dispatch whenever the
+        // enclosing type is reachable (e.g. `CustomPainter.shouldRepaint`,
+        // `Widget.build`). Reporting them as unused is almost always a
+        // false positive caused by the simple-name BFS not modeling
+        // virtual dispatch.
+        if (declaration.annotations.contains('override') &&
+            enclosingTypeName != null) {
+          final enclosing = index.enclosingType(declaration);
+          if (enclosing != null && reachable.contains(enclosing)) continue;
+        }
+        final ignores = fileIgnores[declaration.libraryPath] ?? const {};
+        if (ignores.contains(RuleId.unusedElement) ||
+            ignores.contains(declaration.name)) {
+          continue;
+        }
+        findings.add(
+          Finding(
+            ruleId: RuleId.unusedElement,
+            severity: Severity.warning,
+            message: _messageFor(declaration),
+            packageName: declaration.packageName,
+            filePath: declaration.libraryPath,
+            line: declaration.line,
+            column: declaration.column,
+            length: declaration.length,
+            stableId: declaration.stableId,
+          ),
+        );
+      }
+    }
+
+    if (_ruleEnabled(RuleId.unusedFile, request)) {
+      // Pass all parsed files (including generated) so that imports from
+      // generated code count as references. Generated files themselves are
+      // present in entryPointPaths and therefore never reported.
+      findings.addAll(
+        UnusedFileDetector().detect(
+          packages: packages,
+          files: parsedFiles,
+          entryPointPaths: entryPoints.entryPointPaths,
+        ),
+      );
+    }
+
+    if (_ruleEnabled(RuleId.unusedPubDependency, request)) {
+      final filesByPackage = <String, List<ParsedFile>>{};
+      for (final file in parsedFiles) {
+        filesByPackage.putIfAbsent(file.packageName, () => []).add(file);
+      }
+      // Merge preset-derived mappings with top-level
+      // `annotation_implied_packages` from config so both contribute.
+      final annotationImpliedPackages = {
+        ...presetRegistry.annotationImpliedPackages,
+      };
+      request.config.annotationImpliedPackages.forEach((annotation, packages) {
+        annotationImpliedPackages
+            .putIfAbsent(annotation, () => <String>{})
+            .addAll(packages);
+      });
+
+      for (final pkg in packages) {
+        findings.addAll(
+          PubDependencyChecker().check(
+            package: pkg,
+            filesInPackage: filesByPackage[pkg.name] ?? const [],
+            ignoredDeps:
+                request.config.ignoredDependencies[pkg.name] ?? const {},
+            annotationImpliedPackages: annotationImpliedPackages,
+            sdkPackages: request.config.sdkPackages,
+            strict: request.strictDependencies,
+          ),
+        );
+      }
+    }
+
+    stopwatch.stop();
+    return RunResult(
+      findings: findings,
+      packagesAnalyzed: packages.length,
+      filesAnalyzed: declarationFiles.length,
+      elapsed: stopwatch.elapsed,
+    );
+  }
+
+  bool _ruleEnabled(String rule, RunRequest request) {
+    if (request.config.ignoreRules.contains(rule)) return false;
+    if (request.enabledRules == null) return true;
+    return request.enabledRules!.contains(rule);
+  }
+
+  bool _isOperatorName(String name) {
+    if (name.isEmpty) return false;
+    final first = name.codeUnitAt(0);
+    // Identifiers start with a letter or underscore. Operators start with
+    // any other character: `<`, `>`, `=`, `[`, `+`, `-`, `*`, `/`, `~`,
+    // `&`, `|`, `^`, `%`, `!`.
+    final isLetter =
+        (first >= 0x41 && first <= 0x5A) ||
+        (first >= 0x61 && first <= 0x7A) ||
+        first == 0x5F;
+    return !isLetter;
+  }
+
+  String _messageFor(DeclarationRecord declaration) {
+    final qualifier = declaration.enclosingTypeName != null
+        ? '${declaration.enclosingTypeName}.${declaration.name}'
+        : declaration.name;
+    return "Unused public ${declaration.kind.name} '$qualifier'.";
+  }
+
+  Iterable<File> _dartFilesIn(PackageInfo pkg) sync* {
+    for (final sub in ['lib', 'bin', 'test', 'integration_test', 'example']) {
+      final dir = Directory(p.join(pkg.rootPath, sub));
+      if (!dir.existsSync()) continue;
+      for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+        if (entity is! File) continue;
+        if (!entity.path.endsWith('.dart')) continue;
+        // Skip pub workspace build / tool outputs.
+        if (entity.path.contains('${p.separator}.dart_tool${p.separator}')) {
+          continue;
+        }
+        if (entity.path.contains('${p.separator}build${p.separator}')) {
+          continue;
+        }
+        yield entity;
+      }
+    }
+  }
+}

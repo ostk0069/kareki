@@ -1,0 +1,14 @@
+# Don't ship test fixtures in the pub.dev archive — they're for the
+# package's own test runner only and would inflate the download size +
+# trigger import warnings about deps that the fixture's own pubspec
+# declares.
+test/fixtures/
+
+# pub.dev recomputes pubspec.lock per consumer, so omit ours.
+pubspec.lock
+
+# Tool / IDE droppings.
+.dart_tool/
+.github/
+.idea/
+.vscode/

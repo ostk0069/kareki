@@ -1,0 +1,19 @@
+version: 1
+packages:
+  include: ["."]
+exclude:
+  files:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.gr.dart"
+    - "**/*.generated.dart"
+    - "**/l10n*.dart"
+    - "**/*mocks.dart"
+keep_alive_annotations:
+  presets:
+    - riverpod
+    - freezed
+    - auto_route
+    - json_serializable
+output:
+  format: text

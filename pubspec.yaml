@@ -1,0 +1,30 @@
+name: kareki
+description: A multi-package dead code detector for Dart and Flutter monorepos. Finds unused public APIs, files, and pub dependencies across Melos / pub workspaces.
+version: 0.1.0
+repository: https://github.com/ostk0069/kareki
+issue_tracker: https://github.com/ostk0069/kareki/issues
+topics:
+  - dead-code
+  - unused
+  - lint
+  - melos
+  - monorepo
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+dependencies:
+  analyzer: ^9.0.0
+  args: ^2.5.0
+  glob: ^2.1.2
+  path: ^1.9.0
+  pool: ^1.5.1
+  pub_semver: ^2.1.4
+  yaml: ^3.1.2
+
+dev_dependencies:
+  test: ^1.25.0
+  very_good_analysis: ^7.0.0
+
+executables:
+  kareki: kareki
