@@ -121,6 +121,72 @@ void main() {
       expect(ruleIds, {RuleId.unusedFile});
     });
 
+    test('test_only_used: production symbol referenced only by tests', () {
+      final root = _fixture('test_only_used');
+      final result = KarekiRunner().run(
+        RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+      );
+
+      // testOnlyFn lives in lib/ but only test/test_only_test.dart
+      // references it → test_only_used.
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.testOnlyUsed &&
+              f.message.contains("'testOnlyFn'"),
+        ),
+        isTrue,
+        reason: 'testOnlyFn should be flagged as test_only_used',
+      );
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.testOnlyUsed &&
+              f.message.contains("'TestOnlyClass'"),
+        ),
+        isTrue,
+        reason: 'TestOnlyClass should be flagged as test_only_used',
+      );
+
+      // productionFn is referenced from bin/main.dart → not flagged.
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.testOnlyUsed &&
+              f.message.contains("'productionFn'"),
+        ),
+        isFalse,
+        reason: 'productionFn is consumed by production code',
+      );
+
+      // test_only symbols are reachable (from test), so they must NOT be
+      // emitted as plain unused_element.
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.unusedElement &&
+              f.message.contains("'testOnlyFn'"),
+        ),
+        isFalse,
+        reason: 'testOnlyFn is reachable from tests, not unused_element',
+      );
+    });
+
+    test('test_only_used can be disabled via --rule filter', () {
+      final root = _fixture('test_only_used');
+      final result = KarekiRunner().run(
+        RunRequest(
+          rootPath: root,
+          config: KarekiConfig.load(root),
+          enabledRules: {RuleId.unusedElement, RuleId.unusedFile},
+        ),
+      );
+      expect(
+        result.findings.any((f) => f.ruleId == RuleId.testOnlyUsed),
+        isFalse,
+      );
+    });
+
     test('package filter restricts analysis to a single package', () {
       final root = _fixture('multi_package');
       final result = KarekiRunner().run(
