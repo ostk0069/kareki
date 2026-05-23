@@ -1,14 +1,15 @@
 # kareki
 
+<img width="1645" height="496" alt="header image" src="https://github.com/user-attachments/assets/dc3b1903-8ff1-4556-9d4e-ac847e3c8bd0" />
+
 [![pub package](https://img.shields.io/pub/v/kareki.svg)](https://pub.dev/packages/kareki)
 [![CI](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml/badge.svg)](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
-> 枯木 (kareki, German *Totholz*): dead wood — the unused branches that need pruning.
+> 枯木 (kareki): dead wood in Japanese — the unused branches that need pruning.
 
-A multi-package dead-code detector for Dart and Flutter monorepos.
-
-`dart analyze` only flags **private** unused declarations within a single package. `kareki` finds **public** unused APIs, **untouched files**, and **stale pub dependencies** across an entire workspace — Melos or pub workspaces — by resolving cross-package references and respecting the conventions of popular code generators (freezed, json_serializable, riverpod, auto_route, go_router, drift, hive).
+`dart analyze` only flags **private** unused declarations within a single package. `kareki` finds **public** unused APIs, **untouched files**, and **stale pub dependencies** across an entire workspace — Melos or pub workspaces — by resolving cross-package references and respecting the conventions of popular code generators (freezed,
+ json_serializable, riverpod, auto_route, go_router, drift, hive).
 
 ## Features
 
