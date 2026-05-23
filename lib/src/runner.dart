@@ -238,11 +238,17 @@ class KarekiRunner {
         // false positive caused by the simple-name BFS not modeling
         // virtual dispatch.
         var hasReachableOverrideHost = false;
+        var hasProductionReachableOverrideHost = false;
         if (declaration.annotations.contains('override') &&
             enclosingTypeName != null) {
           final enclosing = index.enclosingType(declaration);
-          if (enclosing != null && reachable.contains(enclosing)) {
-            hasReachableOverrideHost = true;
+          if (enclosing != null) {
+            if (reachable.contains(enclosing)) {
+              hasReachableOverrideHost = true;
+            }
+            if (productionReachable.contains(enclosing)) {
+              hasProductionReachableOverrideHost = true;
+            }
           }
         }
 
@@ -270,10 +276,15 @@ class KarekiRunner {
         // production. Only meaningful when the declaration itself
         // lives in production source — flagging test helpers
         // (declared in `test/`) just because they're not used in
-        // production would be noise.
+        // production would be noise. `@override` members of
+        // production-reachable types are excluded for the same
+        // reason as for `unused_element`: virtual dispatch from
+        // production code never appears as a SimpleIdentifier and
+        // would otherwise yield false positives.
         if (testOnlyUsedEnabled &&
             isReachable &&
             !isProductionReachable &&
+            !hasProductionReachableOverrideHost &&
             !isRecordInTestSource(declaration)) {
           if (ignores.contains(RuleId.testOnlyUsed) ||
               ignores.contains(declaration.name)) {
