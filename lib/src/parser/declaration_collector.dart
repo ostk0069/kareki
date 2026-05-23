@@ -487,7 +487,12 @@ class DeclarationCollector {
 
   Set<String> _collectFileIgnores(String content) {
     final names = <String>{};
-    final pattern = RegExp(r'//\s*kareki:\s*ignore_for_file\s*=\s*([\w_,\s]+)');
+    // Capture stays within the comment line: `[\w, \t]+` deliberately
+    // excludes newlines so the match does not swallow blank lines and the
+    // following import statement (which would corrupt the captured rule
+    // names — comma-split would then yield a single token like
+    // `test_only_used\n\nimport 'package`).
+    final pattern = RegExp(r'//\s*kareki:\s*ignore_for_file\s*=\s*([\w, \t]+)');
     for (final match in pattern.allMatches(content)) {
       final values = match.group(1) ?? '';
       for (final raw in values.split(',')) {
