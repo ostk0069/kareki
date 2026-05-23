@@ -172,6 +172,45 @@ void main() {
       );
     });
 
+    test(
+      'test_only_used: @override of a production-reachable type is not flagged',
+      () {
+        final root = _fixture('test_only_used');
+        final result = KarekiRunner().run(
+          RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+        );
+
+        // ProductionHandler is instantiated in bin/main.dart and its
+        // `applyTo` is invoked by name only in test code. Without the
+        // @override exemption applied to test_only_used this would be
+        // flagged; with the exemption it must NOT be.
+        expect(
+          result.findings.any(
+            (f) =>
+                f.ruleId == RuleId.testOnlyUsed &&
+                f.message.contains("'ProductionHandler.applyTo'"),
+          ),
+          isFalse,
+          reason:
+              'ProductionHandler.applyTo is an @override of a '
+              'production-reachable type — virtual dispatch is invisible '
+              'to the simple-name BFS, so the test-only call must not '
+              'cause a false positive.',
+        );
+
+        // It must also not be flagged as unused_element (the existing
+        // @override exemption for unused_element should still hold).
+        expect(
+          result.findings.any(
+            (f) =>
+                f.ruleId == RuleId.unusedElement &&
+                f.message.contains("'ProductionHandler.applyTo'"),
+          ),
+          isFalse,
+        );
+      },
+    );
+
     test('test_only_used can be disabled via --rule filter', () {
       final root = _fixture('test_only_used');
       final result = KarekiRunner().run(
