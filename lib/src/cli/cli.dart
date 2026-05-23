@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
+import 'package:kareki/src/cli/doctor_cli.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/reporter/reporter.dart';
@@ -9,6 +10,13 @@ import 'package:kareki/src/runner.dart';
 
 /// Entry point used by both `bin/kareki.dart` and tests.
 int runCli(List<String> arguments, {required String workingDirectory}) {
+  if (arguments.isNotEmpty && arguments.first == 'doctor') {
+    return runDoctor(
+      arguments.skip(1).toList(),
+      workingDirectory: workingDirectory,
+    );
+  }
+
   final parser = _buildArgParser();
 
   final ArgResults args;

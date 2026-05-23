@@ -1,6 +1,9 @@
-# Only run kareki's own test files (top-level `test/*.dart`).
-# Fixture packages under `test/fixtures/**/test/` contain `*_test.dart`
-# files that exist solely to feed the kareki analyzer as test entry
-# points; they must NOT be executed by `dart test`.
+# Only run kareki's own test files. Fixture packages under
+# `test/fixtures/**/test/` contain `*_test.dart` files that exist solely
+# to feed the kareki analyzer as test entry points; they must NOT be
+# executed by `dart test`.
 paths:
   - test/runner_test.dart
+  - test/parser/
+  - test/doctor/
+  - test/cli/

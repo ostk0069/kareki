@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0
+
+### Added
+
+- New `kareki doctor` subcommand: validates `kareki-config.yaml` against
+  the workspace and reports stale `exclude.files` globs, `ignore.packages`
+  / `ignore.dependencies` entries pointing at packages or deps that no
+  longer exist, and `// kareki: ignore_for_file=<rule>` directives that
+  suppress no actual finding. Only user-supplied entries are checked —
+  built-in defaults are never flagged. `text` and `json` output formats
+  are supported via `--format`.
+
+### Fixed
+
+- `// kareki: ignore_for_file=<rule>` was silently no-op when the
+  directive line was followed by a blank line and an `import` statement
+  (instead of another comment line). The regex used `\s` inside the rule
+  capture, which let `\n` and subsequent source characters bleed into
+  the captured value until a non-`\w`/`\s` character (typically the
+  string quote in the next `import 'package:...';`) was reached;
+  comma-split + trim then produced corrupted tokens that never matched
+  any real rule id. The capture now stops at end-of-line.
+
 ## 0.1.1
 
 ### Added

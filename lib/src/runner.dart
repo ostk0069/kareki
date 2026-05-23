@@ -25,6 +25,7 @@ class RunRequest {
     this.includePackages,
     this.enabledRules,
     this.strictDependencies = false,
+    this.disregardFileLevelIgnores = false,
   });
 
   /// Workspace root used for package discovery, glob matching, and
@@ -46,6 +47,13 @@ class RunRequest {
   /// When `true`, `unused_pub_dependency` also flags entries under
   /// `dev_dependencies:` (default: `false`).
   final bool strictDependencies;
+
+  /// When `true`, `// kareki: ignore_for_file=...` directives are
+  /// **not** applied — findings normally suppressed by the directive
+  /// are emitted as if it were absent. Used by `kareki doctor` to
+  /// figure out which directives actually suppress something and which
+  /// are dead.
+  final bool disregardFileLevelIgnores;
 }
 
 /// Result of one analysis run.
@@ -223,7 +231,9 @@ class KarekiRunner {
           continue;
         }
 
-        final ignores = fileIgnores[declaration.libraryPath] ?? const {};
+        final ignores = request.disregardFileLevelIgnores
+            ? const <String>{}
+            : (fileIgnores[declaration.libraryPath] ?? const {});
         final isReachable =
             reachable.contains(declaration) ||
             entryPoints.allRootNames.contains(declaration.name);
