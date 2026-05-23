@@ -121,6 +121,111 @@ void main() {
       expect(ruleIds, {RuleId.unusedFile});
     });
 
+    test('test_only_used: production symbol referenced only by tests', () {
+      final root = _fixture('test_only_used');
+      final result = KarekiRunner().run(
+        RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+      );
+
+      // testOnlyFn lives in lib/ but only test/test_only_test.dart
+      // references it → test_only_used.
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.testOnlyUsed &&
+              f.message.contains("'testOnlyFn'"),
+        ),
+        isTrue,
+        reason: 'testOnlyFn should be flagged as test_only_used',
+      );
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.testOnlyUsed &&
+              f.message.contains("'TestOnlyClass'"),
+        ),
+        isTrue,
+        reason: 'TestOnlyClass should be flagged as test_only_used',
+      );
+
+      // productionFn is referenced from bin/main.dart → not flagged.
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.testOnlyUsed &&
+              f.message.contains("'productionFn'"),
+        ),
+        isFalse,
+        reason: 'productionFn is consumed by production code',
+      );
+
+      // test_only symbols are reachable (from test), so they must NOT be
+      // emitted as plain unused_element.
+      expect(
+        result.findings.any(
+          (f) =>
+              f.ruleId == RuleId.unusedElement &&
+              f.message.contains("'testOnlyFn'"),
+        ),
+        isFalse,
+        reason: 'testOnlyFn is reachable from tests, not unused_element',
+      );
+    });
+
+    test(
+      'test_only_used: @override of a production-reachable type is not flagged',
+      () {
+        final root = _fixture('test_only_used');
+        final result = KarekiRunner().run(
+          RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+        );
+
+        // ProductionHandler is instantiated in bin/main.dart and its
+        // `applyTo` is invoked by name only in test code. Without the
+        // @override exemption applied to test_only_used this would be
+        // flagged; with the exemption it must NOT be.
+        expect(
+          result.findings.any(
+            (f) =>
+                f.ruleId == RuleId.testOnlyUsed &&
+                f.message.contains("'ProductionHandler.applyTo'"),
+          ),
+          isFalse,
+          reason:
+              'ProductionHandler.applyTo is an @override of a '
+              'production-reachable type — virtual dispatch is invisible '
+              'to the simple-name BFS, so the test-only call must not '
+              'cause a false positive.',
+        );
+
+        // It must also not be flagged as unused_element (the existing
+        // @override exemption for unused_element should still hold).
+        expect(
+          result.findings.any(
+            (f) =>
+                f.ruleId == RuleId.unusedElement &&
+                f.message.contains("'ProductionHandler.applyTo'"),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('test_only_used can be disabled via --rule filter', () {
+      final root = _fixture('test_only_used');
+      final result = KarekiRunner().run(
+        RunRequest(
+          rootPath: root,
+          config: KarekiConfig.load(root),
+          enabledRules: {RuleId.unusedElement, RuleId.unusedFile},
+        ),
+      );
+      expect(
+        result.findings.any((f) => f.ruleId == RuleId.testOnlyUsed),
+        isFalse,
+      );
+    });
+
     test('package filter restricts analysis to a single package', () {
       final root = _fixture('multi_package');
       final result = KarekiRunner().run(

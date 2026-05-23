@@ -24,11 +24,18 @@ class RuleId {
   /// A package declared in `pubspec.yaml` is never imported in source.
   static const String unusedPubDependency = 'unused_pub_dependency';
 
+  /// A production declaration is only reachable from test entry points
+  /// (e.g. `*_test.dart`, files under `test/` or `integration_test/`).
+  /// The declaration exists in `lib/` source but is never consumed by
+  /// production code — its tests are testing something nobody uses.
+  static const String testOnlyUsed = 'test_only_used';
+
   /// The complete set of rule ids emitted by kareki.
   static const Set<String> all = {
     unusedElement,
     unusedFile,
     unusedPubDependency,
+    testOnlyUsed,
   };
 }
 

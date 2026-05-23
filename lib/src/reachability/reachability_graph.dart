@@ -50,9 +50,19 @@ class DeclarationIndex {
 
 /// Computes the set of declarations reachable from a root simple-name set.
 class ReachabilityBfs {
+  /// Performs BFS from [roots] over [index].
+  ///
+  /// When [filter] is provided, declarations for which it returns false
+  /// are NOT visited (they don't enter the reachable set, and their
+  /// outgoing edges are not followed). Used by the `test_only_used`
+  /// rule to compute "reachable from production only" — declarations
+  /// in test source are filtered out so a production root named `main`
+  /// doesn't transitively pull in test-only symbols via the same name
+  /// declared in a test file.
   Set<DeclarationRecord> compute({
     required DeclarationIndex index,
     required Set<String> roots,
+    bool Function(DeclarationRecord declaration)? filter,
   }) {
     final reachableRecords = <DeclarationRecord>{};
     final visitedNames = <String>{};
@@ -63,6 +73,7 @@ class ReachabilityBfs {
       if (!visitedNames.add(name)) continue;
 
       for (final declaration in index.byName(name)) {
+        if (filter != null && !filter(declaration)) continue;
         if (!reachableRecords.add(declaration)) continue;
         // When a member becomes reachable, its enclosing type
         // (class / mixin / extension / enum) is implicitly reachable too:
@@ -71,7 +82,9 @@ class ReachabilityBfs {
         // edge an extension like `BoolExt` whose method `isTruthy` is
         // called via `someBool.isTruthy()` would be reported as unused.
         final enclosing = index.enclosingType(declaration);
-        if (enclosing != null && reachableRecords.add(enclosing)) {
+        if (enclosing != null &&
+            (filter == null || filter(enclosing)) &&
+            reachableRecords.add(enclosing)) {
           for (final next in enclosing.outgoingNames) {
             if (!visitedNames.contains(next)) queue.add(next);
           }

@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.1.1
+
+### Added
+
+- New rule `test_only_used`: flags public declarations under `lib/` that are
+  only reachable from test entry points (`*_test.dart`, `test/`,
+  `integration_test/`). Detects the "code that exists only because its tests
+  exist" anti-pattern that the standard reachability analysis misses because
+  test files are themselves entry points.
+- `EntryPointSet` now exposes `productionRootNames` / `testRootNames` for
+  callers that need to distinguish production vs test consumption.
+- `ReachabilityBfs.compute` accepts an optional `filter` callback so callers
+  can constrain BFS traversal (used by `test_only_used` to keep production
+  BFS from crossing into test source via shared simple names like `main`).
 
 ## 0.1.0
 

@@ -45,16 +45,47 @@ bool _isInTestDir(String path) {
   return _containsSegment(normalized, 'test');
 }
 
+/// Whether [path] belongs to test sources (test/, integration_test/, or
+/// any `*_test.dart` / `flutter_test_config.dart` file). Used to split
+/// entry points into "production" and "test" buckets so the
+/// `test_only_used` rule can flag production declarations that are only
+/// referenced from tests.
+///
+/// [packageRoot] is the absolute path of the file's owning package. It
+/// must be supplied so that the check operates on the path relative to
+/// the package (otherwise an absolute path like
+/// `/.../kareki/test/fixtures/.../lib/foo.dart` would be classified as
+/// test source merely because `test` appears somewhere in the prefix).
+bool isTestSourcePath(String path, {required String packageRoot}) {
+  final base = p.basename(path);
+  if (base == 'flutter_test_config.dart') return true;
+  if (base.endsWith('_test.dart')) return true;
+  final relative = p.relative(path, from: packageRoot).replaceAll(r'\', '/');
+  final segments = relative.split('/');
+  if (segments.contains('test')) return true;
+  if (segments.contains('integration_test')) return true;
+  return false;
+}
+
 /// Result of resolving entry points across a workspace.
 class EntryPointSet {
   EntryPointSet({
-    required this.rootNames,
+    required this.productionRootNames,
+    required this.testRootNames,
     required this.entryPointPaths,
     required this.keepAliveAnnotations,
   });
 
-  /// Simple names that seed the reachability BFS.
-  final Set<String> rootNames;
+  /// Simple names that seed reachability when only production entry
+  /// points (main, bin/, story files, generated code, keep-alive
+  /// annotations, ...) are considered.
+  final Set<String> productionRootNames;
+
+  /// Simple names contributed exclusively by test entry points
+  /// (`*_test.dart`, files under `test/` or `integration_test/`, ...).
+  /// A name appearing here but NOT in [productionRootNames] indicates
+  /// the symbol is consumed only by tests.
+  final Set<String> testRootNames;
 
   /// Files considered entry points (whose declarations are all reachable
   /// AND whose existence prevents `unused_file`).
@@ -62,6 +93,11 @@ class EntryPointSet {
 
   /// All annotation simple names that mark a declaration as keep-alive.
   final Set<String> keepAliveAnnotations;
+
+  /// Union of production and test root names. Used as the BFS seed
+  /// for the standard `unused_element` rule (anything reachable from
+  /// any entry point is considered alive).
+  Set<String> get allRootNames => {...productionRootNames, ...testRootNames};
 }
 
 /// Resolves entry points from configuration, file paths, generated-code
@@ -76,6 +112,7 @@ class EntryPointResolver {
     required Iterable<ParsedFile> files,
     required Iterable<String> generatedFilePaths,
     required String rootPath,
+    required Map<String, String> packageRoots,
     Iterable<String> additionalKeepAlivePaths = const [],
   }) {
     final keepAlivePaths = {...additionalKeepAlivePaths};
@@ -84,7 +121,11 @@ class EntryPointResolver {
       ...config.customKeepAliveAnnotations,
     };
 
-    final rootNames = <String>{...config.entryPointNames};
+    // Names explicitly configured as entry-point roots are considered
+    // production (a user opt-in for "this symbol is consumed by something
+    // external that kareki can't see").
+    final productionRootNames = <String>{...config.entryPointNames};
+    final testRootNames = <String>{};
     final entryPointPaths = <String>{};
 
     final extraGlobs = config.entryPointFiles
@@ -107,12 +148,20 @@ class EntryPointResolver {
           );
       if (isEntry) {
         entryPointPaths.add(file.path);
+        // Symbols declared in test entry points (test helpers / test
+        // bodies themselves) belong to the test bucket; symbols
+        // declared in production entry points (main.dart, story files,
+        // bin/ scripts) belong to production.
+        final pkgRoot = packageRoots[file.packageName] ?? rootPath;
+        final bucket = isTestSourcePath(file.path, packageRoot: pkgRoot)
+            ? testRootNames
+            : productionRootNames;
         for (final declaration in file.declarations) {
-          rootNames.add(declaration.name);
+          bucket.add(declaration.name);
         }
         // `main` is the conventional Dart entry function and any name a
         // top-level `main*` file already exposes is implicitly reachable.
-        rootNames.addAll(file.topLevelIdentifierReferences);
+        bucket.addAll(file.topLevelIdentifierReferences);
       }
     }
 
@@ -125,9 +174,12 @@ class EntryPointResolver {
     //     marker (detected by `ParsedFile.isGeneratedByHeader`).
     // Both are pre-collected in `additionalKeepAlivePaths` by the
     // runner, so no extension list needs to live here.
+    // Generated code is treated as production: codegen output exists
+    // to support production behavior (freezed equality, json
+    // serializers, route tables, etc.).
     for (final file in files) {
       if (keepAlivePaths.contains(file.path)) {
-        rootNames.addAll(file.topLevelIdentifierReferences);
+        productionRootNames.addAll(file.topLevelIdentifierReferences);
       }
     }
     for (final path in generatedFilePaths) {
@@ -135,17 +187,20 @@ class EntryPointResolver {
       entryPointPaths.add(path);
     }
 
-    // Keep-alive annotations contribute declarations as roots.
+    // Keep-alive annotations contribute declarations as production
+    // roots — annotations such as `@RoutePage` / `@Riverpod` signal
+    // framework consumption (production runtime).
     for (final file in files) {
       for (final declaration in file.declarations) {
         if (declaration.annotations.any(keepAliveAnnotations.contains)) {
-          rootNames.add(declaration.name);
+          productionRootNames.add(declaration.name);
         }
       }
     }
 
     return EntryPointSet(
-      rootNames: rootNames,
+      productionRootNames: productionRootNames,
+      testRootNames: testRootNames,
       entryPointPaths: entryPointPaths,
       keepAliveAnnotations: keepAliveAnnotations,
     );

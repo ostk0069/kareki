@@ -141,6 +141,9 @@ class KarekiRunner {
       config: request.config,
       presetRegistry: presetRegistry,
     );
+    final packageRoots = <String, String>{
+      for (final pkg in packages) pkg.name: pkg.rootPath,
+    };
     final entryPoints = entryResolver.resolve(
       files: parsedFiles,
       // Treat every excluded file as "generated" for keep-alive purposes:
@@ -150,6 +153,7 @@ class KarekiRunner {
       generatedFilePaths: generatedPaths,
       additionalKeepAlivePaths: generatedPaths,
       rootPath: request.rootPath,
+      packageRoots: packageRoots,
     );
 
     final declarationFiles = parsedFiles
@@ -158,9 +162,33 @@ class KarekiRunner {
     final index = DeclarationIndex.fromRecords(
       declarationFiles.expand((f) => f.declarations),
     );
-    final reachable = ReachabilityBfs().compute(
+    final bfs = ReachabilityBfs();
+    // BFS from all entry points (production ∪ test). Used by
+    // `unused_element` — anything reachable from any entry point is
+    // alive.
+    final reachable = bfs.compute(
       index: index,
-      roots: entryPoints.rootNames,
+      roots: entryPoints.allRootNames,
+    );
+    // BFS from production entry points only. A declaration reachable
+    // from `reachable` but not from `productionReachable` is consumed
+    // only by tests (`test_only_used`).
+    //
+    // Filter out declarations in test source so that production roots
+    // sharing a simple name with a test declaration (e.g. `main`
+    // declared in both `bin/main.dart` and `test/foo_test.dart`)
+    // don't transitively pull in test-only symbols via the test
+    // declaration's outgoing edges.
+    bool isRecordInTestSource(DeclarationRecord record) {
+      final pkgRoot = packageRoots[record.packageName];
+      if (pkgRoot == null) return false;
+      return isTestSourcePath(record.libraryPath, packageRoot: pkgRoot);
+    }
+
+    final productionReachable = bfs.compute(
+      index: index,
+      roots: entryPoints.productionRootNames,
+      filter: (record) => !isRecordInTestSource(record),
     );
 
     final fileIgnores = <String, Set<String>>{
@@ -169,7 +197,10 @@ class KarekiRunner {
 
     final findings = <Finding>[];
 
-    if (_ruleEnabled(RuleId.unusedElement, request)) {
+    final unusedElementEnabled = _ruleEnabled(RuleId.unusedElement, request);
+    final testOnlyUsedEnabled = _ruleEnabled(RuleId.testOnlyUsed, request);
+
+    if (unusedElementEnabled || testOnlyUsedEnabled) {
       for (final declaration in index.all) {
         if (!declaration.isPublic) continue;
         // Operator methods (`<`, `[]`, `+`, ...) are called via syntactic
@@ -186,42 +217,93 @@ class KarekiRunner {
           continue;
         }
         if (request.config.excludeNames.contains(declaration.name)) continue;
-        if (entryPoints.rootNames.contains(declaration.name)) continue;
         if (declaration.annotations.any(
           entryPoints.keepAliveAnnotations.contains,
         )) {
           continue;
         }
-        if (reachable.contains(declaration)) continue;
+
+        final ignores = fileIgnores[declaration.libraryPath] ?? const {};
+        final isReachable =
+            reachable.contains(declaration) ||
+            entryPoints.allRootNames.contains(declaration.name);
+        final isProductionReachable =
+            productionReachable.contains(declaration) ||
+            entryPoints.productionRootNames.contains(declaration.name);
+
         // `@override` declarations are framework / supertype contract
         // implementations: invoked via dynamic dispatch whenever the
         // enclosing type is reachable (e.g. `CustomPainter.shouldRepaint`,
         // `Widget.build`). Reporting them as unused is almost always a
         // false positive caused by the simple-name BFS not modeling
         // virtual dispatch.
+        var hasReachableOverrideHost = false;
+        var hasProductionReachableOverrideHost = false;
         if (declaration.annotations.contains('override') &&
             enclosingTypeName != null) {
           final enclosing = index.enclosingType(declaration);
-          if (enclosing != null && reachable.contains(enclosing)) continue;
+          if (enclosing != null) {
+            if (reachable.contains(enclosing)) {
+              hasReachableOverrideHost = true;
+            }
+            if (productionReachable.contains(enclosing)) {
+              hasProductionReachableOverrideHost = true;
+            }
+          }
         }
-        final ignores = fileIgnores[declaration.libraryPath] ?? const {};
-        if (ignores.contains(RuleId.unusedElement) ||
-            ignores.contains(declaration.name)) {
+
+        if (unusedElementEnabled && !isReachable && !hasReachableOverrideHost) {
+          if (!ignores.contains(RuleId.unusedElement) &&
+              !ignores.contains(declaration.name)) {
+            findings.add(
+              Finding(
+                ruleId: RuleId.unusedElement,
+                severity: Severity.warning,
+                message: _messageFor(declaration),
+                packageName: declaration.packageName,
+                filePath: declaration.libraryPath,
+                line: declaration.line,
+                column: declaration.column,
+                length: declaration.length,
+                stableId: declaration.stableId,
+              ),
+            );
+          }
           continue;
         }
-        findings.add(
-          Finding(
-            ruleId: RuleId.unusedElement,
-            severity: Severity.warning,
-            message: _messageFor(declaration),
-            packageName: declaration.packageName,
-            filePath: declaration.libraryPath,
-            line: declaration.line,
-            column: declaration.column,
-            length: declaration.length,
-            stableId: declaration.stableId,
-          ),
-        );
+
+        // test_only_used: declaration is reachable, but not from
+        // production. Only meaningful when the declaration itself
+        // lives in production source — flagging test helpers
+        // (declared in `test/`) just because they're not used in
+        // production would be noise. `@override` members of
+        // production-reachable types are excluded for the same
+        // reason as for `unused_element`: virtual dispatch from
+        // production code never appears as a SimpleIdentifier and
+        // would otherwise yield false positives.
+        if (testOnlyUsedEnabled &&
+            isReachable &&
+            !isProductionReachable &&
+            !hasProductionReachableOverrideHost &&
+            !isRecordInTestSource(declaration)) {
+          if (ignores.contains(RuleId.testOnlyUsed) ||
+              ignores.contains(declaration.name)) {
+            continue;
+          }
+          findings.add(
+            Finding(
+              ruleId: RuleId.testOnlyUsed,
+              severity: Severity.warning,
+              message: _testOnlyMessageFor(declaration),
+              packageName: declaration.packageName,
+              filePath: declaration.libraryPath,
+              line: declaration.line,
+              column: declaration.column,
+              length: declaration.length,
+              stableId: declaration.stableId,
+            ),
+          );
+        }
       }
     }
 
@@ -302,6 +384,14 @@ class KarekiRunner {
         ? '${declaration.enclosingTypeName}.${declaration.name}'
         : declaration.name;
     return "Unused public ${declaration.kind.name} '$qualifier'.";
+  }
+
+  String _testOnlyMessageFor(DeclarationRecord declaration) {
+    final qualifier = declaration.enclosingTypeName != null
+        ? '${declaration.enclosingTypeName}.${declaration.name}'
+        : declaration.name;
+    return "Public ${declaration.kind.name} '$qualifier' is only "
+        'referenced from test code.';
   }
 
   Iterable<File> _dartFilesIn(PackageInfo pkg) sync* {
