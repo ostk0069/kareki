@@ -47,8 +47,6 @@ dart pub get
 
 ## Usage
 
-ワークスペースのルートで実行します。
-
 ```sh
 dart run kareki
 ```
