@@ -32,6 +32,7 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 | `unused_file` | `.dart` files that are not `import`-ed, `part`-ed, or `export`-ed from any other file. |
 | `unused_pub_dependency` | Packages declared in `pubspec.yaml` whose imports never appear in source. |
 | `test_only_used` | Public declarations under `lib/` that are only referenced from test code (`*_test.dart`, files under `test/` or `integration_test/`). The implementation has no production consumer — typically its tests are the only thing keeping it alive. |
+| `unused_parameter` | Parameters of a function, method, or named constructor that are never referenced in the body or initializers. Covers required and public-API parameters that Dart's built-in `unused_element_parameter` doesn't reach. |
 
 ## Install
 

@@ -1,0 +1,7 @@
+name: unused_parameter_sample
+description: Fixture for kareki unused_parameter rule.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
