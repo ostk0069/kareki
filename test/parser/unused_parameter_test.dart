@@ -9,9 +9,7 @@ ParsedFile _parse(String source) => DeclarationCollector().collect(
 );
 
 List<String> _unusedParamNames(ParsedFile parsed, String declarationName) {
-  final decl = parsed.declarations.firstWhere(
-    (d) => d.name == declarationName,
-  );
+  final decl = parsed.declarations.firstWhere((d) => d.name == declarationName);
   return decl.unusedParameters.map((p) => p.name).toList();
 }
 
@@ -159,14 +157,14 @@ class Foo {
 }
 ''');
       final ctor = parsed.declarations.firstWhere((d) => d.name == 'tagged');
-      expect(ctor.unusedParameters.map((p) => p.name).toList(), <String>['tag']);
+      expect(ctor.unusedParameters.map((p) => p.name).toList(), <String>[
+        'tag',
+      ]);
     });
 
-    test(
-      'skips bodies that only `throw UnimplementedError(...)` '
-      '(PlatformInterface stub idiom)',
-      () {
-        final parsed = _parse('''
+    test('skips bodies that only `throw UnimplementedError(...)` '
+        '(PlatformInterface stub idiom)', () {
+      final parsed = _parse('''
 abstract class GestureExclusion {
   Future<void> setRects(List<int> rects) {
     throw UnimplementedError('setRects has not been implemented.');
@@ -176,34 +174,27 @@ abstract class GestureExclusion {
       throw UnimplementedError('clear has not been implemented.');
 }
 ''');
-        final setRects = parsed.declarations.firstWhere(
-          (d) => d.name == 'setRects',
-        );
-        final clear = parsed.declarations.firstWhere(
-          (d) => d.name == 'clear',
-        );
-        expect(setRects.unusedParameters, isEmpty);
-        expect(clear.unusedParameters, isEmpty);
-      },
-    );
+      final setRects = parsed.declarations.firstWhere(
+        (d) => d.name == 'setRects',
+      );
+      final clear = parsed.declarations.firstWhere((d) => d.name == 'clear');
+      expect(setRects.unusedParameters, isEmpty);
+      expect(clear.unusedParameters, isEmpty);
+    });
 
-    test(
-      'still flags params when body throws UnimplementedError alongside '
-      'other statements (not a stub)',
-      () {
-        final parsed = _parse('''
+    test('still flags params when body throws UnimplementedError alongside '
+        'other statements (not a stub)', () {
+      final parsed = _parse('''
 void mixed(int used, int unusedX) {
   print(used);
   throw UnimplementedError();
 }
 ''');
-        final decl = parsed.declarations.firstWhere((d) => d.name == 'mixed');
-        expect(
-          decl.unusedParameters.map((p) => p.name).toList(),
-          <String>['unusedX'],
-        );
-      },
-    );
+      final decl = parsed.declarations.firstWhere((d) => d.name == 'mixed');
+      expect(decl.unusedParameters.map((p) => p.name).toList(), <String>[
+        'unusedX',
+      ]);
+    });
 
     test('records line and column of the flagged parameter name', () {
       final parsed = _parse('''

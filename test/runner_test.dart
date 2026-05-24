@@ -226,62 +226,65 @@ void main() {
       );
     });
 
-    test('unused_parameter: flags body-unused parameters and skips exemptions', () {
-      final root = _fixture('unused_parameter');
-      final result = KarekiRunner().run(
-        RunRequest(rootPath: root, config: KarekiConfig.load(root)),
-      );
-
-      final unusedParamMessages = result.findings
-          .where((f) => f.ruleId == RuleId.unusedParameter)
-          .map((f) => f.message)
-          .toList();
-
-      // Each of these must be present.
-      for (final expectedName in [
-        "'unusedOne'",
-        "'unusedTwo'",
-        "'unusedFive'",
-      ]) {
-        expect(
-          unusedParamMessages.any((m) => m.contains(expectedName)),
-          isTrue,
-          reason: '$expectedName should be flagged as unused_parameter',
+    test(
+      'unused_parameter: flags body-unused parameters and skips exemptions',
+      () {
+        final root = _fixture('unused_parameter');
+        final result = KarekiRunner().run(
+          RunRequest(rootPath: root, config: KarekiConfig.load(root)),
         );
-      }
 
-      // None of these must be present.
-      for (final exemptName in [
-        // `_` and `__` placeholders
-        "'_'",
-        "'__'",
-        // abstract method params
-        "'key'",
-        "'value'",
-        // operator
-        "'unusedThree'",
-        // @override
-        "'unusedFour'",
-        // this.x
-        "'width'",
-        "'height'",
-        // used params
-        "'used'",
-        "'a'",
-        "'name'",
-        "'title'",
-        "'raw'",
-        // GestureExclusion.setRects body is only `throw
-        // UnimplementedError(...)` — stub idiom, must not be flagged.
-        "'rects'",
-      ]) {
-        expect(
-          unusedParamMessages.any((m) => m.contains(exemptName)),
-          isFalse,
-          reason: '$exemptName must not be flagged as unused_parameter',
-        );
-      }
-    });
+        final unusedParamMessages = result.findings
+            .where((f) => f.ruleId == RuleId.unusedParameter)
+            .map((f) => f.message)
+            .toList();
+
+        // Each of these must be present.
+        for (final expectedName in [
+          "'unusedOne'",
+          "'unusedTwo'",
+          "'unusedFive'",
+        ]) {
+          expect(
+            unusedParamMessages.any((m) => m.contains(expectedName)),
+            isTrue,
+            reason: '$expectedName should be flagged as unused_parameter',
+          );
+        }
+
+        // None of these must be present.
+        for (final exemptName in [
+          // `_` and `__` placeholders
+          "'_'",
+          "'__'",
+          // abstract method params
+          "'key'",
+          "'value'",
+          // operator
+          "'unusedThree'",
+          // @override
+          "'unusedFour'",
+          // this.x
+          "'width'",
+          "'height'",
+          // used params
+          "'used'",
+          "'a'",
+          "'name'",
+          "'title'",
+          "'raw'",
+          // GestureExclusion.setRects body is only `throw
+          // UnimplementedError(...)` — stub idiom, must not be flagged.
+          "'rects'",
+        ]) {
+          expect(
+            unusedParamMessages.any((m) => m.contains(exemptName)),
+            isFalse,
+            reason: '$exemptName must not be flagged as unused_parameter',
+          );
+        }
+      },
+    );
 
     test('unused_parameter can be disabled via --rule filter', () {
       final root = _fixture('unused_parameter');

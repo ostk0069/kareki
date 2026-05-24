@@ -679,4 +679,3 @@ class _ReferenceVisitor extends RecursiveAstVisitor<void> {
     super.visitNamedType(node);
   }
 }
-
