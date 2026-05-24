@@ -65,7 +65,7 @@ dart run kareki --baseline .kareki-baseline.json --write-baseline
 
 ## Keeping the config honest
 
-ファイルの除外や依存のホワイトリストを書き始めると、対象が動いたり名前が変わったりするうちにリストが腐っていきます。`kareki doctor` は自分の設定の中で死んでいるエントリを検出します。
+ファイル除外や依存のホワイトリストは、ファイルの移動・改名やパッケージの削除によって、いつの間にか何も指していない設定になりがちです。`kareki doctor` は、もう実態とマッチしていない設定エントリを洗い出します。
 
 ```sh
 dart run kareki doctor
