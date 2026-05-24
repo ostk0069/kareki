@@ -10,7 +10,7 @@
 
 > 枯木 (kareki): 剪定が必要な、生命を失った枝。
 
-**Dart / Flutter のワークスペース全体を対象としたデッドコード検出ツール**です。`dart analyze` が単一パッケージ内の private な未使用宣言しか検出しないのに対し、`kareki` は Melos / pub workspace 全体にまたがる参照を解決し、誰にも気づかれないまま溜まっていくデッドコード — 誰も呼んでいない public API、どこからも import されていないファイル、ぶら下がったままの pub 依存 — を洗い出します。
+**Dart / Flutter のワークスペース全体を対象としたデッドコード検出ツール**です。`dart analyze` が単一パッケージ内の private な未使用宣言しか検出しないのに対し、`kareki` は Melos / pub workspace 全体にまたがる参照を解決し、気づかれないまま積もっていくデッドコード — 呼び出し元のない public API、どこからも import されていないファイル、ぶら下がったままの pub 依存 — を洗い出します。
 
 ## kareki を選ぶ理由
 
