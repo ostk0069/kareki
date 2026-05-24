@@ -39,13 +39,8 @@ class Baseline {
   /// Returns the subset of baseline keys that did not match any
   /// finding in [findings]. Used by `kareki doctor` to flag baseline
   /// entries that no longer correspond to a real finding.
-  Set<String> staleKeys(
-    List<Finding> findings, {
-    required String rootPath,
-  }) {
-    final hit = {
-      for (final f in findings) _keyFor(f, rootPath: rootPath),
-    };
+  Set<String> staleKeys(List<Finding> findings, {required String rootPath}) {
+    final hit = {for (final f in findings) _keyFor(f, rootPath: rootPath)};
     return _keys.difference(hit);
   }
 
@@ -59,9 +54,7 @@ class Baseline {
     if (raw.trim().isEmpty) return Baseline._(<String>{});
     final decoded = jsonDecode(raw);
     if (decoded is! Map) {
-      throw FormatException(
-        "Baseline file '$path' is not a JSON object.",
-      );
+      throw FormatException("Baseline file '$path' is not a JSON object.");
     }
     final findings = decoded['findings'];
     if (findings is! List) return Baseline._(<String>{});
@@ -98,11 +91,7 @@ class Baseline {
       if (byRule != 0) return byRule;
       return a['stableId']!.compareTo(b['stableId']!);
     });
-    final payload = {
-      'version': 1,
-      'tool': 'kareki',
-      'findings': entries,
-    };
+    final payload = {'version': 1, 'tool': 'kareki', 'findings': entries};
     final file = File(path);
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(

@@ -328,12 +328,7 @@ class DoctorRunner {
     }
 
     final findings = KarekiRunner()
-        .run(
-          RunRequest(
-            rootPath: request.rootPath,
-            config: request.config,
-          ),
-        )
+        .run(RunRequest(rootPath: request.rootPath, config: request.config))
         .findings;
 
     // Compare against the *unfiltered* finding set, because cli.dart

@@ -235,34 +235,32 @@ version: 1
       expect(dead.first.subject, endsWith('used.dart'));
     });
 
-    test(
-      'flags baseline entries whose stableId is no longer produced by '
-      'any current finding',
-      () {
-        _scaffold(
-          tempRoot.path,
-          packages: {
-            'app': {
-              'pubspec.yaml':
-                  'name: app\n'
-                  'publish_to: none\n'
-                  'environment:\n'
-                  '  sdk: ">=3.6.0 <4.0.0"\n'
-                  'resolution: workspace\n',
-              'lib/main.dart': 'void main() {}\n',
-              // Dead class that will be the live baseline entry.
-              'lib/used.dart': 'class StillDead {}\n',
-            },
+    test('flags baseline entries whose stableId is no longer produced by '
+        'any current finding', () {
+      _scaffold(
+        tempRoot.path,
+        packages: {
+          'app': {
+            'pubspec.yaml':
+                'name: app\n'
+                'publish_to: none\n'
+                'environment:\n'
+                '  sdk: ">=3.6.0 <4.0.0"\n'
+                'resolution: workspace\n',
+            'lib/main.dart': 'void main() {}\n',
+            // Dead class that will be the live baseline entry.
+            'lib/used.dart': 'class StillDead {}\n',
           },
-        );
-        _writeKarekiConfig(tempRoot.path, '''
+        },
+      );
+      _writeKarekiConfig(tempRoot.path, '''
 version: 1
 baseline: .kareki-baseline.json
 ''');
-        // Hand-craft a baseline with one entry that matches the dead
-        // class and one entry that points at a class that no longer
-        // exists.
-        File(p.join(tempRoot.path, '.kareki-baseline.json')).writeAsStringSync('''
+      // Hand-craft a baseline with one entry that matches the dead
+      // class and one entry that points at a class that no longer
+      // exists.
+      File(p.join(tempRoot.path, '.kareki-baseline.json')).writeAsStringSync('''
 {
   "version": 1,
   "tool": "kareki",
@@ -282,15 +280,14 @@ baseline: .kareki-baseline.json
   ]
 }
 ''');
-        final result = DoctorRunner().run(_request(tempRoot.path));
-        final stale = result.findings
-            .where((f) => f.kind == DoctorIssueKind.unusedBaselineEntry)
-            .toList();
-        expect(stale, hasLength(1));
-        expect(stale.single.subject, contains('GhostClass'));
-        expect(stale.single.detail, 'baseline');
-      },
-    );
+      final result = DoctorRunner().run(_request(tempRoot.path));
+      final stale = result.findings
+          .where((f) => f.kind == DoctorIssueKind.unusedBaselineEntry)
+          .toList();
+      expect(stale, hasLength(1));
+      expect(stale.single.subject, contains('GhostClass'));
+      expect(stale.single.detail, 'baseline');
+    });
 
     test('healthy config reports no findings', () {
       _scaffold(

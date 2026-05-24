@@ -7,12 +7,8 @@ import 'package:kareki/src/runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-String _fixture(String name) => p.join(
-  Directory.current.path,
-  'test',
-  'fixtures',
-  name,
-);
+String _fixture(String name) =>
+    p.join(Directory.current.path, 'test', 'fixtures', name);
 
 void main() {
   group('Baseline', () {
