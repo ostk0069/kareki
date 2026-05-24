@@ -78,7 +78,7 @@ dart run kareki doctor
 - [CLI リファレンス](docs/cli.ja.md) — 全オプション、全終了コード
 - [設定](docs/configuration.ja.md) — `kareki-config.yaml`、デフォルト、ビルトインプリセット、カスタムプリセット、抑制、完全な例
 - [Baseline](docs/baseline.ja.md) — 段階的導入
-- [Doctor](docs/doctor.ja.md) — 設定の腐敗検知
+- [Doctor](docs/doctor.ja.md) — 実態とズレた設定を検出
 - [仕組み](docs/how-it-works.ja.md) — 解析パイプライン、エントリポイントの種出し、サポート対象バージョン
 
 ## License
