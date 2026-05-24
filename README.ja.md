@@ -53,7 +53,7 @@ dart pub get
 dart run kareki
 ```
 
-すべてのオプションは [docs/cli.ja.md](docs/cli.ja.md) を参照してください。
+詳細は [docs/cli.ja.md](docs/cli.ja.md)。
 
 ## 既存コードベースへの導入
 
