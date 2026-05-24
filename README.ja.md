@@ -18,7 +18,7 @@
 |---|---|
 | 🌲 | **ワークスペース横断**。Melos / pub workspace 配下の全パッケージにまたがって参照を解決します。 |
 | 🔓 | **public API も対象**。`dart analyze` が見落とす public なクラス・メソッド・フィールドも検出します。 |
-| 🧬 | **コード生成フレンドリー**。freezed / json_serializable / riverpod / auto_route / go_router / drift / hive のプリセットを同梱。 |
+| 🧬 | **コード生成に強い**。freezed / json_serializable / riverpod / auto_route / go_router / drift / hive のプリセットを同梱。 |
 | 🧪 | **`test_only_used`**。`lib/` 配下で、自身のテストからしか使われていないコードを発見します。 |
 | 📉 | **Baseline**。既存コードベースに後付け導入しても、CI が落ちるのは **新規の** 検出のみ。 |
 | 🩺 | **Doctor**。`kareki doctor` が古くなった `ignore` 設定や、もう何も抑制していない suppression コメントを指摘します。 |
