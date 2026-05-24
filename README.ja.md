@@ -85,4 +85,4 @@ dart run kareki doctor
 
 ## License
 
-MIT。詳細は [LICENSE](LICENSE) へ
+MIT. See [LICENSE](LICENSE).
