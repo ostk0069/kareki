@@ -31,7 +31,7 @@
 | `unused_element` | ワークスペース内のどこからも呼ばれていない public なクラス / 関数 / メソッド / getter / setter / フィールド / トップレベル変数 / 拡張 / typedef。 |
 | `unused_file` | 他のどのファイルからも `import` / `part` / `export` されていない `.dart` ファイル。 |
 | `unused_pub_dependency` | `pubspec.yaml` に宣言されているがソース中で一度も import されていない依存パッケージ。 |
-| `test_only_used` | `lib/` 配下で、テストコード（`*_test.dart`、`test/`・`integration_test/` 配下）からのみ参照されている public 宣言。プロダクションコードからの利用はなく、テストだけが延命させている状態。 |
+| `test_only_used` | `lib/` 配下で、テストコード（`*_test.dart`、`test/`・`integration_test/` 配下）からのみ参照されている public 宣言。 |
 
 ## Install
 
