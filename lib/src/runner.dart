@@ -399,8 +399,7 @@ class KarekiRunner {
                 line: param.line,
                 column: param.column,
                 length: param.length,
-                stableId:
-                    '${declaration.stableId}|optparam:${param.name}',
+                stableId: '${declaration.stableId}|optparam:${param.name}',
               ),
             );
           }
@@ -508,9 +507,9 @@ class KarekiRunner {
     final qualifier = enclosing == null
         ? declaration.name
         : enclosing == declaration.name &&
-                declaration.kind == DeclarationKind.constructor
-            ? '$enclosing()'
-            : '$enclosing.${declaration.name}';
+              declaration.kind == DeclarationKind.constructor
+        ? '$enclosing()'
+        : '$enclosing.${declaration.name}';
     return "Optional parameter '${parameter.name}' of '$qualifier' is "
         'never passed at any call site.';
   }

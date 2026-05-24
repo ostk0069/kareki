@@ -23,7 +23,9 @@ class HttpClient {
 
 class Service {
   // Named constructor with two optional named params; one passed, one not.
-  Service.create({String? tag, String? unusedTag}) : _tag = tag, _unusedTag = unusedTag;
+  Service.create({String? tag, String? unusedTag})
+    : _tag = tag,
+      _unusedTag = unusedTag;
 
   final String? _tag;
   final String? _unusedTag;
@@ -43,8 +45,9 @@ class Concrete extends Base {
   }
 }
 
-// `_` placeholder convention: must not be flagged.
-void onCallback({int? _}) {
+// `_` placeholder convention: must not be flagged. Modern Dart
+// disallows named `_`, so we exercise the positional-optional form.
+void onCallback([int? _]) {
   print('cb');
 }
 

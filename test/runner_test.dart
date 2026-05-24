@@ -301,71 +301,68 @@ void main() {
       );
     });
 
-    test(
-      'unused_parameter_optional: flags optional params never passed at any '
-      'call site and skips exemptions',
-      () {
-        final root = _fixture('unused_parameter_optional');
-        final result = KarekiRunner().run(
-          RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+    test('unused_parameter_optional: flags optional params never passed at any '
+        'call site and skips exemptions', () {
+      final root = _fixture('unused_parameter_optional');
+      final result = KarekiRunner().run(
+        RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+      );
+
+      final optionalMessages = result.findings
+          .where((f) => f.ruleId == RuleId.unusedParameterOptional)
+          .map((f) => f.message)
+          .toList();
+
+      // Each of these must be present.
+      for (final expectedName in [
+        // `port`: passed by no call site of `buildUrl`.
+        "'port'",
+        // `extra`: optional positional index 1 of `formatNumber`,
+        // never reached.
+        "'extra'",
+        // `retryCount`: passed by no call site of `send`.
+        "'retryCount'",
+        // `endpoint`: unnamed `HttpClient` constructor's optional named
+        // param, never passed.
+        "'endpoint'",
+        // `unusedTag`: optional named param of `Service.create`,
+        // never passed.
+        "'unusedTag'",
+      ]) {
+        expect(
+          optionalMessages.any((m) => m.contains(expectedName)),
+          isTrue,
+          reason:
+              '$expectedName should be flagged as '
+              'unused_parameter_optional',
         );
+      }
 
-        final optionalMessages = result.findings
-            .where((f) => f.ruleId == RuleId.unusedParameterOptional)
-            .map((f) => f.message)
-            .toList();
-
-        // Each of these must be present.
-        for (final expectedName in [
-          // `port`: passed by no call site of `buildUrl`.
-          "'port'",
-          // `extra`: optional positional index 1 of `formatNumber`,
-          // never reached.
-          "'extra'",
-          // `retryCount`: passed by no call site of `send`.
-          "'retryCount'",
-          // `endpoint`: unnamed `HttpClient` constructor's optional named
-          // param, never passed.
-          "'endpoint'",
-          // `unusedTag`: optional named param of `Service.create`,
-          // never passed.
-          "'unusedTag'",
-        ]) {
-          expect(
-            optionalMessages.any((m) => m.contains(expectedName)),
-            isTrue,
-            reason:
-                '$expectedName should be flagged as '
-                'unused_parameter_optional',
-          );
-        }
-
-        // None of these must be present.
-        for (final exemptName in [
-          // `_` placeholder
-          "'_'",
-          // abstract method param
-          "'unusedAbstractParam'",
-          // this.x / this.y
-          "'width'",
-          "'height'",
-          // passed params
-          "'host'",
-          "'timeout'",
-          "'tag'",
-          // Platform.open is a stub idiom — must not be flagged.
-          "'url'",
-        ]) {
-          expect(
-            optionalMessages.any((m) => m.contains(exemptName)),
-            isFalse,
-            reason:
-                '$exemptName must not be flagged as '
-                'unused_parameter_optional',
-          );
-        }
-      },
-    );
+      // None of these must be present.
+      for (final exemptName in [
+        // `_` placeholder
+        "'_'",
+        // abstract method param
+        "'unusedAbstractParam'",
+        // this.x / this.y
+        "'width'",
+        "'height'",
+        // passed params
+        "'host'",
+        "'timeout'",
+        "'tag'",
+        // Platform.open is a stub idiom — must not be flagged.
+        "'url'",
+      ]) {
+        expect(
+          optionalMessages.any((m) => m.contains(exemptName)),
+          isFalse,
+          reason:
+              '$exemptName must not be flagged as '
+              'unused_parameter_optional',
+        );
+      }
+    });
 
     test('unused_parameter_optional can be disabled via --rule filter', () {
       final root = _fixture('unused_parameter_optional');
@@ -377,9 +374,7 @@ void main() {
         ),
       );
       expect(
-        result.findings.any(
-          (f) => f.ruleId == RuleId.unusedParameterOptional,
-        ),
+        result.findings.any((f) => f.ruleId == RuleId.unusedParameterOptional),
         isFalse,
       );
     });

@@ -9,9 +9,7 @@ ParsedFile _parse(String source) => DeclarationCollector().collect(
 );
 
 List<String> _optionalNames(ParsedFile parsed, String declarationName) {
-  final decl = parsed.declarations.firstWhere(
-    (d) => d.name == declarationName,
-  );
+  final decl = parsed.declarations.firstWhere((d) => d.name == declarationName);
   return decl.optionalParameters.map((p) => p.name).toList();
 }
 
@@ -53,9 +51,10 @@ String fmt(int required, [int? second, int? third]) {
       expect(third.positionalIndex, 2);
     });
 
-    test('skips `this.x` and `super.x` optional params (field/super formal)',
-        () {
-      final parsed = _parse('''
+    test(
+      'skips `this.x` and `super.x` optional params (field/super formal)',
+      () {
+        final parsed = _parse('''
 class Box {
   final int width;
   final int height;
@@ -66,19 +65,18 @@ class Child extends Box {
   Child({super.width, super.height});
 }
 ''');
-      // Both unnamed constructors are emitted under the class's simple
-      // name. Neither should record `this.x` / `super.x` as optional.
-      final box = parsed.declarations.firstWhere(
-        (d) =>
-            d.kind == DeclarationKind.constructor && d.name == 'Box',
-      );
-      expect(box.optionalParameters, isEmpty);
-      final child = parsed.declarations.firstWhere(
-        (d) =>
-            d.kind == DeclarationKind.constructor && d.name == 'Child',
-      );
-      expect(child.optionalParameters, isEmpty);
-    });
+        // Both unnamed constructors are emitted under the class's simple
+        // name. Neither should record `this.x` / `super.x` as optional.
+        final box = parsed.declarations.firstWhere(
+          (d) => d.kind == DeclarationKind.constructor && d.name == 'Box',
+        );
+        expect(box.optionalParameters, isEmpty);
+        final child = parsed.declarations.firstWhere(
+          (d) => d.kind == DeclarationKind.constructor && d.name == 'Child',
+        );
+        expect(child.optionalParameters, isEmpty);
+      },
+    );
 
     test('skips `@override` callables (signature is contractual)', () {
       final parsed = _parse('''
@@ -119,13 +117,9 @@ class Service {
 }
 ''');
       final ctor = parsed.declarations.firstWhere(
-        (d) =>
-            d.kind == DeclarationKind.constructor &&
-            d.name == 'Service',
+        (d) => d.kind == DeclarationKind.constructor && d.name == 'Service',
       );
-      expect(ctor.optionalParameters.map((p) => p.name).toList(), [
-        'endpoint',
-      ]);
+      expect(ctor.optionalParameters.map((p) => p.name).toList(), ['endpoint']);
       // unnamed constructors deliberately leave `unusedParameters`
       // empty to preserve the previous `unused_parameter` scope.
       expect(ctor.unusedParameters, isEmpty);
