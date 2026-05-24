@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:glob/glob.dart';
+import 'package:kareki/src/baseline/baseline.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/doctor/doctor_finding.dart';
 import 'package:kareki/src/model/package_info.dart';
@@ -128,6 +129,7 @@ class DoctorRunner {
     findings.addAll(_findDeadIgnorePackages(user, workspacePackageNames));
     findings.addAll(_findDeadIgnoreDependencies(user, allPackages));
     findings.addAll(_findUnusedIgnoreDirectives(request, analyzedPackages));
+    findings.addAll(_findStaleBaselineEntries(request));
 
     findings.sort((a, b) {
       final byKind = a.kind.compareTo(b.kind);
@@ -302,6 +304,53 @@ class DoctorRunner {
           );
         }
       }
+    }
+  }
+
+  Iterable<DoctorFinding> _findStaleBaselineEntries(
+    DoctorRequest request,
+  ) sync* {
+    final baselinePath = request.config.baselinePath;
+    if (baselinePath == null || baselinePath.isEmpty) return;
+    final absPath = p.isAbsolute(baselinePath)
+        ? baselinePath
+        : p.normalize(p.join(request.rootPath, baselinePath));
+    if (!File(absPath).existsSync()) return;
+    final Baseline baseline;
+    try {
+      final loaded = Baseline.load(absPath);
+      if (loaded == null) return;
+      baseline = loaded;
+    } on FormatException {
+      // Malformed baseline is surfaced by the main runner; doctor stays
+      // silent to avoid duplicate error spam.
+      return;
+    }
+
+    final findings = KarekiRunner()
+        .run(
+          RunRequest(
+            rootPath: request.rootPath,
+            config: request.config,
+          ),
+        )
+        .findings;
+
+    // Compare against the *unfiltered* finding set, because cli.dart
+    // already subtracts the baseline before reporting. Re-running here
+    // with the baseline applied would hide every real finding and make
+    // every baseline entry look stale.
+    final stale = baseline.staleKeys(findings, rootPath: request.rootPath);
+    if (stale.isEmpty) return;
+
+    // Stable display order: sort by the raw key string.
+    final sorted = stale.toList()..sort();
+    for (final key in sorted) {
+      yield DoctorFinding(
+        kind: DoctorIssueKind.unusedBaselineEntry,
+        subject: key,
+        detail: 'baseline',
+      );
     }
   }
 

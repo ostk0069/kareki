@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0
+
+### Added
+
+- Baseline support — adopt kareki on an existing codebase without first
+  resolving every finding. `dart run kareki --baseline <path>
+  --write-baseline` snapshots the current findings to a JSON file;
+  subsequent runs that point at the same baseline (either via
+  `--baseline` or `baseline:` in `kareki-config.yaml`) suppress those
+  findings from the output and the exit code, while any new finding
+  still fails the run. The baseline file uses a `<root>/` placeholder
+  for the workspace path embedded in each `stableId`, so it is portable
+  across machines and CI checkouts. Entries are sorted by
+  `(ruleId, stableId)` for clean diffs.
+- `kareki doctor` now reports `unused-baseline-entry` for any baseline
+  entry whose `(ruleId, stableId)` no longer matches a current finding
+  — the suppressed dead code has been deleted or relocated and the
+  baseline is ready to be regenerated.
+
 ## 0.2.0
 
 ### Added
