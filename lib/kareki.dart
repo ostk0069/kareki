@@ -35,6 +35,7 @@
 /// | [PackageInfo] | Metadata for a discovered pub package. |
 library;
 
+export 'src/baseline/baseline.dart';
 export 'src/config/kareki_config.dart';
 export 'src/model/declaration.dart';
 export 'src/model/finding.dart';

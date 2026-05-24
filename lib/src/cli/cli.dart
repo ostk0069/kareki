@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
+import 'package:kareki/src/baseline/baseline.dart';
 import 'package:kareki/src/cli/doctor_cli.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/reporter/reporter.dart';
 import 'package:kareki/src/runner.dart';
+import 'package:path/path.dart' as p;
 
 /// Entry point used by both `bin/kareki.dart` and tests.
 int runCli(List<String> arguments, {required String workingDirectory}) {
@@ -65,18 +67,78 @@ int runCli(List<String> arguments, {required String workingDirectory}) {
   );
 
   final result = KarekiRunner().run(request);
+
+  final baselineOverride = args['baseline'] as String?;
+  final baselinePath = _resolveBaselinePath(
+    rootPath: rootPath,
+    configured: config.baselinePath,
+    override: baselineOverride,
+  );
+
+  if (args['write-baseline'] as bool) {
+    if (baselinePath == null) {
+      stderr.writeln(
+        'kareki: --write-baseline requires either --baseline <path> '
+        'or `baseline:` in kareki-config.yaml.',
+      );
+      return 64;
+    }
+    Baseline.write(baselinePath, result.findings, rootPath: rootPath);
+    final rel = p.relative(baselinePath, from: rootPath);
+    stderr.writeln(
+      'kareki: wrote ${result.findings.length} finding(s) to $rel.',
+    );
+    return 0;
+  }
+
+  var findings = result.findings;
+  var suppressed = 0;
+  if (baselinePath != null) {
+    final Baseline? baseline;
+    try {
+      baseline = Baseline.load(baselinePath);
+    } on FormatException catch (e) {
+      stderr.writeln('kareki: ${e.message}');
+      return 64;
+    }
+    if (baseline != null) {
+      final kept = <Finding>[];
+      for (final f in findings) {
+        if (baseline.contains(f, rootPath: rootPath)) {
+          suppressed++;
+        } else {
+          kept.add(f);
+        }
+      }
+      findings = kept;
+    }
+  }
+
   final reporter = _reporterFor(format);
-  stdout.writeln(reporter.render(result.findings, rootPath: rootPath));
+  stdout.writeln(reporter.render(findings, rootPath: rootPath));
 
   if (format == OutputFormat.text) {
+    final suppressedNote = suppressed > 0
+        ? ' ($suppressed suppressed by baseline)'
+        : '';
     stderr.writeln(
       'kareki: analyzed ${result.filesAnalyzed} file(s) across '
       '${result.packagesAnalyzed} package(s) in '
-      '${result.elapsed.inMilliseconds}ms.',
+      '${result.elapsed.inMilliseconds}ms$suppressedNote.',
     );
   }
 
-  return result.findings.isEmpty ? 0 : 1;
+  return findings.isEmpty ? 0 : 1;
+}
+
+String? _resolveBaselinePath({
+  required String rootPath,
+  required String? configured,
+  required String? override,
+}) {
+  final raw = override ?? configured;
+  if (raw == null || raw.isEmpty) return null;
+  return p.isAbsolute(raw) ? raw : p.normalize(p.join(rootPath, raw));
 }
 
 OutputFormat? _parseFormat(String name) {
@@ -131,6 +193,20 @@ ArgParser _buildArgParser() {
       help:
           'Treat dev_dependencies the same as dependencies '
           'for unused_pub_dependency.',
+      negatable: false,
+    )
+    ..addOption(
+      'baseline',
+      help:
+          'Path to a baseline file. Findings present in the baseline '
+          'are suppressed from output. Overrides `baseline:` in '
+          'kareki-config.yaml.',
+    )
+    ..addFlag(
+      'write-baseline',
+      help:
+          'Write the current findings to the baseline file and exit. '
+          'Requires --baseline <path> or `baseline:` in config.',
       negatable: false,
     )
     ..addFlag(

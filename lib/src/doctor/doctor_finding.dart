@@ -34,4 +34,10 @@ abstract final class DoctorIssueKind {
   /// `// kareki: ignore_for_file=<rule>` with no matching finding from
   /// the corresponding rule.
   static const String unusedIgnoreDirective = 'unused-ignore-directive';
+
+  /// Entry in the baseline file whose `(ruleId, stableId)` no longer
+  /// matches any current finding. The dead code it suppressed has
+  /// either been deleted or moved to a new location with a different
+  /// `stableId`; re-run with `--write-baseline` to clean up.
+  static const String unusedBaselineEntry = 'unused-baseline-entry';
 }

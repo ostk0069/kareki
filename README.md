@@ -49,6 +49,8 @@ dart run kareki
 | `--packages <name>` | Restrict analysis to these packages. Repeatable. |
 | `--rule <id>` | Enable only these rules. Repeatable. |
 | `--strict` | Treat `dev_dependencies` the same as `dependencies` for `unused_pub_dependency`. |
+| `--baseline <path>` | Path to a baseline file. Findings present in the baseline are hidden from output. Overrides `baseline:` in `kareki-config.yaml`. |
+| `--write-baseline` | Write the current findings to the baseline file and exit. Requires `--baseline <path>` or `baseline:` in config. |
 | `-h`, `--help` | Show usage. |
 
 ### Exit codes
@@ -76,7 +78,7 @@ dart run kareki
 | `sdk_packages` | list | Packages never flagged as `unused_pub_dependency` (SDK-provided). |
 | `ignore` | map | Global / per-package suppressions. |
 | `output.format` | `text` \| `json` | Default report format. |
-| `baseline` | path | Path to a baseline file (planned). |
+| `baseline` | path | Path to a baseline file (relative to the workspace root). Findings recorded here are suppressed from output. |
 
 ### Defaults
 
@@ -191,6 +193,22 @@ output:
   format: text
 ```
 
+## Baseline
+
+A baseline lets you adopt kareki on a large codebase without first deleting every existing finding: snapshot the current state, commit the snapshot, and the CI only fails on **new** findings going forward.
+
+Generate the baseline from a clean working tree:
+
+```sh
+dart run kareki --baseline .kareki-baseline.json --write-baseline
+```
+
+This writes every current finding to `.kareki-baseline.json`. Commit the file. Subsequent runs that point at the same baseline (either via `--baseline` or `baseline: .kareki-baseline.json` in `kareki-config.yaml`) suppress matching findings from the output and the exit code, while any new finding still fails the run.
+
+The file is sorted by `(ruleId, stableId)` so it produces clean diffs, and absolute workspace paths embedded in `stableId` are replaced with `<root>/` so the baseline is portable across machines and CI checkouts.
+
+To shrink the baseline as findings get fixed, just regenerate it: `dart run kareki --write-baseline`.
+
 ## Doctor
 
 `kareki doctor` validates `kareki-config.yaml` against the actual state of your workspace. It surfaces configuration that no longer matches reality — globs that match no file, `ignore.*` entries pointing at packages or dependencies that have been removed, and file-level `// kareki: ignore_for_file=...` directives that suppress nothing.
@@ -206,6 +224,7 @@ dart run kareki doctor
 | `unused-ignore-dependencies-package` | A key in `ignore.dependencies` is not a package in the workspace. |
 | `unused-ignore-dependency` | A value listed under `ignore.dependencies.<pkg>` is not declared in that package's `pubspec.yaml`. |
 | `unused-ignore-directive` | A `// kareki: ignore_for_file=<rule>` directive suppresses no actual finding from that file. |
+| `unused-baseline-entry` | An entry in the baseline file no longer matches any current finding — the suppressed dead code has been removed or relocated. |
 
 Only **user-supplied** entries are checked. Built-in defaults (e.g. the bundled `**/*.g.dart` exclude) are never flagged.
 
