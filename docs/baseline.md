@@ -1,5 +1,7 @@
 # Baseline
 
+**English** | [日本語](baseline.ja.md)
+
 A baseline lets you adopt kareki on a large codebase without first deleting every existing finding: snapshot the current state, commit the snapshot, and the CI only fails on **new** findings going forward.
 
 Generate the baseline from a clean working tree:

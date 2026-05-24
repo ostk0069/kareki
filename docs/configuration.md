@@ -1,5 +1,7 @@
 # Configuration
 
+**English** | [日本語](configuration.ja.md)
+
 `kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional — defaults work out of the box.
 
 ## Top-level schema

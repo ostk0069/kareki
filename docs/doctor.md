@@ -1,5 +1,7 @@
 # Doctor
 
+**English** | [日本語](doctor.ja.md)
+
 `kareki doctor` validates `kareki-config.yaml` against the actual state of your workspace. It surfaces configuration that no longer matches reality — globs that match no file, `ignore.*` entries pointing at packages or dependencies that have been removed, and file-level `// kareki: ignore_for_file=...` directives that suppress nothing.
 
 ```sh

@@ -1,5 +1,7 @@
 # kareki
 
+**English** | [日本語](README.ja.md)
+
 <img width="1645" height="496" alt="header image" src="https://github.com/user-attachments/assets/dc3b1903-8ff1-4556-9d4e-ac847e3c8bd0" />
 
 [![pub package](https://img.shields.io/pub/v/kareki.svg)](https://pub.dev/packages/kareki)
