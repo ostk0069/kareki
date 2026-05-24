@@ -1,10 +1,10 @@
-# 設定
+# Configuration
 
 [English](configuration.md) | **日本語**
 
 `kareki` はワークスペースのルートにある `kareki-config.yaml` を読み込みます。すべてのキーは省略可能で、デフォルトのままでも動作します。
 
-## トップレベルのスキーマ
+## Top-level schema
 
 | キー | 型 | 用途 |
 |---|---|---|
@@ -19,7 +19,7 @@
 | `output.format` | `text` \| `json` | デフォルトのレポート形式。 |
 | `baseline` | path | baseline ファイルのパス（ワークスペースルートからの相対）。記録された検出は出力から抑制されます。 |
 
-## デフォルト
+## Defaults
 
 | 設定項目 | ビルトインの値 |
 |---|---|
@@ -30,7 +30,7 @@
 | 暗黙のエントリポイント規約 | `main.dart` / `main_*.dart`、`flutter_test_config.dart`、`*_test.dart`（`test/` 配下）、`bin/`・`integration_test/`・`lib/l10n/` 配下の全ファイル、`test/` 配下で `void main()` を宣言しているファイル |
 | 生成ファイル判定（中身） | 先頭行に `GENERATED CODE - DO NOT MODIFY BY HAND` または `AUTO-GENERATED FILE. DO NOT EDIT` を含む |
 
-## ビルトインプリセット
+## Built-in presets
 
 | プリセット | keep-alive アノテーション | 暗黙的に必要となる pub パッケージ |
 |---|---|---|
@@ -45,7 +45,7 @@
 
 定義は [`lib/src/preset/builtin_presets.dart`](../lib/src/preset/builtin_presets.dart) にあり、各エントリには検証済みフレームワークバージョン（`last_verified`）が記録されています。
 
-## プリセットの追加・上書き
+## Defining or overriding a preset
 
 ```yaml
 custom_presets:
@@ -66,7 +66,7 @@ custom_presets:
 
 `custom_presets.<name>` がビルトインと同じ名前のとき、ビルトインは **完全に置き換え** られます。アノテーション名が kareki のデフォルトと乖離した特定のフレームワークバージョンに固定したい場合に有用です。
 
-## 抑制 (Suppression)
+## Suppression
 
 ### ファイル単位（インライン）
 
@@ -97,7 +97,7 @@ ignore:
   rules: [unused_pub_dependency]
 ```
 
-## 完全な例
+## Full example
 
 ```yaml
 version: 1

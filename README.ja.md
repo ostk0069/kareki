@@ -12,7 +12,7 @@
 
 **Dart / Flutter のワークスペース全体を対象としたデッドコード検出ツール**です。`dart analyze` が単一パッケージ内の private な未使用宣言しか検出しないのに対し、`kareki` は Melos / pub workspace 全体にまたがる参照を解決し、気づかれないまま積もっていくデッドコード — 呼び出し元のない public API、どこからも import されていないファイル、宣言だけ残った pub 依存 — を洗い出します。
 
-## kareki を選ぶ理由
+## Why kareki?
 
 |  | 提供する価値 |
 |---|---|
@@ -24,7 +24,7 @@
 | 🩺 | **Doctor**。`kareki doctor` が古くなった `ignore` 設定や、もう何も抑制していない suppression コメントを指摘します。 |
 | ⚙️ | **CI 対応**。JSON 出力、決定的な終了コード、環境に依存しない baseline。 |
 
-## 検出ルール
+## What it finds
 
 | ルール | 検出対象 |
 |---|---|
@@ -33,7 +33,7 @@
 | `unused_pub_dependency` | `pubspec.yaml` に宣言されているがソース中で一度も import されていない依存パッケージ。 |
 | `test_only_used` | `lib/` 配下で、テストコード（`*_test.dart`、`test/`・`integration_test/` 配下）からのみ参照されている public 宣言。プロダクションコードからの利用はなく、テストだけが延命させている状態。 |
 
-## インストール
+## Install
 
 ```yaml
 # pubspec.yaml
@@ -45,7 +45,7 @@ dev_dependencies:
 dart pub get
 ```
 
-## 使い方
+## Usage
 
 ワークスペースのルートで実行します。
 
@@ -55,7 +55,7 @@ dart run kareki
 
 詳細は [docs/cli.ja.md](docs/cli.ja.md) へ
 
-## 既存コードベースへの導入
+## Adopting on an existing codebase
 
 CI に組み込む前に全件修正しようとする必要はありません。現状をスナップショットしてコミットし、以降は **新規の** デッドコードだけで CI を落とすようにします。
 
@@ -65,7 +65,7 @@ dart run kareki --baseline .kareki-baseline.json --write-baseline
 
 詳細は [docs/baseline.ja.md](docs/baseline.ja.md) へ
 
-## 設定を健全に保つ
+## Keeping the config honest
 
 ファイルの除外や依存のホワイトリストを書き始めると、対象が動いたり名前が変わったりするうちにリストが腐っていきます。`kareki doctor` は自分の設定の中で死んでいるエントリを検出します。
 
@@ -75,7 +75,7 @@ dart run kareki doctor
 
 詳細は [docs/doctor.ja.md](docs/doctor.ja.md) へ
 
-## ドキュメント
+## Documentation
 
 - [CLI リファレンス](docs/cli.ja.md) — 全オプション、全終了コード
 - [設定](docs/configuration.ja.md) — `kareki-config.yaml`、デフォルト、ビルトインプリセット、カスタムプリセット、抑制、完全な例
@@ -83,6 +83,6 @@ dart run kareki doctor
 - [Doctor](docs/doctor.ja.md) — 設定の腐敗検知
 - [仕組み](docs/how-it-works.ja.md) — 解析パイプライン、エントリポイントの種出し、サポート対象バージョン
 
-## ライセンス
+## License
 
 MIT。詳細は [LICENSE](LICENSE) へ

@@ -1,4 +1,4 @@
-# CLI リファレンス
+# CLI reference
 
 [English](cli.md) | **日本語**
 
@@ -8,7 +8,7 @@
 dart run kareki
 ```
 
-## オプション
+## Options
 
 | オプション | 説明 |
 |---|---|
@@ -21,7 +21,7 @@ dart run kareki
 | `--write-baseline` | 現在の検出結果を baseline ファイルに書き出して終了。`--baseline <path>` または config の `baseline:` 指定が必要です。 |
 | `-h`, `--help` | 使い方を表示。 |
 
-## 終了コード
+## Exit codes
 
 | コード | 意味 |
 |---|---|
