@@ -35,6 +35,64 @@ class ParameterRecord {
   final int offset;
 }
 
+/// An optional parameter declared by a callable, tracked regardless of
+/// whether it is referenced in the body. Populated by
+/// [DeclarationCollector] and consumed by the runner's
+/// `unused_parameter_optional` rule, which flags entries for which no
+/// call site in the workspace passes a value.
+class OptionalParameterRecord {
+  OptionalParameterRecord({
+    required this.name,
+    required this.line,
+    required this.column,
+    required this.length,
+    required this.offset,
+    required this.isNamed,
+    this.positionalIndex,
+  });
+
+  final String name;
+  final int line;
+  final int column;
+  final int length;
+  final int offset;
+
+  /// `true` for named optional parameters (`{...}`). `false` for
+  /// positional optional parameters (`[...]`).
+  final bool isNamed;
+
+  /// 0-based index into the full positional parameter list. `null` for
+  /// named parameters. Used to compare against the maximum positional
+  /// argument count observed at any call site.
+  final int? positionalIndex;
+}
+
+/// Argument usage observed at all call sites of a single simple name,
+/// aggregated across the workspace. Used to drive the
+/// `unused_parameter_optional` rule.
+class CallSiteUsage {
+  CallSiteUsage();
+
+  /// Named argument labels observed at any call site.
+  final Set<String> namedArgsPassed = <String>{};
+
+  /// Highest positional argument count observed at any call site
+  /// (excluding named arguments).
+  int maxPositionalArgs = 0;
+
+  void mergeNamed(String name) => namedArgsPassed.add(name);
+  void mergePositional(int count) {
+    if (count > maxPositionalArgs) maxPositionalArgs = count;
+  }
+
+  void mergeFrom(CallSiteUsage other) {
+    namedArgsPassed.addAll(other.namedArgsPassed);
+    if (other.maxPositionalArgs > maxPositionalArgs) {
+      maxPositionalArgs = other.maxPositionalArgs;
+    }
+  }
+}
+
 /// A single declaration extracted from a Dart source file.
 ///
 /// Holds the metadata needed to:
@@ -58,6 +116,7 @@ class DeclarationRecord {
     required this.annotations,
     this.enclosingTypeName,
     this.unusedParameters = const [],
+    this.optionalParameters = const [],
   });
 
   /// The simple name (no library prefix) of the declaration.
@@ -97,6 +156,13 @@ class DeclarationRecord {
   /// `unused_parameter` analysis (overrides, abstract / external / native
   /// bodies, operators).
   final List<ParameterRecord> unusedParameters;
+
+  /// All optional parameters declared by this callable (named and
+  /// positional), regardless of whether their bodies use them. Empty
+  /// for non-callable kinds and for callables intentionally excluded
+  /// from the `unused_parameter_optional` analysis (overrides, abstract
+  /// / external / native bodies, operators, `UnimplementedError` stubs).
+  final List<OptionalParameterRecord> optionalParameters;
 
   /// A stable identifier suitable for baseline diffing and SARIF
   /// `partialFingerprints`.

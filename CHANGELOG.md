@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.1
+
+### Added
+
+- New rule `unused_parameter_optional`: flags optional parameters
+  (named or positional optional) of a function, method, or
+  constructor that are never passed by any call site in the workspace.
+  This is the public / cross-package counterpart to Dart's built-in
+  `unused_element_parameter`, which only inspects private optional
+  parameters within a single library. Detection is based on
+  simple-name call-site aggregation across every parsed file
+  (generated files included as legitimate consumers). Inherits the
+  same exemptions as `unused_parameter` — `@override`, abstract /
+  external / native / `UnimplementedError` stub bodies, operators,
+  `this.x` / `super.x`, the `_` / `__` placeholder convention, and
+  any declaration kept alive by a configured keep-alive annotation.
+  Suppress per file with
+  `// kareki: ignore_for_file=unused_parameter_optional` or globally
+  via `ignore.rules:` in `kareki-config.yaml`.
+
 ## 0.4.0
 
 ### Added
