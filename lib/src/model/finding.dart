@@ -30,12 +30,21 @@ class RuleId {
   /// production code — its tests are testing something nobody uses.
   static const String testOnlyUsed = 'test_only_used';
 
+  /// A parameter is declared by a function / method / named constructor
+  /// but never referenced inside its body or initializers. Complements
+  /// Dart's built-in `unused_element_parameter`, which only flags
+  /// private optional parameters never passed at a call site — this
+  /// rule covers required parameters, public APIs, and body-level
+  /// non-use.
+  static const String unusedParameter = 'unused_parameter';
+
   /// The complete set of rule ids emitted by kareki.
   static const Set<String> all = {
     unusedElement,
     unusedFile,
     unusedPubDependency,
     testOnlyUsed,
+    unusedParameter,
   };
 }
 

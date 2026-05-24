@@ -128,7 +128,6 @@ class DeclarationCollector {
           d.enclosingTypeName == null &&
           d.kind == DeclarationKind.function,
     );
-
     return ParsedFile(
       path: path,
       packageName: packageName,
@@ -292,6 +291,15 @@ class DeclarationCollector {
       outAllReferences.addAll(visitor.names);
       final isGetter = member.isGetter;
       final isSetter = member.isSetter;
+      final annotations = _annotationNames(member.metadata);
+      final unusedParameters = _detectUnusedParameters(
+        params: member.functionExpression.parameters,
+        body: member.functionExpression.body,
+        initializers: null,
+        annotations: annotations,
+        isOperator: false,
+        lineInfo: lineInfo,
+      );
       outDeclarations.add(
         _record(
           name: name,
@@ -306,7 +314,8 @@ class DeclarationCollector {
           packageName: packageName,
           path: path,
           outgoingNames: visitor.names,
-          annotations: _annotationNames(member.metadata),
+          annotations: annotations,
+          unusedParameters: unusedParameters,
         ),
       );
     } else if (member is TopLevelVariableDeclaration) {
@@ -378,6 +387,15 @@ class DeclarationCollector {
       final name = member.name.lexeme;
       final visitor = _ReferenceVisitor()..visit(member);
       outAllReferences.addAll(visitor.names);
+      final annotations = _annotationNames(member.metadata);
+      final unusedParameters = _detectUnusedParameters(
+        params: member.parameters,
+        body: member.body,
+        initializers: null,
+        annotations: annotations,
+        isOperator: member.isOperator,
+        lineInfo: lineInfo,
+      );
       outDeclarations.add(
         _record(
           name: name,
@@ -392,8 +410,9 @@ class DeclarationCollector {
           packageName: packageName,
           path: path,
           outgoingNames: visitor.names,
-          annotations: _annotationNames(member.metadata),
+          annotations: annotations,
           enclosingTypeName: enclosingTypeName,
+          unusedParameters: unusedParameters,
         ),
       );
     } else if (member is FieldDeclaration) {
@@ -420,6 +439,15 @@ class DeclarationCollector {
       final nameToken = member.name;
       final visitor = _ReferenceVisitor()..visit(member);
       outAllReferences.addAll(visitor.names);
+      final annotations = _annotationNames(member.metadata);
+      final unusedParameters = _detectUnusedParameters(
+        params: member.parameters,
+        body: member.body,
+        initializers: member.initializers,
+        annotations: annotations,
+        isOperator: false,
+        lineInfo: lineInfo,
+      );
       // Named constructors are addressable. Unnamed constructors share the
       // class's reachability (their visibility comes for free).
       if (nameToken != null) {
@@ -433,8 +461,9 @@ class DeclarationCollector {
             packageName: packageName,
             path: path,
             outgoingNames: visitor.names,
-            annotations: _annotationNames(member.metadata),
+            annotations: annotations,
             enclosingTypeName: enclosingTypeName,
+            unusedParameters: unusedParameters,
           ),
         );
       }
@@ -452,6 +481,7 @@ class DeclarationCollector {
     required Set<String> outgoingNames,
     required Set<String> annotations,
     String? enclosingTypeName,
+    List<ParameterRecord> unusedParameters = const [],
   }) {
     final location = lineInfo.getLocation(token.offset);
     return DeclarationRecord(
@@ -467,7 +497,127 @@ class DeclarationCollector {
       outgoingNames: outgoingNames,
       annotations: annotations,
       enclosingTypeName: enclosingTypeName,
+      unusedParameters: unusedParameters,
     );
+  }
+
+  /// Returns parameters declared by [params] that are never referenced
+  /// inside [body] or [initializers]. Returns an empty list when the
+  /// callable is intentionally excluded from the analysis: overrides,
+  /// operators, abstract / external / native callables with no
+  /// implementation to inspect.
+  ///
+  /// Identifier matching is name-based (no element resolution), so a
+  /// parameter shadowed by an unrelated field of the same name will be
+  /// considered referenced. Same approximation as the rest of kareki's
+  /// reachability graph.
+  List<ParameterRecord> _detectUnusedParameters({
+    required FormalParameterList? params,
+    required FunctionBody? body,
+    required NodeList<ConstructorInitializer>? initializers,
+    required Set<String> annotations,
+    required bool isOperator,
+    required LineInfo lineInfo,
+  }) {
+    if (params == null) return const [];
+    if (params.parameters.isEmpty) return const [];
+    if (isOperator) return const [];
+    if (annotations.contains('override')) return const [];
+
+    final hasBody = body is BlockFunctionBody || body is ExpressionFunctionBody;
+    final hasInitializers = initializers != null && initializers.isNotEmpty;
+    // No implementation to inspect: abstract, external, native, or a
+    // redirecting factory. Flagging parameters here would be noise — the
+    // signature is dictated by the contract, not by the (absent) body.
+    if (!hasBody && !hasInitializers) return const [];
+    // Base / stub methods whose only behaviour is `throw
+    // UnimplementedError(...)` are contractual: their signature is
+    // dictated by the overriding subclasses (e.g. federated plugin
+    // `PlatformInterface` base methods, or hand-written abstract stand-ins
+    // that need a body to be testable). Flagging their parameters is
+    // always a false positive.
+    if (body != null && _isUnimplementedErrorStub(body)) return const [];
+
+    final referenced = <String>{};
+    if (hasBody) {
+      final visitor = _ReferenceVisitor()..visit(body!);
+      referenced.addAll(visitor.names);
+    }
+    if (hasInitializers) {
+      for (final init in initializers) {
+        final visitor = _ReferenceVisitor()..visit(init);
+        referenced.addAll(visitor.names);
+      }
+    }
+
+    return _emitUnusedParameters(params, referenced, lineInfo);
+  }
+
+  /// Whether [body] consists solely of `throw UnimplementedError(...)`,
+  /// in either expression-body (`=> throw UnimplementedError()`) or
+  /// single-statement block-body (`{ throw UnimplementedError(); }`)
+  /// form. Matches the canonical Dart stub idiom used by
+  /// `PlatformInterface` and similar "must-override" base classes.
+  bool _isUnimplementedErrorStub(FunctionBody body) {
+    Expression? throwExpr;
+    if (body is ExpressionFunctionBody) {
+      throwExpr = body.expression;
+    } else if (body is BlockFunctionBody) {
+      final statements = body.block.statements;
+      if (statements.length != 1) return false;
+      final only = statements.first;
+      if (only is! ExpressionStatement) return false;
+      throwExpr = only.expression;
+    } else {
+      return false;
+    }
+    if (throwExpr is! ThrowExpression) return false;
+    final thrown = throwExpr.expression;
+    // `parseString` runs without element resolution, so a bare
+    // `UnimplementedError(...)` call (no `new` / `const` keyword) is
+    // emitted as a MethodInvocation rather than an
+    // InstanceCreationExpression. Match both shapes.
+    if (thrown is InstanceCreationExpression) {
+      return thrown.constructorName.type.name.lexeme == 'UnimplementedError';
+    }
+    if (thrown is MethodInvocation && thrown.target == null) {
+      return thrown.methodName.name == 'UnimplementedError';
+    }
+    return false;
+  }
+
+  List<ParameterRecord> _emitUnusedParameters(
+    FormalParameterList params,
+    Set<String> referenced,
+    LineInfo lineInfo,
+  ) {
+    final unused = <ParameterRecord>[];
+    for (final param in params.parameters) {
+      final inner = param is DefaultFormalParameter ? param.parameter : param;
+      // `this.x` auto-assigns to a field; `super.x` auto-forwards to the
+      // super constructor. Neither needs a body reference.
+      if (inner is FieldFormalParameter) continue;
+      if (inner is SuperFormalParameter) continue;
+      final nameToken = inner.name;
+      if (nameToken == null) continue;
+      final name = nameToken.lexeme;
+      if (name.isEmpty) continue;
+      // The Dart-wide convention `_`, `__`, ... marks a parameter as
+      // intentionally unused (typically required by a callback signature).
+      if (RegExp(r'^_+$').hasMatch(name)) continue;
+      if (referenced.contains(name)) continue;
+      final location = lineInfo.getLocation(nameToken.offset);
+      unused.add(
+        ParameterRecord(
+          name: name,
+          line: location.lineNumber,
+          column: location.columnNumber,
+          length: nameToken.length,
+          offset: nameToken.offset,
+        ),
+      );
+    }
+    return unused;
   }
 
   Set<String> _annotationNames(NodeList<Annotation> metadata) {
@@ -529,3 +679,4 @@ class _ReferenceVisitor extends RecursiveAstVisitor<void> {
     super.visitNamedType(node);
   }
 }
+

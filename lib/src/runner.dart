@@ -317,6 +317,42 @@ class KarekiRunner {
       }
     }
 
+    if (_ruleEnabled(RuleId.unusedParameter, request)) {
+      for (final file in declarationFiles) {
+        final ignores = request.disregardFileLevelIgnores
+            ? const <String>{}
+            : file.fileLevelIgnores;
+        if (ignores.contains(RuleId.unusedParameter)) continue;
+        for (final declaration in file.declarations) {
+          if (declaration.unusedParameters.isEmpty) continue;
+          // A declaration kept alive by a codegen annotation has a
+          // signature dictated by the framework — flagging its params
+          // would be noise.
+          if (declaration.annotations.any(
+            entryPoints.keepAliveAnnotations.contains,
+          )) {
+            continue;
+          }
+          for (final param in declaration.unusedParameters) {
+            if (ignores.contains(param.name)) continue;
+            findings.add(
+              Finding(
+                ruleId: RuleId.unusedParameter,
+                severity: Severity.warning,
+                message: _unusedParameterMessageFor(declaration, param),
+                packageName: declaration.packageName,
+                filePath: declaration.libraryPath,
+                line: param.line,
+                column: param.column,
+                length: param.length,
+                stableId: '${declaration.stableId}|param:${param.name}',
+              ),
+            );
+          }
+        }
+      }
+    }
+
     if (_ruleEnabled(RuleId.unusedFile, request)) {
       // Pass all parsed files (including generated) so that imports from
       // generated code count as references. Generated files themselves are
@@ -394,6 +430,16 @@ class KarekiRunner {
         ? '${declaration.enclosingTypeName}.${declaration.name}'
         : declaration.name;
     return "Unused public ${declaration.kind.name} '$qualifier'.";
+  }
+
+  String _unusedParameterMessageFor(
+    DeclarationRecord declaration,
+    ParameterRecord parameter,
+  ) {
+    final qualifier = declaration.enclosingTypeName != null
+        ? '${declaration.enclosingTypeName}.${declaration.name}'
+        : declaration.name;
+    return "Parameter '${parameter.name}' of '$qualifier' is never used.";
   }
 
   String _testOnlyMessageFor(DeclarationRecord declaration) {

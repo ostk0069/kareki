@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0
+
+### Added
+
+- Japanese translations of the README and every page under `docs/`
+  (`README.ja.md`, `docs/*.ja.md`). Each English page now links to its
+  Japanese counterpart and vice versa. *(Retroactive entry for #5,
+  which was merged without a changelog update.)*
+- New rule `unused_parameter`: flags parameters declared by a function,
+  method, or named constructor that are never referenced in the body or
+  initializers. Covers required and optional parameters, public and
+  private — a strict superset of Dart's built-in
+  `unused_element_parameter` (which only flags private optional
+  parameters never passed at a call site). Skips `@override`, abstract /
+  external / native callables, operators, `this.x` / `super.x`, the
+  `_` / `__` placeholder convention, any declaration kept alive by a
+  configured keep-alive annotation, and stub bodies whose only
+  statement is `throw UnimplementedError(...)` (federated plugin
+  `PlatformInterface` base methods). Callback functions whose
+  signature is constrained by a typedef (e.g. auto_route
+  `CustomRouteBuilder` / `AutoRouteGroup` conformers) are intentionally
+  still flagged so the unused parameter is surfaced — rename to `_` to
+  preserve typedef conformance while signaling intent. Suppress
+  remaining cases via `// kareki: ignore_for_file=unused_parameter` or
+  `ignore.rules: [unused_parameter]` in `kareki-config.yaml`.
+
+### Changed
+
+- Top-level `README.md` has been split into focused pages under
+  `docs/` (CLI reference, configuration, baseline, doctor, how-it-works).
+  The root README now serves as a short overview with links into the
+  detailed docs. *(Retroactive entry for #5.)*
+
 ## 0.3.0
 
 ### Added

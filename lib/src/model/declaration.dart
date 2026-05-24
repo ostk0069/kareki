@@ -14,6 +14,27 @@ enum DeclarationKind {
   constructor,
 }
 
+/// A parameter declared by a callable (function / method / constructor)
+/// that is not referenced inside the callable's body or initializers.
+///
+/// Populated by [DeclarationCollector] and consumed by the runner's
+/// `unused_parameter` rule.
+class ParameterRecord {
+  ParameterRecord({
+    required this.name,
+    required this.line,
+    required this.column,
+    required this.length,
+    required this.offset,
+  });
+
+  final String name;
+  final int line;
+  final int column;
+  final int length;
+  final int offset;
+}
+
 /// A single declaration extracted from a Dart source file.
 ///
 /// Holds the metadata needed to:
@@ -36,6 +57,7 @@ class DeclarationRecord {
     required this.outgoingNames,
     required this.annotations,
     this.enclosingTypeName,
+    this.unusedParameters = const [],
   });
 
   /// The simple name (no library prefix) of the declaration.
@@ -68,6 +90,13 @@ class DeclarationRecord {
   /// For methods / fields / getters / setters: the enclosing class or
   /// extension name. `null` for top-level declarations.
   final String? enclosingTypeName;
+
+  /// Parameters declared by this callable that are never referenced in
+  /// its body or constructor initializers. Empty for non-callable kinds
+  /// and for callables that have been intentionally excluded from the
+  /// `unused_parameter` analysis (overrides, abstract / external / native
+  /// bodies, operators).
+  final List<ParameterRecord> unusedParameters;
 
   /// A stable identifier suitable for baseline diffing and SARIF
   /// `partialFingerprints`.
