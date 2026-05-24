@@ -32,7 +32,7 @@
 | `unused_file` | 他のどのファイルからも `import` / `part` / `export` されていない `.dart` ファイル。 |
 | `unused_pub_dependency` | `pubspec.yaml` に宣言されているがソース中で一度も import されていない依存パッケージ。 |
 | `test_only_used` | `lib/` 配下で、テストコード（`*_test.dart`、`test/`・`integration_test/` 配下）からのみ参照されている public 宣言。 |
-| `unused_parameter` | 関数 / メソッド / 名前付きコンストラクタが宣言しているが、本体や initializer のどこからも参照されていないパラメータ。public / private、required / optional すべてを対象とし、private な optional パラメータの未呼び出ししか検出しない Dart 標準の `unused_element_parameter` の上位互換です。除外: `@override` / abstract・external・native / operator / `this.x`・`super.x` / `_`・`__` プレースホルダ / 本体が `throw UnimplementedError(...)` だけのスタブ。typedef のシグネチャ制約で残しているコールバック引数は **flag されます** — `_` リネームで typedef 適合性を保ちつつ未使用を表明できます。 |
+| `unused_parameter` | 関数 / メソッド / 名前付きコンストラクタの引数のうち、本体や initializer から一度も参照されていないもの。Dart 標準の `unused_element_parameter` がカバーしない required な引数や public API も対象。 |
 
 ## Install
 
