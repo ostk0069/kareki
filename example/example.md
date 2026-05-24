@@ -61,7 +61,7 @@ void main() {
 
 ## kareki-config.yaml
 
-See the [Configuration section in the README](https://pub.dev/packages/kareki#configuration) for the full schema, and [`example/kareki-config.yaml`](kareki-config.yaml) for a runnable minimum.
+See [`docs/configuration.md`](../docs/configuration.md) for the full schema, and [`example/kareki-config.yaml`](kareki-config.yaml) for a runnable minimum.
 
 ```yaml
 keep_alive_annotations:
