@@ -353,6 +353,60 @@ class KarekiRunner {
       }
     }
 
+    if (_ruleEnabled(RuleId.unusedParameterOptional, request)) {
+      // Aggregate call-site usage across every parsed file in the
+      // workspace — including generated and excluded files. A
+      // generated client passing `endpoint:` to a hand-written
+      // constructor is a legitimate consumer of that parameter.
+      final aggregated = <String, CallSiteUsage>{};
+      for (final file in parsedFiles) {
+        file.callSiteUsage.forEach((name, usage) {
+          aggregated.putIfAbsent(name, CallSiteUsage.new).mergeFrom(usage);
+        });
+      }
+
+      for (final file in declarationFiles) {
+        final ignores = request.disregardFileLevelIgnores
+            ? const <String>{}
+            : file.fileLevelIgnores;
+        if (ignores.contains(RuleId.unusedParameterOptional)) continue;
+        for (final declaration in file.declarations) {
+          if (declaration.optionalParameters.isEmpty) continue;
+          if (declaration.annotations.any(
+            entryPoints.keepAliveAnnotations.contains,
+          )) {
+            continue;
+          }
+          // Skip "public" members of library-private types — they can
+          // only be reached from inside the library and are already
+          // covered (and more precisely so) by Dart analyzer's own
+          // hints.
+          final enclosing = declaration.enclosingTypeName;
+          if (enclosing != null && enclosing.startsWith('_')) continue;
+
+          final usage = aggregated[declaration.name];
+          for (final param in declaration.optionalParameters) {
+            if (ignores.contains(param.name)) continue;
+            final passed = _optionalParameterPassed(param, usage);
+            if (passed) continue;
+            findings.add(
+              Finding(
+                ruleId: RuleId.unusedParameterOptional,
+                severity: Severity.warning,
+                message: _unusedOptionalParameterMessageFor(declaration, param),
+                packageName: declaration.packageName,
+                filePath: declaration.libraryPath,
+                line: param.line,
+                column: param.column,
+                length: param.length,
+                stableId: '${declaration.stableId}|optparam:${param.name}',
+              ),
+            );
+          }
+        }
+      }
+    }
+
     if (_ruleEnabled(RuleId.unusedFile, request)) {
       // Pass all parsed files (including generated) so that imports from
       // generated code count as references. Generated files themselves are
@@ -440,6 +494,37 @@ class KarekiRunner {
         ? '${declaration.enclosingTypeName}.${declaration.name}'
         : declaration.name;
     return "Parameter '${parameter.name}' of '$qualifier' is never used.";
+  }
+
+  String _unusedOptionalParameterMessageFor(
+    DeclarationRecord declaration,
+    OptionalParameterRecord parameter,
+  ) {
+    final enclosing = declaration.enclosingTypeName;
+    // Unnamed constructors are recorded under the class's simple name
+    // (so `Foo(...)` call sites can be matched), which would otherwise
+    // render the qualifier as `Foo.Foo` — collapse it to just `Foo()`.
+    final qualifier = enclosing == null
+        ? declaration.name
+        : enclosing == declaration.name &&
+              declaration.kind == DeclarationKind.constructor
+        ? '$enclosing()'
+        : '$enclosing.${declaration.name}';
+    return "Optional parameter '${parameter.name}' of '$qualifier' is "
+        'never passed at any call site.';
+  }
+
+  bool _optionalParameterPassed(
+    OptionalParameterRecord parameter,
+    CallSiteUsage? usage,
+  ) {
+    if (usage == null) return false;
+    if (parameter.isNamed) {
+      return usage.namedArgsPassed.contains(parameter.name);
+    }
+    final index = parameter.positionalIndex;
+    if (index == null) return false;
+    return usage.maxPositionalArgs > index;
   }
 
   String _testOnlyMessageFor(DeclarationRecord declaration) {

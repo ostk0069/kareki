@@ -38,6 +38,13 @@ class RuleId {
   /// non-use.
   static const String unusedParameter = 'unused_parameter';
 
+  /// An optional parameter (named or positional optional) of a function
+  /// / method / named constructor that is never passed by any call site
+  /// across the entire workspace. The public / cross-package counterpart
+  /// to Dart's built-in `unused_element_parameter`, which only inspects
+  /// private optional parameters within a single library.
+  static const String unusedParameterOptional = 'unused_parameter_optional';
+
   /// The complete set of rule ids emitted by kareki.
   static const Set<String> all = {
     unusedElement,
@@ -45,6 +52,7 @@ class RuleId {
     unusedPubDependency,
     testOnlyUsed,
     unusedParameter,
+    unusedParameterOptional,
   };
 }
 

@@ -18,6 +18,7 @@ class ParsedFile {
     required this.exports,
     required this.fileLevelIgnores,
     required this.topLevelIdentifierReferences,
+    required this.callSiteUsage,
     required this.isGeneratedByHeader,
     required this.hasTopLevelMain,
   });
@@ -44,6 +45,12 @@ class ParsedFile {
   /// All top-level identifier names referenced anywhere in the file. Used
   /// for generated-code keep-alive scanning.
   final Set<String> topLevelIdentifierReferences;
+
+  /// Per-callable call-site argument usage observed in this file, keyed
+  /// by the simple invocation name (top-level function, method name, or
+  /// constructor name — class name for unnamed constructors). Used to
+  /// drive `unused_parameter_optional`.
+  final Map<String, CallSiteUsage> callSiteUsage;
 
   /// `true` when the file's first content lines contain a standard
   /// "GENERATED CODE - DO NOT MODIFY BY HAND" header, indicating it was
@@ -128,6 +135,8 @@ class DeclarationCollector {
           d.enclosingTypeName == null &&
           d.kind == DeclarationKind.function,
     );
+    final callSiteVisitor = _CallSiteVisitor();
+    unit.accept(callSiteVisitor);
     return ParsedFile(
       path: path,
       packageName: packageName,
@@ -138,6 +147,7 @@ class DeclarationCollector {
       exports: exports,
       fileLevelIgnores: fileLevelIgnores,
       topLevelIdentifierReferences: topLevelReferences,
+      callSiteUsage: callSiteVisitor.usage,
       isGeneratedByHeader: isGeneratedByHeader,
       hasTopLevelMain: hasTopLevelMain,
     );
@@ -292,7 +302,7 @@ class DeclarationCollector {
       final isGetter = member.isGetter;
       final isSetter = member.isSetter;
       final annotations = _annotationNames(member.metadata);
-      final unusedParameters = _detectUnusedParameters(
+      final paramAnalysis = _analyzeParameters(
         params: member.functionExpression.parameters,
         body: member.functionExpression.body,
         initializers: null,
@@ -315,7 +325,8 @@ class DeclarationCollector {
           path: path,
           outgoingNames: visitor.names,
           annotations: annotations,
-          unusedParameters: unusedParameters,
+          unusedParameters: paramAnalysis.unused,
+          optionalParameters: paramAnalysis.optional,
         ),
       );
     } else if (member is TopLevelVariableDeclaration) {
@@ -388,7 +399,7 @@ class DeclarationCollector {
       final visitor = _ReferenceVisitor()..visit(member);
       outAllReferences.addAll(visitor.names);
       final annotations = _annotationNames(member.metadata);
-      final unusedParameters = _detectUnusedParameters(
+      final paramAnalysis = _analyzeParameters(
         params: member.parameters,
         body: member.body,
         initializers: null,
@@ -412,7 +423,8 @@ class DeclarationCollector {
           outgoingNames: visitor.names,
           annotations: annotations,
           enclosingTypeName: enclosingTypeName,
-          unusedParameters: unusedParameters,
+          unusedParameters: paramAnalysis.unused,
+          optionalParameters: paramAnalysis.optional,
         ),
       );
     } else if (member is FieldDeclaration) {
@@ -440,7 +452,7 @@ class DeclarationCollector {
       final visitor = _ReferenceVisitor()..visit(member);
       outAllReferences.addAll(visitor.names);
       final annotations = _annotationNames(member.metadata);
-      final unusedParameters = _detectUnusedParameters(
+      final paramAnalysis = _analyzeParameters(
         params: member.parameters,
         body: member.body,
         initializers: member.initializers,
@@ -448,8 +460,11 @@ class DeclarationCollector {
         isOperator: false,
         lineInfo: lineInfo,
       );
-      // Named constructors are addressable. Unnamed constructors share the
-      // class's reachability (their visibility comes for free).
+      // Named constructors are addressable. Unnamed constructors share
+      // the class's reachability (their visibility comes for free), but
+      // we still record them under the class's simple name so the
+      // `unused_parameter_optional` rule can match constructor call
+      // sites (`Foo(...)`) against the constructor's optional params.
       if (nameToken != null) {
         outDeclarations.add(
           _record(
@@ -463,7 +478,32 @@ class DeclarationCollector {
             outgoingNames: visitor.names,
             annotations: annotations,
             enclosingTypeName: enclosingTypeName,
-            unusedParameters: unusedParameters,
+            unusedParameters: paramAnalysis.unused,
+            optionalParameters: paramAnalysis.optional,
+          ),
+        );
+      } else if (enclosingTypeName != null) {
+        // Unnamed constructors don't have their own addressable name —
+        // their reachability is dictated by the class. To still let
+        // `unused_parameter_optional` match `Foo(...)` call sites
+        // against the constructor's optional params, we emit a synthetic
+        // record under the class's simple name. To keep this change
+        // narrowly scoped, we deliberately leave `unusedParameters`
+        // empty so `unused_parameter`'s previous "named ctor only"
+        // behaviour is preserved.
+        outDeclarations.add(
+          _record(
+            name: enclosingTypeName,
+            kind: DeclarationKind.constructor,
+            token: member.returnType.beginToken,
+            node: member,
+            lineInfo: lineInfo,
+            packageName: packageName,
+            path: path,
+            outgoingNames: visitor.names,
+            annotations: annotations,
+            enclosingTypeName: enclosingTypeName,
+            optionalParameters: paramAnalysis.optional,
           ),
         );
       }
@@ -482,6 +522,7 @@ class DeclarationCollector {
     required Set<String> annotations,
     String? enclosingTypeName,
     List<ParameterRecord> unusedParameters = const [],
+    List<OptionalParameterRecord> optionalParameters = const [],
   }) {
     final location = lineInfo.getLocation(token.offset);
     return DeclarationRecord(
@@ -498,20 +539,27 @@ class DeclarationCollector {
       annotations: annotations,
       enclosingTypeName: enclosingTypeName,
       unusedParameters: unusedParameters,
+      optionalParameters: optionalParameters,
     );
   }
 
-  /// Returns parameters declared by [params] that are never referenced
-  /// inside [body] or [initializers]. Returns an empty list when the
-  /// callable is intentionally excluded from the analysis: overrides,
-  /// operators, abstract / external / native callables with no
-  /// implementation to inspect.
+  /// Analyzes [params] against [body] / [initializers] and returns both:
+  /// - `unused`: parameters declared but never referenced (drives
+  ///   `unused_parameter`).
+  /// - `optional`: every optional parameter (named or positional
+  ///   optional), regardless of body use, that survives the same
+  ///   exclusion list (drives `unused_parameter_optional`).
+  ///
+  /// Returns empty lists when the callable is intentionally excluded
+  /// from the analysis: overrides, operators, abstract / external /
+  /// native callables with no implementation to inspect,
+  /// `UnimplementedError` stubs.
   ///
   /// Identifier matching is name-based (no element resolution), so a
   /// parameter shadowed by an unrelated field of the same name will be
   /// considered referenced. Same approximation as the rest of kareki's
   /// reachability graph.
-  List<ParameterRecord> _detectUnusedParameters({
+  _ParameterAnalysis _analyzeParameters({
     required FormalParameterList? params,
     required FunctionBody? body,
     required NodeList<ConstructorInitializer>? initializers,
@@ -519,24 +567,25 @@ class DeclarationCollector {
     required bool isOperator,
     required LineInfo lineInfo,
   }) {
-    if (params == null) return const [];
-    if (params.parameters.isEmpty) return const [];
-    if (isOperator) return const [];
-    if (annotations.contains('override')) return const [];
+    if (params == null) return _ParameterAnalysis.empty;
+    if (params.parameters.isEmpty) return _ParameterAnalysis.empty;
+    if (isOperator) return _ParameterAnalysis.empty;
+    if (annotations.contains('override')) return _ParameterAnalysis.empty;
 
     final hasBody = body is BlockFunctionBody || body is ExpressionFunctionBody;
     final hasInitializers = initializers != null && initializers.isNotEmpty;
     // No implementation to inspect: abstract, external, native, or a
     // redirecting factory. Flagging parameters here would be noise — the
     // signature is dictated by the contract, not by the (absent) body.
-    if (!hasBody && !hasInitializers) return const [];
-    // Base / stub methods whose only behaviour is `throw
-    // UnimplementedError(...)` are contractual: their signature is
-    // dictated by the overriding subclasses (e.g. federated plugin
-    // `PlatformInterface` base methods, or hand-written abstract stand-ins
-    // that need a body to be testable). Flagging their parameters is
-    // always a false positive.
-    if (body != null && _isUnimplementedErrorStub(body)) return const [];
+    final hasImplementation = hasBody || hasInitializers;
+    final isStub = body != null && _isUnimplementedErrorStub(body);
+    // Optional parameters are collected even when the body is absent
+    // EXCEPT for true contractual signatures: abstract / external /
+    // native callables and `UnimplementedError` stubs. Those signatures
+    // are dictated by overriders, not by the call sites of this exact
+    // declaration — flagging their optional params would be noise.
+    if (!hasImplementation) return _ParameterAnalysis.empty;
+    if (isStub) return _ParameterAnalysis.empty;
 
     final referenced = <String>{};
     if (hasBody) {
@@ -550,7 +599,7 @@ class DeclarationCollector {
       }
     }
 
-    return _emitUnusedParameters(params, referenced, lineInfo);
+    return _emitParameterAnalysis(params, referenced, lineInfo);
   }
 
   /// Whether [body] consists solely of `throw UnimplementedError(...)`,
@@ -586,38 +635,59 @@ class DeclarationCollector {
     return false;
   }
 
-  List<ParameterRecord> _emitUnusedParameters(
+  _ParameterAnalysis _emitParameterAnalysis(
     FormalParameterList params,
     Set<String> referenced,
     LineInfo lineInfo,
   ) {
     final unused = <ParameterRecord>[];
+    final optional = <OptionalParameterRecord>[];
+    var positionalIndex = 0;
     for (final param in params.parameters) {
+      final isNamed = param.isNamed;
+      final isOptional = param.isOptional;
+      final myPositionalIndex = isNamed ? null : positionalIndex;
+      if (!isNamed) positionalIndex++;
       final inner = param is DefaultFormalParameter ? param.parameter : param;
       // `this.x` auto-assigns to a field; `super.x` auto-forwards to the
       // super constructor. Neither needs a body reference.
-      if (inner is FieldFormalParameter) continue;
-      if (inner is SuperFormalParameter) continue;
+      final isFieldOrSuper =
+          inner is FieldFormalParameter || inner is SuperFormalParameter;
       final nameToken = inner.name;
       if (nameToken == null) continue;
       final name = nameToken.lexeme;
       if (name.isEmpty) continue;
-      // The Dart-wide convention `_`, `__`, ... marks a parameter as
-      // intentionally unused (typically required by a callback signature).
-      if (RegExp(r'^_+$').hasMatch(name)) continue;
-      if (referenced.contains(name)) continue;
+      final isPlaceholder = RegExp(r'^_+$').hasMatch(name);
       final location = lineInfo.getLocation(nameToken.offset);
-      unused.add(
-        ParameterRecord(
-          name: name,
-          line: location.lineNumber,
-          column: location.columnNumber,
-          length: nameToken.length,
-          offset: nameToken.offset,
-        ),
-      );
+
+      if (!isFieldOrSuper && !isPlaceholder && !referenced.contains(name)) {
+        unused.add(
+          ParameterRecord(
+            name: name,
+            line: location.lineNumber,
+            column: location.columnNumber,
+            length: nameToken.length,
+            offset: nameToken.offset,
+          ),
+        );
+      }
+
+      if (isOptional && !isFieldOrSuper && !isPlaceholder) {
+        optional.add(
+          OptionalParameterRecord(
+            name: name,
+            line: location.lineNumber,
+            column: location.columnNumber,
+            length: nameToken.length,
+            offset: nameToken.offset,
+            isNamed: isNamed,
+            positionalIndex: myPositionalIndex,
+          ),
+        );
+      }
     }
-    return unused;
+    if (unused.isEmpty && optional.isEmpty) return _ParameterAnalysis.empty;
+    return _ParameterAnalysis(unused: unused, optional: optional);
   }
 
   Set<String> _annotationNames(NodeList<Annotation> metadata) {
@@ -651,6 +721,100 @@ class DeclarationCollector {
       }
     }
     return names;
+  }
+}
+
+class _ParameterAnalysis {
+  const _ParameterAnalysis({required this.unused, required this.optional});
+
+  static const _ParameterAnalysis empty = _ParameterAnalysis(
+    unused: <ParameterRecord>[],
+    optional: <OptionalParameterRecord>[],
+  );
+
+  final List<ParameterRecord> unused;
+  final List<OptionalParameterRecord> optional;
+}
+
+/// Visits call sites in a single compilation unit and aggregates the
+/// argument shape per simple invocation name. The aggregation is the
+/// same simple-name approximation used elsewhere in kareki — call sites
+/// to two unrelated declarations sharing a name collapse together,
+/// which trades precision for analyzer-version independence.
+class _CallSiteVisitor extends RecursiveAstVisitor<void> {
+  final Map<String, CallSiteUsage> usage = <String, CallSiteUsage>{};
+
+  CallSiteUsage _slot(String name) =>
+      usage.putIfAbsent(name, CallSiteUsage.new);
+
+  void _recordArguments(String name, ArgumentList args) {
+    final slot = _slot(name);
+    var positionalCount = 0;
+    for (final arg in args.arguments) {
+      if (arg is NamedExpression) {
+        slot.mergeNamed(arg.name.label.name);
+      } else {
+        positionalCount++;
+      }
+    }
+    slot.mergePositional(positionalCount);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    _recordArguments(node.methodName.name, node.argumentList);
+    super.visitMethodInvocation(node);
+  }
+
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    // Constructor call. The invocation name is:
+    //   - the named constructor's name when present (`Foo.dims(...)`)
+    //   - otherwise the class's simple name (`Foo(...)`)
+    final ctorName = node.constructorName.name?.name;
+    final classNameToken = node.constructorName.type.name;
+    final classSimpleName = classNameToken.lexeme;
+    _recordArguments(ctorName ?? classSimpleName, node.argumentList);
+    super.visitInstanceCreationExpression(node);
+  }
+
+  @override
+  void visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
+    // Anonymous / first-class function invocation. We can still pick up
+    // the call when the callee is a SimpleIdentifier (`foo(1)` resolved
+    // by analyzer to a function expression invocation when ambiguous).
+    final function = node.function;
+    if (function is SimpleIdentifier) {
+      _recordArguments(function.name, node.argumentList);
+    } else if (function is PrefixedIdentifier) {
+      _recordArguments(function.identifier.name, node.argumentList);
+    } else if (function is PropertyAccess) {
+      _recordArguments(function.propertyName.name, node.argumentList);
+    }
+    super.visitFunctionExpressionInvocation(node);
+  }
+
+  @override
+  void visitRedirectingConstructorInvocation(
+    RedirectingConstructorInvocation node,
+  ) {
+    final ctorName = node.constructorName?.name;
+    if (ctorName != null) {
+      _recordArguments(ctorName, node.argumentList);
+    }
+    super.visitRedirectingConstructorInvocation(node);
+  }
+
+  @override
+  void visitSuperConstructorInvocation(SuperConstructorInvocation node) {
+    // Super constructor call passes arguments to a parent constructor;
+    // record under the simple name so `super.Foo(x: 1)` keeps a parent
+    // `x:` alive.
+    final ctorName = node.constructorName?.name;
+    if (ctorName != null) {
+      _recordArguments(ctorName, node.argumentList);
+    }
+    super.visitSuperConstructorInvocation(node);
   }
 }
 

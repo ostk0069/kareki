@@ -33,6 +33,7 @@
 | `unused_pub_dependency` | `pubspec.yaml` に宣言されているがソース中で一度も import されていない依存パッケージ。 |
 | `test_only_used` | `lib/` 配下で、テストコード（`*_test.dart`、`test/`・`integration_test/` 配下）からのみ参照されている public 宣言。 |
 | `unused_parameter` | 関数 / メソッド / 名前付きコンストラクタの引数のうち、本体や initializer から一度も参照されていないもの。Dart 標準の `unused_element_parameter` がカバーしない required な引数や public API も対象。 |
+| `unused_parameter_optional` | 関数 / メソッド / コンストラクタの optional 引数（named または positional optional）のうち、ワークスペース内のどの呼び出し元からも値を渡されていないもの。Dart 標準の `unused_element_parameter` が単一ライブラリ内の private な optional 引数しか見ないのに対して、本ルールは public API / クロスパッケージまで対象を広げる。 |
 
 ## Install
 
