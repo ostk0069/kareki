@@ -55,7 +55,7 @@ Run from the workspace root:
 dart run kareki
 ```
 
-See [docs/cli.md](docs/cli.md) for all options.
+See [doc/cli.md](doc/cli.md) for all options.
 
 ## Adopting on an existing codebase
 
@@ -65,7 +65,7 @@ Don't try to delete every finding before turning on CI. Snapshot what's there, c
 dart run kareki --baseline .kareki-baseline.json --write-baseline
 ```
 
-See [docs/baseline.md](docs/baseline.md).
+See [doc/baseline.md](doc/baseline.md).
 
 ## Keeping the config honest
 
@@ -75,15 +75,15 @@ Once you start excluding files or whitelisting dependencies, the list rots — p
 dart run kareki doctor
 ```
 
-See [docs/doctor.md](docs/doctor.md).
+See [doc/doctor.md](doc/doctor.md).
 
 ## Documentation
 
-- [CLI reference](docs/cli.md) — every option, every exit code
-- [Configuration](docs/configuration.md) — `kareki-config.yaml`, defaults, built-in presets, custom presets, suppression, full example
-- [Baseline](docs/baseline.md) — incremental adoption
-- [Doctor](docs/doctor.md) — config-rot detection
-- [How it works](docs/how-it-works.md) — analysis pipeline, entry-point seeding, supported versions
+- [CLI reference](doc/cli.md) — every option, every exit code
+- [Configuration](doc/configuration.md) — `kareki-config.yaml`, defaults, built-in presets, custom presets, suppression, full example
+- [Baseline](doc/baseline.md) — incremental adoption
+- [Doctor](doc/doctor.md) — config-rot detection
+- [How it works](doc/how-it-works.md) — analysis pipeline, entry-point seeding, supported versions
 
 ## License
 

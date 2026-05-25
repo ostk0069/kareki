@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+    # Wait a few days after a release before opening a PR. Lets the
+    # ecosystem surface broken or yanked releases (cf. the
+    # `tj-actions/changed-files` compromise) before we adopt them.
+    # github-actions only supports `default-days` for cooldown.
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dart-deps:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3

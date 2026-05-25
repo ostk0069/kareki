@@ -11,6 +11,7 @@ jobs:
       # Required for OIDC token exchange with pub.dev. No long-lived
       # `PUB_DEV_PUBLISH_*` secrets are needed.
       id-token: write
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+      contents: read
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
     with:
       environment: pub.dev
