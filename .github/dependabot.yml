@@ -8,6 +8,14 @@ updates:
       actions:
         patterns:
           - "*"
+    # Wait a few days after a release before opening a PR. Lets the
+    # ecosystem surface broken or yanked releases (cf. the
+    # `tj-actions/changed-files` compromise) before we adopt them.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   - package-ecosystem: pub
     directory: /
@@ -17,3 +25,8 @@ updates:
       dart-deps:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
