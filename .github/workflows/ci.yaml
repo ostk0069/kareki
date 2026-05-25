@@ -20,9 +20,9 @@ jobs:
         # pubspec.yaml.
         sdk: ["3.10.0", "stable"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
         with:
           sdk: ${{ matrix.sdk }}
 
@@ -44,3 +44,21 @@ jobs:
       - name: Smoke test the CLI
         # Just exercise the binary so build-only failures are caught.
         run: dart run bin/kareki.dart --help
+
+  publish-dry-run:
+    name: Publish dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+        with:
+          sdk: stable
+
+      - name: Resolve dependencies
+        run: dart pub get
+
+      - name: Validate package for pub.dev
+        # Catches .pubignore gaps, missing LICENSE/README, pub score
+        # regressions, and version/CHANGELOG drift before tagging.
+        run: dart pub publish --dry-run
