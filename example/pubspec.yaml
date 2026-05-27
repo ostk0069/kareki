@@ -1,0 +1,22 @@
+name: kareki_example
+description: >-
+  Minimum runnable example for kareki. Every file under lib/ is wired to
+  trigger exactly one of kareki's rules so you can see real findings.
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+dependencies:
+  # Used by lib/api.dart — must NOT be flagged.
+  meta: 1.18.2
+  # Declared but never imported — triggers `unused_pub_dependency`.
+  collection: 1.19.1
+
+dev_dependencies:
+  # Path dep on the parent so `example.dart` can run the programmatic
+  # API. This is the standard Dart example/ convention; not a published
+  # supply-chain dependency.
+  kareki:
+    path: ../

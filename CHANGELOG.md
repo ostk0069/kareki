@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pub package layout convention (singular). Internal links in
   `README.md`, `README.ja.md`, and `example/example.md` were updated
   accordingly. No code or public API change.
+- Restructured `example/` into a runnable minimum Dart package
+  (`example/pubspec.yaml`, `bin/`, `lib/`, `test/`). Every file under
+  `lib/` is wired so that `dart run kareki --root example` produces
+  exactly one finding per rule — six in total — letting users see what
+  each detector actually catches instead of reading a static sample.
+  `example/example.md` was rewritten as a layout / per-rule walkthrough.
+
+### Added
+
+- CI step `Verify example/ exercises every rule` (in `.github/workflows/ci.yaml`)
+  backed by `tool/verify_example.dart`. Runs kareki against `example/`
+  and asserts that every id in `RuleId.all` fires exactly once, so the
+  example cannot silently drift out of sync with the detectors it is
+  meant to demonstrate. Adding a new rule without updating `example/`
+  now fails CI.
 
 ## 0.4.1
 
