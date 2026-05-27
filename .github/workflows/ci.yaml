@@ -49,6 +49,12 @@ jobs:
         # Just exercise the binary so build-only failures are caught.
         run: dart run bin/kareki.dart --help
 
+      - name: Verify example/ exercises every rule
+        # Runs kareki against the example package and asserts each rule
+        # id fires exactly once. Guards against the example drifting
+        # out of sync with the detectors it's supposed to demonstrate.
+        run: dart run tool/verify_example.dart
+
   publish-dry-run:
     name: Publish dry-run
     runs-on: ubuntu-latest
