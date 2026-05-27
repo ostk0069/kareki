@@ -136,14 +136,16 @@ class Thing {}
       expect(parsed.lineLevelIgnores, isEmpty);
     });
 
-    test('`ignore_for_file=` directive is not also collected as line ignore',
-        () {
-      final parsed = _parse('''
+    test(
+      '`ignore_for_file=` directive is not also collected as line ignore',
+      () {
+        final parsed = _parse('''
 // kareki: ignore_for_file=unused_element
 class Thing {}
 ''');
-      expect(parsed.lineLevelIgnores, isEmpty);
-      expect(parsed.fileLevelIgnores, contains('unused_element'));
-    });
+        expect(parsed.lineLevelIgnores, isEmpty);
+        expect(parsed.fileLevelIgnores, contains('unused_element'));
+      },
+    );
   });
 }

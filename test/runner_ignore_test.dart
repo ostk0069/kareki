@@ -85,8 +85,7 @@ void main() {
         tempRoot.path,
         files: {
           'bin/main.dart': 'void main() {}\n',
-          'lib/dead.dart':
-              'class Dead {} // kareki: ignore=unused_element\n',
+          'lib/dead.dart': 'class Dead {} // kareki: ignore=unused_element\n',
         },
       );
       final findings = _run(tempRoot.path).findings;
@@ -111,8 +110,7 @@ void main() {
               'class Other {}\n',
         },
       );
-      final dead = _run(tempRoot.path)
-          .findings
+      final dead = _run(tempRoot.path).findings
           .where((f) => f.ruleId == RuleId.unusedElement)
           .map((f) => f.message)
           .toList();
