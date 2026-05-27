@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- Per-line suppression directive `// kareki: ignore=<rule|name>`. A
+  standalone comment targets the next non-blank, non-comment line; a
+  trailing comment targets its own line. Complements the existing
+  `// kareki: ignore_for_file=...` directive for cases where suppressing
+  the whole file is too broad. `kareki doctor` reports stale per-line
+  directives under the existing `unused-ignore-directive` issue kind
+  with the targeted line included as `<path>:<line>`.
+
 ## 0.4.2
 
 ### Changed

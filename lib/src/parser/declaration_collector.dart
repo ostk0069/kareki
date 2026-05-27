@@ -17,6 +17,7 @@ class ParsedFile {
     required this.partOf,
     required this.exports,
     required this.fileLevelIgnores,
+    required this.lineLevelIgnores,
     required this.topLevelIdentifierReferences,
     required this.callSiteUsage,
     required this.isGeneratedByHeader,
@@ -41,6 +42,14 @@ class ParsedFile {
 
   /// Simple name set silenced via `// kareki: ignore_for_file=...`.
   final Set<String> fileLevelIgnores;
+
+  /// Per-line suppressions collected from `// kareki: ignore=...`
+  /// directives. The map key is the 1-based source line that the
+  /// directive targets (its own line when written as a trailing
+  /// comment, or the next non-blank/non-comment line when written as a
+  /// standalone comment). The value is the set of rule ids and/or
+  /// simple symbol names silenced on that line.
+  final Map<int, Set<String>> lineLevelIgnores;
 
   /// All top-level identifier names referenced anywhere in the file. Used
   /// for generated-code keep-alive scanning.
@@ -128,6 +137,7 @@ class DeclarationCollector {
     }
 
     final fileLevelIgnores = _collectFileIgnores(content);
+    final lineLevelIgnores = _collectLineIgnores(content);
     final isGeneratedByHeader = _detectGeneratedHeader(content);
     final hasTopLevelMain = declarations.any(
       (d) =>
@@ -146,6 +156,7 @@ class DeclarationCollector {
       partOf: partOf,
       exports: exports,
       fileLevelIgnores: fileLevelIgnores,
+      lineLevelIgnores: lineLevelIgnores,
       topLevelIdentifierReferences: topLevelReferences,
       callSiteUsage: callSiteVisitor.usage,
       isGeneratedByHeader: isGeneratedByHeader,
@@ -721,6 +732,53 @@ class DeclarationCollector {
       }
     }
     return names;
+  }
+
+  /// Collect `// kareki: ignore=<names>` directives and map them to the
+  /// 1-based source line they target.
+  ///
+  /// - Trailing comment (line has code before the `//`): targets that
+  ///   same line.
+  /// - Standalone comment (line is comment-only): targets the next
+  ///   non-blank, non-comment line. This matches the Dart analyzer's
+  ///   `// ignore:` convention so directives sitting above a
+  ///   declaration suppress findings on the declaration itself rather
+  ///   than on an intervening blank line.
+  ///
+  /// `\s*=` (rather than `\s*[:=]` or `_for_file=`) keeps this regex
+  /// disjoint from the file-level `// kareki: ignore_for_file=...`
+  /// directive — the two never collide.
+  Map<int, Set<String>> _collectLineIgnores(String content) {
+    final result = <int, Set<String>>{};
+    final pattern = RegExp(r'//\s*kareki:\s*ignore\s*=\s*([\w, \t]+)');
+    final lines = content.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final match = pattern.firstMatch(line);
+      if (match == null) continue;
+      final values = <String>{};
+      for (final raw in (match.group(1) ?? '').split(',')) {
+        final trimmed = raw.trim();
+        if (trimmed.isNotEmpty) values.add(trimmed);
+      }
+      if (values.isEmpty) continue;
+      final beforeComment = line.substring(0, match.start).trim();
+      int? targetLine;
+      if (beforeComment.isEmpty) {
+        for (var j = i + 1; j < lines.length; j++) {
+          final trimmedNext = lines[j].trimLeft();
+          if (trimmedNext.isEmpty) continue;
+          if (trimmedNext.startsWith('//')) continue;
+          targetLine = j + 1;
+          break;
+        }
+      } else {
+        targetLine = i + 1;
+      }
+      if (targetLine == null) continue;
+      result.putIfAbsent(targetLine, () => <String>{}).addAll(values);
+    }
+    return result;
   }
 }
 

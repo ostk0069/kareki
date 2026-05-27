@@ -230,6 +230,9 @@ class DoctorRunner {
     // For each file with at least one file-level ignore, remember which
     // names are ignored.
     final fileIgnores = <String, Set<String>>{};
+    // For each file with at least one `// kareki: ignore=...` directive,
+    // remember which names are ignored on which line.
+    final lineIgnoresByPath = <String, Map<int, Set<String>>>{};
     for (final pkg in analyzedPackages) {
       for (final file in _dartFilesIn(pkg)) {
         final rel = p.relative(file.path, from: request.rootPath);
@@ -255,15 +258,18 @@ class DoctorRunner {
           if (parsed.fileLevelIgnores.isNotEmpty) {
             fileIgnores[file.path] = parsed.fileLevelIgnores;
           }
+          if (parsed.lineLevelIgnores.isNotEmpty) {
+            lineIgnoresByPath[file.path] = parsed.lineLevelIgnores;
+          }
         } on Object {
           continue;
         }
       }
     }
 
-    if (fileIgnores.isEmpty) return;
+    if (fileIgnores.isEmpty && lineIgnoresByPath.isEmpty) return;
 
-    // Run a full analysis with file-level ignores DISABLED, so the
+    // Run a full analysis with comment-based ignores DISABLED, so the
     // findings list contains every detection — including the ones the
     // directives suppress. A directive that maps to none of those raw
     // findings is genuinely dead.
@@ -284,12 +290,20 @@ class DoctorRunner {
     // (per-symbol suppression). A name in fileIgnores that does not
     // appear in this matched set is reported as unused.
     final matchedByFile = <String, Set<String>>{};
+    // Same idea, but keyed by (file, line) so we can validate per-line
+    // directives without false negatives when the same rule fires on
+    // another line of the file.
+    final matchedByFileLine = <String, Map<int, Set<String>>>{};
     final symbolPattern = RegExp(r"'([\w_]+)'");
     for (final finding in findings) {
       final matched = matchedByFile.putIfAbsent(finding.filePath, () => {})
         ..add(finding.ruleId);
+      final byLine = matchedByFileLine.putIfAbsent(finding.filePath, () => {});
+      final lineSet = byLine.putIfAbsent(finding.line, () => <String>{})
+        ..add(finding.ruleId);
       for (final m in symbolPattern.allMatches(finding.message)) {
         matched.add(m.group(1)!);
+        lineSet.add(m.group(1)!);
       }
     }
 
@@ -302,6 +316,23 @@ class DoctorRunner {
             subject: p.relative(entry.key, from: request.rootPath),
             detail: name,
           );
+        }
+      }
+    }
+
+    for (final entry in lineIgnoresByPath.entries) {
+      final byLine = matchedByFileLine[entry.key] ?? const <int, Set<String>>{};
+      final relPath = p.relative(entry.key, from: request.rootPath);
+      for (final lineEntry in entry.value.entries) {
+        final matchedAtLine = byLine[lineEntry.key] ?? const <String>{};
+        for (final name in lineEntry.value) {
+          if (!matchedAtLine.contains(name)) {
+            yield DoctorFinding(
+              kind: DoctorIssueKind.unusedIgnoreDirective,
+              subject: '$relPath:${lineEntry.key}',
+              detail: name,
+            );
+          }
         }
       }
     }
