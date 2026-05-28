@@ -78,6 +78,28 @@ When `custom_presets.<name>` matches a built-in name, the built-in is **replaced
 // kareki: ignore_for_file=unused_element,unused_file
 ```
 
+### Inline (per-line)
+
+Suppress findings on a single line with `// kareki: ignore=<rule|name>`. Standalone comments target the next non-blank, non-comment line; trailing comments target their own line.
+
+```dart
+// kareki: ignore=unused_element
+class Dead {}
+
+class Other {} // kareki: ignore=unused_element
+
+void foo({
+  int? unused, // kareki: ignore=unused_parameter_optional
+}) {}
+```
+
+Multiple rules / symbol names can be comma-separated:
+
+```dart
+// kareki: ignore=unused_element, MyClass
+class MyClass {}
+```
+
 ### Per-package dependency
 
 ```yaml

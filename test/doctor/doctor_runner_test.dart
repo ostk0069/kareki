@@ -235,6 +235,48 @@ version: 1
       expect(dead.first.subject, endsWith('used.dart'));
     });
 
+    test('flags per-line `// kareki: ignore=...` directives that match no '
+        'real finding', () {
+      // The directive sits above a class that is actually reachable from
+      // `main`, so unused_element never fires on that line — the
+      // directive is dead.
+      _scaffold(
+        tempRoot.path,
+        packages: {
+          'app': {
+            'pubspec.yaml':
+                'name: app\n'
+                'publish_to: none\n'
+                'environment:\n'
+                '  sdk: ">=3.6.0 <4.0.0"\n'
+                'resolution: workspace\n',
+            'bin/main.dart':
+                "import 'package:app/used.dart';\n"
+                'void main() => Live().go();\n',
+            'lib/used.dart':
+                '// kareki: ignore=unused_element\n'
+                'class Live {\n'
+                '  void go() {}\n'
+                '}\n',
+          },
+        },
+      );
+      _writeKarekiConfig(tempRoot.path, '''
+version: 1
+''');
+      final result = DoctorRunner().run(_request(tempRoot.path));
+      final dead = result.findings
+          .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDirective)
+          .toList();
+      expect(dead, hasLength(1));
+      expect(dead.first.detail, 'unused_element');
+      expect(
+        dead.first.subject,
+        endsWith('used.dart:2'),
+        reason: 'per-line directive subject should include the target line',
+      );
+    });
+
     test('flags baseline entries whose stableId is no longer produced by '
         'any current finding', () {
       _scaffold(

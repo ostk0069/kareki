@@ -202,6 +202,26 @@ class KarekiRunner {
     final fileIgnores = <String, Set<String>>{
       for (final file in declarationFiles) file.path: file.fileLevelIgnores,
     };
+    final lineIgnores = <String, Map<int, Set<String>>>{
+      for (final file in declarationFiles) file.path: file.lineLevelIgnores,
+    };
+
+    // Returns `true` when the finding at (path, line) is silenced by a
+    // `// kareki: ignore=<rule|name>` directive matching either the
+    // rule id or the declaration/parameter simple name. Disabled along
+    // with file-level directives under `disregardFileLevelIgnores` so
+    // `kareki doctor` can detect stale per-line directives the same way
+    // it does for `ignore_for_file`.
+    bool isLineIgnored(String path, int line, String ruleId, String? name) {
+      if (request.disregardFileLevelIgnores) return false;
+      final byLine = lineIgnores[path];
+      if (byLine == null) return false;
+      final set = byLine[line];
+      if (set == null) return false;
+      if (set.contains(ruleId)) return true;
+      if (name != null && set.contains(name)) return true;
+      return false;
+    }
 
     final findings = <Finding>[];
 
@@ -264,7 +284,13 @@ class KarekiRunner {
 
         if (unusedElementEnabled && !isReachable && !hasReachableOverrideHost) {
           if (!ignores.contains(RuleId.unusedElement) &&
-              !ignores.contains(declaration.name)) {
+              !ignores.contains(declaration.name) &&
+              !isLineIgnored(
+                declaration.libraryPath,
+                declaration.line,
+                RuleId.unusedElement,
+                declaration.name,
+              )) {
             findings.add(
               Finding(
                 ruleId: RuleId.unusedElement,
@@ -298,6 +324,14 @@ class KarekiRunner {
             !isRecordInTestSource(declaration)) {
           if (ignores.contains(RuleId.testOnlyUsed) ||
               ignores.contains(declaration.name)) {
+            continue;
+          }
+          if (isLineIgnored(
+            declaration.libraryPath,
+            declaration.line,
+            RuleId.testOnlyUsed,
+            declaration.name,
+          )) {
             continue;
           }
           findings.add(
@@ -335,6 +369,14 @@ class KarekiRunner {
           }
           for (final param in declaration.unusedParameters) {
             if (ignores.contains(param.name)) continue;
+            if (isLineIgnored(
+              declaration.libraryPath,
+              param.line,
+              RuleId.unusedParameter,
+              param.name,
+            )) {
+              continue;
+            }
             findings.add(
               Finding(
                 ruleId: RuleId.unusedParameter,
@@ -389,6 +431,14 @@ class KarekiRunner {
             if (ignores.contains(param.name)) continue;
             final passed = _optionalParameterPassed(param, usage);
             if (passed) continue;
+            if (isLineIgnored(
+              declaration.libraryPath,
+              param.line,
+              RuleId.unusedParameterOptional,
+              param.name,
+            )) {
+              continue;
+            }
             findings.add(
               Finding(
                 ruleId: RuleId.unusedParameterOptional,

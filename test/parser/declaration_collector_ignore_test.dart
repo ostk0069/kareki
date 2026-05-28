@@ -83,4 +83,69 @@ class Thing {}
       expect(parsed.fileLevelIgnores, isEmpty);
     });
   });
+
+  group('per-line `// kareki: ignore=...` parsing', () {
+    test('standalone comment targets the next code line', () {
+      final parsed = _parse('''
+class Thing {}
+
+// kareki: ignore=unused_element
+class Other {}
+''');
+      // `class Other` is on line 4 (1-based).
+      expect(parsed.lineLevelIgnores[4], contains('unused_element'));
+    });
+
+    test(
+      'standalone comment skips blank and comment-only lines to the next code',
+      () {
+        final parsed = _parse('''
+// kareki: ignore=unused_element
+// some doc explaining why
+
+class Skipped {}
+''');
+        // `class Skipped` is on line 4.
+        expect(parsed.lineLevelIgnores[4], contains('unused_element'));
+      },
+    );
+
+    test('trailing comment targets its own line', () {
+      final parsed = _parse('''
+class Thing {} // kareki: ignore=unused_element
+''');
+      expect(parsed.lineLevelIgnores[1], contains('unused_element'));
+    });
+
+    test('multiple names in a single directive are split on comma', () {
+      final parsed = _parse('''
+// kareki: ignore=unused_element, fooSymbol
+class Thing {}
+''');
+      expect(
+        parsed.lineLevelIgnores[2],
+        containsAll(<String>['unused_element', 'fooSymbol']),
+      );
+    });
+
+    test('directive without `// kareki:` prefix is ignored', () {
+      final parsed = _parse('''
+// ignore: unused_element
+class Thing {}
+''');
+      expect(parsed.lineLevelIgnores, isEmpty);
+    });
+
+    test(
+      '`ignore_for_file=` directive is not also collected as line ignore',
+      () {
+        final parsed = _parse('''
+// kareki: ignore_for_file=unused_element
+class Thing {}
+''');
+        expect(parsed.lineLevelIgnores, isEmpty);
+        expect(parsed.fileLevelIgnores, contains('unused_element'));
+      },
+    );
+  });
 }

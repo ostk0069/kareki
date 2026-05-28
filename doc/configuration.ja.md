@@ -78,6 +78,28 @@ custom_presets:
 // kareki: ignore_for_file=unused_element,unused_file
 ```
 
+### 行単位（インライン）
+
+`// kareki: ignore=<rule|name>` で単一行のみ抑制できます。単独行のコメントは「次の空行・コメント以外の行」を対象とし、行末コメントはその行自体を対象とします。
+
+```dart
+// kareki: ignore=unused_element
+class Dead {}
+
+class Other {} // kareki: ignore=unused_element
+
+void foo({
+  int? unused, // kareki: ignore=unused_parameter_optional
+}) {}
+```
+
+複数のルールやシンボル名はカンマ区切りで指定できます:
+
+```dart
+// kareki: ignore=unused_element, MyClass
+class MyClass {}
+```
+
 ### パッケージごとの依存抑制
 
 ```yaml
