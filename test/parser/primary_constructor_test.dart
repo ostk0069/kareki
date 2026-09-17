@@ -107,6 +107,18 @@ extension type const Token.named(int value) {
       );
     });
 
+    test('does not report extension type representation parameters', () {
+      final parsed = _parse('extension type Token(int value) {}');
+
+      final constructor = parsed.declarations.firstWhere(
+        (declaration) =>
+            declaration.kind == DeclarationKind.constructor &&
+            declaration.name == 'Token',
+      );
+
+      expect(constructor.unusedParameters, isEmpty);
+    });
+
     test('keeps concise constructor names', () {
       final parsed = _parse('''
 class Cache() {
