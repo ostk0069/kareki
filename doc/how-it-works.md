@@ -26,6 +26,6 @@ This layered design lets kareki coexist with codegen-heavy ecosystems without fl
 | Component | Version |
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
-| analyzer | `>=9.0.0 <15.0.0` |
+| analyzer | `>=10.2.0 <15.0.0` |
 
 CI runs analysis and tests against every supported Dart minor version, plus the latest stable SDK patch.

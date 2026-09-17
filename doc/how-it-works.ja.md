@@ -26,6 +26,6 @@
 | コンポーネント | バージョン |
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
-| analyzer | `>=9.0.0 <15.0.0` |
+| analyzer | `>=10.2.0 <15.0.0` |
 
 CI では、サポートするすべての Dart minor version と、最新 stable SDK の patch version に対して解析とテストを実行します。
