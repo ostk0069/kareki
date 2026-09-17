@@ -53,6 +53,32 @@ jobs:
         # out of sync with the detectors it's supposed to demonstrate.
         run: dart run tool/verify_example.dart
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+        with:
+          sdk: stable
+
+      - name: Resolve dependencies
+        run: dart pub get
+
+      - name: Run tests with coverage
+        run: dart run test --coverage-path=coverage/lcov.info
+
+      - uses: k1LoW/octocov-action@a167dc0dee441b7ffc45e1b862ab55ec0d87f278 # v1.5.2
+
   publish-dry-run:
     name: Publish dry-run
     runs-on: ubuntu-latest

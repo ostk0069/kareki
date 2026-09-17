@@ -1,0 +1,14 @@
+coverage:
+  paths:
+    - coverage/lcov.info
+
+comment:
+  if: is_pull_request
+  deletePrevious: true
+
+summary:
+  if: true
+
+testExecutionTime:
+  steps:
+    - Run tests with coverage
