@@ -53,6 +53,45 @@ jobs:
         # out of sync with the detectors it's supposed to demonstrate.
         run: dart run tool/verify_example.dart
 
+  analyzer-boundaries:
+    name: Analyzer (${{ matrix.boundary }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - boundary: minimum 10.2.0
+            sdk: 3.10.0
+          - boundary: latest allowed
+            sdk: stable
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+        with:
+          sdk: ${{ matrix.sdk }}
+
+      - name: Resolve minimum analyzer
+        if: matrix.boundary == 'minimum 10.2.0'
+        run: dart pub add analyzer:10.2.0
+
+      - name: Resolve latest allowed analyzer
+        if: matrix.boundary == 'latest allowed'
+        run: dart pub upgrade
+
+      - name: Print resolved analyzer
+        run: dart pub deps --style=compact
+
+      - name: Analyze
+        run: dart analyze --fatal-warnings
+
+      - name: Run tests
+        run: dart test
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest

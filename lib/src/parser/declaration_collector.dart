@@ -1,3 +1,4 @@
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
@@ -86,6 +87,13 @@ class DeclarationCollector {
     final result = parseString(
       content: content,
       path: path,
+      // Primary constructors shipped in Dart 3.13, but analyzer versions
+      // before the SDK release still expose their public AST behind the
+      // experiment flag. Enabling it here lets the supported analyzer range
+      // parse both preview and stable source consistently.
+      featureSet: FeatureSet.latestLanguageVersion(
+        flags: const ['primary-constructors'],
+      ),
       throwIfDiagnostics: false,
     );
     final unit = result.unit;
@@ -212,6 +220,16 @@ class DeclarationCollector {
           annotations: _annotationNames(member.metadata),
         ),
       );
+      _visitPrimaryConstructor(
+        enclosingTypeName: name,
+        declaration: _primaryConstructor(member),
+        typeDeclaration: member,
+        packageName: packageName,
+        path: path,
+        lineInfo: lineInfo,
+        outDeclarations: outDeclarations,
+        outAllReferences: outAllReferences,
+      );
       for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
           enclosingTypeName: name,
@@ -268,6 +286,16 @@ class DeclarationCollector {
           outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
+      );
+      _visitPrimaryConstructor(
+        enclosingTypeName: name,
+        declaration: _primaryConstructor(member),
+        typeDeclaration: member,
+        packageName: packageName,
+        path: path,
+        lineInfo: lineInfo,
+        outDeclarations: outDeclarations,
+        outAllReferences: outAllReferences,
       );
       for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
@@ -328,6 +356,16 @@ class DeclarationCollector {
           outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
+      );
+      _visitPrimaryConstructor(
+        enclosingTypeName: name,
+        declaration: _primaryConstructor(member),
+        typeDeclaration: member,
+        packageName: packageName,
+        path: path,
+        lineInfo: lineInfo,
+        outDeclarations: outDeclarations,
+        outAllReferences: outAllReferences,
       );
       for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
@@ -572,6 +610,91 @@ class DeclarationCollector {
     }
   }
 
+  void _visitPrimaryConstructor({
+    required String enclosingTypeName,
+    required PrimaryConstructorDeclaration? declaration,
+    required AstNode typeDeclaration,
+    required String packageName,
+    required String path,
+    required LineInfo lineInfo,
+    required List<DeclarationRecord> outDeclarations,
+    required Set<String> outAllReferences,
+  }) {
+    if (declaration == null) return;
+
+    final body = declaration.body;
+    final additionalReferences = <AstNode>[
+      ...?body?.initializers,
+      if (body != null) body.body,
+      ..._primaryConstructorFieldInitializers(typeDeclaration),
+    ];
+    final visitor = _ReferenceVisitor()..visit(declaration);
+    additionalReferences.forEach(visitor.visit);
+    outAllReferences.addAll(visitor.names);
+
+    final paramAnalysis = _analyzeParameters(
+      params: declaration.formalParameters,
+      body: body?.body,
+      initializers: body?.initializers,
+      additionalReferences: _primaryConstructorFieldInitializers(
+        typeDeclaration,
+      ),
+      annotations: const <String>{},
+      isOperator: false,
+      hasImplicitImplementation: true,
+      lineInfo: lineInfo,
+    );
+    final constructorName = declaration.constructorName?.name;
+    final isUnnamed =
+        constructorName == null || constructorName.lexeme == 'new';
+    outDeclarations.add(
+      _record(
+        name: isUnnamed ? enclosingTypeName : constructorName.lexeme,
+        kind: DeclarationKind.constructor,
+        token: isUnnamed
+            ? _typeDeclarationName(typeDeclaration)
+            : constructorName,
+        node: declaration,
+        lineInfo: lineInfo,
+        packageName: packageName,
+        path: path,
+        outgoingNames: visitor.names,
+        annotations: const <String>{},
+        enclosingTypeName: enclosingTypeName,
+        unusedParameters: isUnnamed
+            ? const <ParameterRecord>[]
+            : paramAnalysis.unused,
+        optionalParameters: paramAnalysis.optional,
+      ),
+    );
+
+    for (final parameter in declaration.formalParameters.parameters) {
+      // Extension type representation fields already predate Dart 3.13.
+      // Recording them here introduces broad same-name reachability (for
+      // example every `value` representation keeping unrelated types alive),
+      // so preserve the existing extension-type behavior.
+      if (typeDeclaration is ExtensionTypeDeclaration) continue;
+      if (!_isPrimaryDeclaringParameter(parameter)) continue;
+      final nameToken = parameter.name;
+      if (nameToken == null) continue;
+      final fieldVisitor = _ReferenceVisitor()..visit(parameter);
+      outDeclarations.add(
+        _record(
+          name: nameToken.lexeme,
+          kind: DeclarationKind.field,
+          token: nameToken,
+          node: parameter,
+          lineInfo: lineInfo,
+          packageName: packageName,
+          path: path,
+          outgoingNames: fieldVisitor.names,
+          annotations: _annotationNames(parameter.metadata),
+          enclosingTypeName: enclosingTypeName,
+        ),
+      );
+    }
+  }
+
   DeclarationRecord _record({
     required String name,
     required DeclarationKind kind,
@@ -628,6 +751,8 @@ class DeclarationCollector {
     required Set<String> annotations,
     required bool isOperator,
     required LineInfo lineInfo,
+    Iterable<AstNode> additionalReferences = const <AstNode>[],
+    bool hasImplicitImplementation = false,
   }) {
     if (params == null) return _ParameterAnalysis.empty;
     if (params.parameters.isEmpty) return _ParameterAnalysis.empty;
@@ -639,7 +764,11 @@ class DeclarationCollector {
     // No implementation to inspect: abstract, external, native, or a
     // redirecting factory. Flagging parameters here would be noise — the
     // signature is dictated by the contract, not by the (absent) body.
-    final hasImplementation = hasBody || hasInitializers;
+    final hasImplementation =
+        hasBody ||
+        hasInitializers ||
+        additionalReferences.isNotEmpty ||
+        hasImplicitImplementation;
     final isStub = body != null && _isUnimplementedErrorStub(body);
     // Optional parameters are collected even when the body is absent
     // EXCEPT for true contractual signatures: abstract / external /
@@ -659,6 +788,10 @@ class DeclarationCollector {
         final visitor = _ReferenceVisitor()..visit(init);
         referenced.addAll(visitor.names);
       }
+    }
+    for (final node in additionalReferences) {
+      final visitor = _ReferenceVisitor()..visit(node);
+      referenced.addAll(visitor.names);
     }
 
     return _emitParameterAnalysis(params, referenced, lineInfo);
@@ -712,7 +845,9 @@ class DeclarationCollector {
       if (!isNamed) positionalIndex++;
       // `this.x` auto-assigns to a field; `super.x` auto-forwards to the
       // super constructor. Neither needs a body reference.
-      final isFieldOrSuper = _isFieldOrSuperParameter(param);
+      final isFieldOrSuper =
+          _isFieldOrSuperParameter(param) ||
+          _isPrimaryDeclaringParameter(param);
       final nameToken = param.name;
       if (nameToken == null) continue;
       final name = nameToken.lexeme;
@@ -909,6 +1044,18 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
   }
 
   @override
+  void visitEnumConstantArguments(EnumConstantArguments node) {
+    final constructorName = node.constructorSelector?.name.name;
+    final name = constructorName == null || constructorName == 'new'
+        ? _enclosingEnumName(node)
+        : constructorName;
+    if (name != null) {
+      _recordArguments(name, node.argumentList);
+    }
+    super.visitEnumConstantArguments(node);
+  }
+
+  @override
   void visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
     // Anonymous / first-class function invocation. We can still pick up
     // the call when the callee is a SimpleIdentifier (`foo(1)` resolved
@@ -955,12 +1102,49 @@ const _unnamedDotShorthandKey = '.new';
 /// helpers use stable token/tree APIs that work with both AST shapes.
 Token _typeDeclarationName(AstNode declaration) {
   if (declaration is ClassDeclaration) {
-    return declaration.classKeyword.next!;
+    var token = declaration.classKeyword.next!;
+    if (token.lexeme == 'const') token = token.next!;
+    return token;
   }
   if (declaration is EnumDeclaration) {
-    return declaration.enumKeyword.next!;
+    var token = declaration.enumKeyword.next!;
+    if (token.lexeme == 'const') token = token.next!;
+    return token;
+  }
+  if (declaration is ExtensionTypeDeclaration) {
+    return _extensionTypeNameToken(declaration);
   }
   throw ArgumentError.value(declaration, 'declaration');
+}
+
+PrimaryConstructorDeclaration? _primaryConstructor(AstNode declaration) {
+  final visitor = _DirectPrimaryConstructorVisitor();
+  declaration.visitChildren(visitor);
+  return visitor.declaration;
+}
+
+Iterable<AstNode> _primaryConstructorFieldInitializers(
+  AstNode declaration,
+) sync* {
+  for (final member in _typeDeclarationMembers(declaration)) {
+    if (member is! FieldDeclaration || member.isStatic) continue;
+    if (member.fields.isLate) continue;
+    for (final variable in member.fields.variables) {
+      final initializer = variable.initializer;
+      if (initializer != null) yield initializer;
+    }
+  }
+}
+
+String? _enclosingEnumName(AstNode node) {
+  var ancestor = node.parent;
+  while (ancestor != null) {
+    if (ancestor is EnumDeclaration) {
+      return _typeDeclarationName(ancestor).lexeme;
+    }
+    ancestor = ancestor.parent;
+  }
+  return null;
 }
 
 Iterable<ClassMember> _typeDeclarationMembers(AstNode declaration) {
@@ -978,8 +1162,11 @@ Token _constructorTypeToken(ConstructorDeclaration declaration) {
   return token;
 }
 
-Token _extensionTypeNameToken(ExtensionTypeDeclaration declaration) =>
-    declaration.extensionKeyword.next!.next!;
+Token _extensionTypeNameToken(ExtensionTypeDeclaration declaration) {
+  var token = declaration.typeKeyword.next!;
+  if (token.lexeme == 'const') token = token.next!;
+  return token;
+}
 
 bool _isFieldOrSuperParameter(FormalParameter parameter) {
   if (parameter is FieldFormalParameter || parameter is SuperFormalParameter) {
@@ -988,6 +1175,31 @@ bool _isFieldOrSuperParameter(FormalParameter parameter) {
   final visitor = _FieldOrSuperParameterVisitor();
   parameter.visitChildren(visitor);
   return visitor.found;
+}
+
+bool _isPrimaryDeclaringParameter(FormalParameter parameter) {
+  var ancestor = parameter.parent;
+  while (ancestor != null) {
+    if (ancestor is PrimaryConstructorDeclaration) {
+      return ancestor.parent is ExtensionTypeDeclaration ||
+          _primaryDeclaringKeyword(parameter) != null;
+    }
+    ancestor = ancestor.parent;
+  }
+  return false;
+}
+
+String? _primaryDeclaringKeyword(FormalParameter parameter) {
+  final name = parameter.name;
+  if (name == null) return null;
+  var token = parameter.beginToken;
+  while (true) {
+    if (token.lexeme == 'final' || token.lexeme == 'var') {
+      return token.lexeme;
+    }
+    if (identical(token, name) || token.next == null) return null;
+    token = token.next!;
+  }
 }
 
 String? _namedArgumentName(AstNode argument) {
@@ -1008,6 +1220,19 @@ class _DirectClassMemberVisitor extends GeneralizingAstVisitor<void> {
       return;
     }
     node.visitChildren(this);
+  }
+}
+
+class _DirectPrimaryConstructorVisitor extends GeneralizingAstVisitor<void> {
+  PrimaryConstructorDeclaration? declaration;
+
+  @override
+  void visitNode(AstNode node) {
+    if (node is PrimaryConstructorDeclaration) {
+      declaration ??= node;
+      return;
+    }
+    if (declaration == null) node.visitChildren(this);
   }
 }
 
