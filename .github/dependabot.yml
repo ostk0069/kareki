@@ -5,9 +5,12 @@ updates:
     schedule:
       interval: weekly
     groups:
-      actions:
+      actions-non-major:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
     # Wait a few days after a release before opening a PR. Lets the
     # ecosystem surface broken or yanked releases (cf. the
     # `tj-actions/changed-files` compromise) before we adopt them.
@@ -20,9 +23,12 @@ updates:
     schedule:
       interval: weekly
     groups:
-      dart-deps:
+      dart-non-major:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
     cooldown:
       default-days: 7
       semver-major-days: 14
