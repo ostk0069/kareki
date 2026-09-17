@@ -15,10 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Test against the minimum supported Dart SDK and the latest
-        # stable. Bump `min` when bumping `environment.sdk` in
-        # pubspec.yaml.
-        sdk: ["3.10.0", "stable"]
+        # Test the first patch of every supported Dart minor, plus the latest
+        # stable patch. Add each new stable minor explicitly so it remains in
+        # the matrix after `stable` advances.
+        sdk: ["3.10.0", "3.11.0", "3.12.0", "3.13.0", "stable"]
     steps:
       - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
@@ -37,6 +37,9 @@ jobs:
         run: dart pub get
 
       - name: Check formatting
+        # Formatter output can change between Dart minors. The repository's
+        # canonical formatting is defined by the latest stable SDK.
+        if: matrix.sdk == 'stable'
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze
