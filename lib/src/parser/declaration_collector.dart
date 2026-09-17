@@ -118,7 +118,8 @@ class DeclarationCollector {
           if (altUri != null) exports.add(altUri);
         }
       } else if (directive is PartOfDirective) {
-        partOf = directive.uri?.stringValue ?? directive.libraryName?.name;
+        partOf =
+            directive.uri?.stringValue ?? directive.libraryName?.toSource();
       }
     }
 
@@ -192,14 +193,15 @@ class DeclarationCollector {
     required Set<String> outAllReferences,
   }) {
     if (member is ClassDeclaration) {
-      final name = member.name.lexeme;
+      final nameToken = _typeDeclarationName(member);
+      final name = nameToken.lexeme;
       final visitor = _ReferenceVisitor()..visit(member);
       outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
           kind: DeclarationKind.classDecl,
-          token: member.name,
+          token: nameToken,
           node: member,
           lineInfo: lineInfo,
           packageName: packageName,
@@ -208,7 +210,7 @@ class DeclarationCollector {
           annotations: _annotationNames(member.metadata),
         ),
       );
-      for (final child in member.members) {
+      for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
           enclosingTypeName: name,
           member: child,
@@ -236,7 +238,7 @@ class DeclarationCollector {
           annotations: _annotationNames(member.metadata),
         ),
       );
-      for (final child in member.members) {
+      for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
           enclosingTypeName: name,
           member: child,
@@ -248,14 +250,15 @@ class DeclarationCollector {
         );
       }
     } else if (member is EnumDeclaration) {
-      final name = member.name.lexeme;
+      final nameToken = _typeDeclarationName(member);
+      final name = nameToken.lexeme;
       final visitor = _ReferenceVisitor()..visit(member);
       outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
           kind: DeclarationKind.enumDecl,
-          token: member.name,
+          token: nameToken,
           node: member,
           lineInfo: lineInfo,
           packageName: packageName,
@@ -264,7 +267,7 @@ class DeclarationCollector {
           annotations: _annotationNames(member.metadata),
         ),
       );
-      for (final child in member.members) {
+      for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
           enclosingTypeName: name,
           member: child,
@@ -295,7 +298,7 @@ class DeclarationCollector {
           ),
         );
       }
-      for (final child in member.members) {
+      for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
           enclosingTypeName: extensionName,
           member: child,
@@ -506,7 +509,7 @@ class DeclarationCollector {
           _record(
             name: enclosingTypeName,
             kind: DeclarationKind.constructor,
-            token: member.returnType.beginToken,
+            token: _constructorTypeToken(member),
             node: member,
             lineInfo: lineInfo,
             packageName: packageName,
@@ -659,12 +662,10 @@ class DeclarationCollector {
       final isOptional = param.isOptional;
       final myPositionalIndex = isNamed ? null : positionalIndex;
       if (!isNamed) positionalIndex++;
-      final inner = param is DefaultFormalParameter ? param.parameter : param;
       // `this.x` auto-assigns to a field; `super.x` auto-forwards to the
       // super constructor. Neither needs a body reference.
-      final isFieldOrSuper =
-          inner is FieldFormalParameter || inner is SuperFormalParameter;
-      final nameToken = inner.name;
+      final isFieldOrSuper = _isFieldOrSuperParameter(param);
+      final nameToken = param.name;
       if (nameToken == null) continue;
       final name = nameToken.lexeme;
       if (name.isEmpty) continue;
@@ -809,8 +810,9 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
     final slot = _slot(name);
     var positionalCount = 0;
     for (final arg in args.arguments) {
-      if (arg is NamedExpression) {
-        slot.mergeNamed(arg.name.label.name);
+      final namedArgument = _namedArgumentName(arg);
+      if (namedArgument != null) {
+        slot.mergeNamed(namedArgument);
       } else {
         positionalCount++;
       }
@@ -873,6 +875,77 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
       _recordArguments(ctorName, node.argumentList);
     }
     super.visitSuperConstructorInvocation(node);
+  }
+}
+
+/// Analyzer 13 replaced several long-standing AST accessors while older
+/// Analyzer versions are still selected on kareki's minimum Dart SDK. These
+/// helpers use stable token/tree APIs that work with both AST shapes.
+Token _typeDeclarationName(AstNode declaration) {
+  if (declaration is ClassDeclaration) {
+    return declaration.classKeyword.next!;
+  }
+  if (declaration is EnumDeclaration) {
+    return declaration.enumKeyword.next!;
+  }
+  throw ArgumentError.value(declaration, 'declaration');
+}
+
+Iterable<ClassMember> _typeDeclarationMembers(AstNode declaration) {
+  final visitor = _DirectClassMemberVisitor();
+  declaration.visitChildren(visitor);
+  return visitor.members;
+}
+
+Token _constructorTypeToken(ConstructorDeclaration declaration) {
+  var token = declaration.beginToken;
+  final leftParenthesis = declaration.parameters.leftParenthesis;
+  while (token.next != null && !identical(token.next, leftParenthesis)) {
+    token = token.next!;
+  }
+  return token;
+}
+
+bool _isFieldOrSuperParameter(FormalParameter parameter) {
+  if (parameter is FieldFormalParameter || parameter is SuperFormalParameter) {
+    return true;
+  }
+  final visitor = _FieldOrSuperParameterVisitor();
+  parameter.visitChildren(visitor);
+  return visitor.found;
+}
+
+String? _namedArgumentName(AstNode argument) {
+  final name = argument.beginToken;
+  if (name.next?.lexeme == ':') {
+    return name.lexeme;
+  }
+  return null;
+}
+
+class _DirectClassMemberVisitor extends GeneralizingAstVisitor<void> {
+  final List<ClassMember> members = <ClassMember>[];
+
+  @override
+  void visitNode(AstNode node) {
+    if (node is ClassMember) {
+      members.add(node);
+      return;
+    }
+    node.visitChildren(this);
+  }
+}
+
+class _FieldOrSuperParameterVisitor extends GeneralizingAstVisitor<void> {
+  bool found = false;
+
+  @override
+  void visitNode(AstNode node) {
+    if (node is FieldFormalParameter || node is SuperFormalParameter) {
+      found = true;
+      return;
+    }
+    if (!found) node.visitChildren(this);
   }
 }
 

@@ -26,6 +26,6 @@
 | コンポーネント | バージョン |
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
-| analyzer | `^9.0.0` |
+| analyzer | `>=9.0.0 <15.0.0` |
 
-より新しい analyzer への対応は順次追加していきます。9.x に揃えているのは、analyzer 10+ に未移行のプロジェクトでも kareki を今すぐ採用できるようにするためです。
+CI では、サポートするすべての Dart minor version と、最新 stable SDK の patch version に対して解析とテストを実行します。
