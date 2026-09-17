@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.0
+
+### Added
+
+- Support for Dart 3.13 primary constructors on classes, enums, and extension
+  types, including declaring fields, parameter usage analysis, enum constant
+  call-site tracking, and concise `new` / `factory` constructor declarations.
+
+### Changed
+
+- Raised the minimum supported analyzer version from 9.0.0 to 10.2.0 while
+  retaining Dart 3.10 as the minimum supported SDK.
+- Added CI coverage for the minimum and latest supported analyzer versions.
+
 ## 0.5.0
 
 ### Added
