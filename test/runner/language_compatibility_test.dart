@@ -1,23 +1,16 @@
-import 'dart:io';
-
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/runner.dart';
-import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-void _write(String root, String path, String contents) {
-  final file = File(p.join(root, path));
-  file.parent.createSync(recursive: true);
-  file.writeAsStringSync(contents);
-}
+import '../support/test_workspace.dart';
 
 void main() {
-  late Directory workspace;
+  late TestWorkspace workspace;
 
   setUp(() {
-    workspace = Directory.systemTemp.createTempSync('kareki_language_');
-    _write(workspace.path, 'pubspec.yaml', '''
+    workspace = TestWorkspace.create('kareki_language_');
+    workspace.write('pubspec.yaml', '''
 name: language_workspace
 publish_to: none
 environment:
@@ -25,7 +18,7 @@ environment:
 workspace:
   - app
 ''');
-    _write(workspace.path, 'app/pubspec.yaml', '''
+    workspace.write('app/pubspec.yaml', '''
 name: app
 publish_to: none
 environment:
@@ -34,12 +27,10 @@ resolution: workspace
 ''');
   });
 
-  tearDown(() {
-    if (workspace.existsSync()) workspace.deleteSync(recursive: true);
-  });
+  tearDown(() => workspace.dispose());
 
   test('Dart 3.10-3.12 syntax keeps used APIs reachable', () {
-    _write(workspace.path, 'app/lib/api.dart', '''
+    workspace.write('app/lib/api.dart', '''
 class Client {
   final String? endpoint;
   Client.named({String? endpoint}) : endpoint = endpoint;
@@ -65,7 +56,7 @@ class Point {
   Point({required this._x});
 }
 ''');
-    _write(workspace.path, 'app/bin/main.dart', '''
+    workspace.write('app/bin/main.dart', '''
 import 'package:app/api.dart';
 
 void main() {

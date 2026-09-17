@@ -1,37 +1,34 @@
-import 'dart:io';
-
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/runner.dart';
-import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-/// Build a minimal pub workspace under [root] with a single `app`
+import '../support/test_workspace.dart';
+
+/// Build a minimal pub workspace with a single `app`
 /// package containing the given files. Mirrors the helper in
 /// `test/doctor/doctor_runner_test.dart` but pared down to a single
 /// package.
-void _scaffold(String root, {required Map<String, String> files}) {
-  File(p.join(root, 'pubspec.yaml')).writeAsStringSync(
+void _scaffold(TestWorkspace workspace, {required Map<String, String> files}) {
+  workspace.write(
+    'pubspec.yaml',
     'name: _workspace_root\n'
-    'publish_to: none\n'
-    'environment:\n'
-    '  sdk: ">=3.6.0 <4.0.0"\n'
-    'workspace:\n'
-    '  - app\n',
+        'publish_to: none\n'
+        'environment:\n'
+        '  sdk: ">=3.6.0 <4.0.0"\n'
+        'workspace:\n'
+        '  - app\n',
   );
-  final pkgRoot = p.join(root, 'app');
-  Directory(pkgRoot).createSync(recursive: true);
-  File(p.join(pkgRoot, 'pubspec.yaml')).writeAsStringSync(
+  workspace.write(
+    'app/pubspec.yaml',
     'name: app\n'
-    'publish_to: none\n'
-    'environment:\n'
-    '  sdk: ">=3.6.0 <4.0.0"\n'
-    'resolution: workspace\n',
+        'publish_to: none\n'
+        'environment:\n'
+        '  sdk: ">=3.6.0 <4.0.0"\n'
+        'resolution: workspace\n',
   );
   for (final entry in files.entries) {
-    final path = p.join(pkgRoot, entry.key);
-    Directory(p.dirname(path)).createSync(recursive: true);
-    File(path).writeAsStringSync(entry.value);
+    workspace.write('app/${entry.key}', entry.value);
   }
 }
 
@@ -40,20 +37,18 @@ RunResult _run(String root) => KarekiRunner().run(
 );
 
 void main() {
-  late Directory tempRoot;
+  late TestWorkspace workspace;
 
   setUp(() {
-    tempRoot = Directory.systemTemp.createTempSync('kareki_runner_ignore_');
+    workspace = TestWorkspace.create('kareki_runner_ignore_');
   });
 
-  tearDown(() {
-    if (tempRoot.existsSync()) tempRoot.deleteSync(recursive: true);
-  });
+  tearDown(() => workspace.dispose());
 
   group('per-line `// kareki: ignore=...` suppression', () {
     test('standalone directive above a class suppresses unused_element', () {
       _scaffold(
-        tempRoot.path,
+        workspace,
         files: {
           'bin/main.dart': 'void main() {}\n',
           'lib/dead.dart':
@@ -63,7 +58,7 @@ void main() {
               'class StillDead {}\n',
         },
       );
-      final findings = _run(tempRoot.path).findings;
+      final findings = _run(workspace.path).findings;
       final dead = findings
           .where((f) => f.ruleId == RuleId.unusedElement)
           .map((f) => f.message)
@@ -82,13 +77,13 @@ void main() {
 
     test('trailing directive on the same line suppresses unused_element', () {
       _scaffold(
-        tempRoot.path,
+        workspace,
         files: {
           'bin/main.dart': 'void main() {}\n',
           'lib/dead.dart': 'class Dead {} // kareki: ignore=unused_element\n',
         },
       );
-      final findings = _run(tempRoot.path).findings;
+      final findings = _run(workspace.path).findings;
       expect(
         findings.any(
           (f) =>
@@ -100,7 +95,7 @@ void main() {
 
     test('directive by symbol name suppresses only that symbol', () {
       _scaffold(
-        tempRoot.path,
+        workspace,
         files: {
           'bin/main.dart': 'void main() {}\n',
           'lib/dead.dart':
@@ -110,7 +105,7 @@ void main() {
               'class Other {}\n',
         },
       );
-      final dead = _run(tempRoot.path).findings
+      final dead = _run(workspace.path).findings
           .where((f) => f.ruleId == RuleId.unusedElement)
           .map((f) => f.message)
           .toList();
@@ -120,7 +115,7 @@ void main() {
 
     test('per-line directive suppresses unused_parameter', () {
       _scaffold(
-        tempRoot.path,
+        workspace,
         files: {
           'bin/main.dart':
               "import 'package:app/lib.dart';\n"
@@ -138,7 +133,7 @@ void main() {
               '}\n',
         },
       );
-      final findings = _run(tempRoot.path).findings;
+      final findings = _run(workspace.path).findings;
       expect(
         findings.any(
           (f) =>
