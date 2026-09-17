@@ -27,13 +27,6 @@ class _UserConfig {
     required this.ignoredDependencies,
   });
 
-  /// User-specified entries in `exclude.files`. Empty when the user
-  /// did not override it — in which case doctor must not flag the
-  /// defaults baked into [KarekiConfig.defaults].
-  final List<String> excludeFiles;
-  final Set<String> ignorePackages;
-  final Map<String, Set<String>> ignoredDependencies;
-
   /// Loads the raw user values from the config file. Returns an empty
   /// config when no file exists, which causes doctor to find nothing
   /// (there is nothing for the user to clean up).
@@ -57,6 +50,13 @@ class _UserConfig {
       ignoredDependencies: _stringSetMap(ignore?['dependencies']),
     );
   }
+
+  /// User-specified entries in `exclude.files`. Empty when the user
+  /// did not override it — in which case doctor must not flag the
+  /// defaults baked into [KarekiConfig.defaults].
+  final List<String> excludeFiles;
+  final Set<String> ignorePackages;
+  final Map<String, Set<String>> ignoredDependencies;
 
   static final empty = _UserConfig(
     excludeFiles: const [],

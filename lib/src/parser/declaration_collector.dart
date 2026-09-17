@@ -175,6 +175,8 @@ class DeclarationCollector {
     final head = content.length > 512 ? content.substring(0, 512) : content;
     if (head.contains('GENERATED CODE - DO NOT MODIFY BY HAND')) return true;
     if (head.contains(
+      // The split is intentional: this exact header has no whitespace.
+      // ignore: missing_whitespace_between_adjacent_strings
       '// **************************************************'
       '*********************',
     )) {

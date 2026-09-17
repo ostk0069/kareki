@@ -17,7 +17,7 @@ enum DeclarationKind {
 /// A parameter declared by a callable (function / method / constructor)
 /// that is not referenced inside the callable's body or initializers.
 ///
-/// Populated by [DeclarationCollector] and consumed by the runner's
+/// Populated by `DeclarationCollector` and consumed by the runner's
 /// `unused_parameter` rule.
 class ParameterRecord {
   ParameterRecord({
@@ -37,7 +37,7 @@ class ParameterRecord {
 
 /// An optional parameter declared by a callable, tracked regardless of
 /// whether it is referenced in the body. Populated by
-/// [DeclarationCollector] and consumed by the runner's
+/// `DeclarationCollector` and consumed by the runner's
 /// `unused_parameter_optional` rule, which flags entries for which no
 /// call site in the workspace passes a value.
 class OptionalParameterRecord {

@@ -58,11 +58,11 @@ class RuleId {
 
 /// A single detection result.
 ///
-/// Findings are emitted from [KarekiRunner.run] inside [RunResult.findings]
-/// and rendered via [Reporter].
+/// Findings are emitted from `KarekiRunner.run` inside `RunResult.findings`
+/// and rendered via `Reporter`.
 class Finding {
   /// Creates a finding. End-users normally consume [Finding] instances
-  /// produced by [KarekiRunner]; this constructor exists for custom
+  /// produced by `KarekiRunner`; this constructor exists for custom
   /// reporters / tests.
   Finding({
     required this.ruleId,
