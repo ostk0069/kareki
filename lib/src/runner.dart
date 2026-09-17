@@ -14,6 +14,8 @@ import 'package:kareki/src/reachability/unused_file_detector.dart';
 import 'package:kareki/src/workspace/workspace_loader.dart';
 import 'package:path/path.dart' as p;
 
+const _unnamedDotShorthandKey = '.new';
+
 /// Configurable input for [KarekiRunner.run].
 class RunRequest {
   /// Creates a run request. [rootPath] is the absolute path of the
@@ -426,7 +428,15 @@ class KarekiRunner {
           final enclosing = declaration.enclosingTypeName;
           if (enclosing != null && enclosing.startsWith('_')) continue;
 
-          final usage = aggregated[declaration.name];
+          var usage = aggregated[declaration.name];
+          final shorthand = aggregated[_unnamedDotShorthandKey];
+          if (declaration.kind == DeclarationKind.constructor &&
+              declaration.name == declaration.enclosingTypeName &&
+              shorthand != null) {
+            usage = CallSiteUsage()
+              ..mergeFrom(usage ?? CallSiteUsage())
+              ..mergeFrom(shorthand);
+          }
           for (final param in declaration.optionalParameters) {
             if (ignores.contains(param.name)) continue;
             final passed = _optionalParameterPassed(param, usage);

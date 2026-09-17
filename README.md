@@ -28,7 +28,7 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 
 | Rule | Detects |
 |---|---|
-| `unused_element` | Public classes / functions / methods / getters / setters / fields / top-level variables / extensions / typedefs with no caller anywhere in the workspace. |
+| `unused_element` | Public classes / functions / methods / getters / setters / fields / top-level variables / extensions / extension types / typedefs with no caller anywhere in the workspace. |
 | `unused_file` | `.dart` files that are not `import`-ed, `part`-ed, or `export`-ed from any other file. |
 | `unused_pub_dependency` | Packages declared in `pubspec.yaml` whose imports never appear in source. |
 | `test_only_used` | Public declarations under `lib/` that are only referenced from test code (`*_test.dart`, files under `test/` or `integration_test/`). The implementation has no production consumer — typically its tests are the only thing keeping it alive. |
