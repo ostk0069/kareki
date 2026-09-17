@@ -147,7 +147,7 @@ const Preset metaPreset = Preset(
   },
 );
 
-/// All built-in presets. The runtime [PresetRegistry] selects from this
+/// All built-in presets. The runtime `PresetRegistry` selects from this
 /// list based on the user's `keep_alive_annotations.presets` config.
 const List<Preset> allBuiltInPresets = [
   freezedPreset,

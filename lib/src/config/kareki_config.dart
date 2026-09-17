@@ -80,6 +80,69 @@ class KarekiConfig {
     baselinePath: null,
   );
 
+  /// Load configuration from `kareki-config.yaml` in the given root,
+  /// returning defaults when the file is absent.
+  ///
+  /// Also accepts the legacy filenames `kareki_config.yaml` and
+  /// `kareki.yaml` for backwards compatibility with early adopters.
+  factory KarekiConfig.load(String rootPath) {
+    const candidates = [
+      'kareki-config.yaml',
+      'kareki_config.yaml',
+      'kareki.yaml',
+    ];
+    File? file;
+    for (final name in candidates) {
+      final candidate = File(p.join(rootPath, name));
+      if (candidate.existsSync()) {
+        file = candidate;
+        break;
+      }
+    }
+    if (file == null) return KarekiConfig.defaults();
+    final yaml = loadYaml(file.readAsStringSync());
+    if (yaml is! YamlMap) return KarekiConfig.defaults();
+    final defaults = KarekiConfig.defaults();
+
+    final packages = yaml['packages'] as YamlMap?;
+    final exclude = yaml['exclude'] as YamlMap?;
+    final entryPoints = yaml['entry_points'] as YamlMap?;
+    final keepAlive = yaml['keep_alive_annotations'] as YamlMap?;
+    final ignore = yaml['ignore'] as YamlMap?;
+    final output = yaml['output'] as YamlMap?;
+
+    return KarekiConfig(
+      includePackages: _stringList(packages?['include']),
+      excludePackages: _stringList(packages?['exclude']),
+      excludeFiles: _stringList(
+        exclude?['files'],
+        fallback: defaults.excludeFiles,
+      ),
+      excludeNames: _stringSet(exclude?['names']),
+      entryPointFiles: _stringList(
+        entryPoints?['files'],
+        fallback: defaults.entryPointFiles,
+      ),
+      entryPointNames: _stringSet(entryPoints?['names']),
+      enabledPresetNames: _stringSet(keepAlive?['presets']).isNotEmpty
+          ? _stringSet(keepAlive?['presets'])
+          : defaults.enabledPresetNames,
+      customPresets: _parseCustomPresets(yaml['custom_presets']),
+      customKeepAliveAnnotations: _stringSet(keepAlive?['custom']),
+      ignorePackages: _stringSet(ignore?['packages']),
+      ignoreRules: _stringSet(ignore?['rules']),
+      ignoredDependencies: _parseStringSetMap(ignore?['dependencies']),
+      annotationImpliedPackages: _parseStringSetMap(
+        yaml['annotation_implied_packages'],
+      ),
+      sdkPackages: _stringSet(yaml['sdk_packages']).isNotEmpty
+          ? _stringSet(yaml['sdk_packages'])
+          : defaults.sdkPackages,
+      output: _parseFormat(output?['format']) ?? defaults.output,
+      baselinePath: yaml['baseline']?.toString(),
+    );
+  }
+
   /// Glob patterns for packages to include (overrides melos.yaml when set).
   final List<String> includePackages;
 
@@ -141,69 +204,6 @@ class KarekiConfig {
 
   /// Path to baseline file (resolved relative to project root).
   final String? baselinePath;
-
-  /// Load configuration from `kareki-config.yaml` in the given root,
-  /// returning defaults when the file is absent.
-  ///
-  /// Also accepts the legacy filenames `kareki_config.yaml` and
-  /// `kareki.yaml` for backwards compatibility with early adopters.
-  static KarekiConfig load(String rootPath) {
-    const candidates = [
-      'kareki-config.yaml',
-      'kareki_config.yaml',
-      'kareki.yaml',
-    ];
-    File? file;
-    for (final name in candidates) {
-      final candidate = File(p.join(rootPath, name));
-      if (candidate.existsSync()) {
-        file = candidate;
-        break;
-      }
-    }
-    if (file == null) return KarekiConfig.defaults();
-    final yaml = loadYaml(file.readAsStringSync());
-    if (yaml is! YamlMap) return KarekiConfig.defaults();
-    final defaults = KarekiConfig.defaults();
-
-    final packages = yaml['packages'] as YamlMap?;
-    final exclude = yaml['exclude'] as YamlMap?;
-    final entryPoints = yaml['entry_points'] as YamlMap?;
-    final keepAlive = yaml['keep_alive_annotations'] as YamlMap?;
-    final ignore = yaml['ignore'] as YamlMap?;
-    final output = yaml['output'] as YamlMap?;
-
-    return KarekiConfig(
-      includePackages: _stringList(packages?['include']),
-      excludePackages: _stringList(packages?['exclude']),
-      excludeFiles: _stringList(
-        exclude?['files'],
-        fallback: defaults.excludeFiles,
-      ),
-      excludeNames: _stringSet(exclude?['names']),
-      entryPointFiles: _stringList(
-        entryPoints?['files'],
-        fallback: defaults.entryPointFiles,
-      ),
-      entryPointNames: _stringSet(entryPoints?['names']),
-      enabledPresetNames: _stringSet(keepAlive?['presets']).isNotEmpty
-          ? _stringSet(keepAlive?['presets'])
-          : defaults.enabledPresetNames,
-      customPresets: _parseCustomPresets(yaml['custom_presets']),
-      customKeepAliveAnnotations: _stringSet(keepAlive?['custom']),
-      ignorePackages: _stringSet(ignore?['packages']),
-      ignoreRules: _stringSet(ignore?['rules']),
-      ignoredDependencies: _parseStringSetMap(ignore?['dependencies']),
-      annotationImpliedPackages: _parseStringSetMap(
-        yaml['annotation_implied_packages'],
-      ),
-      sdkPackages: _stringSet(yaml['sdk_packages']).isNotEmpty
-          ? _stringSet(yaml['sdk_packages'])
-          : defaults.sdkPackages,
-      output: _parseFormat(output?['format']) ?? defaults.output,
-      baselinePath: yaml['baseline']?.toString(),
-    );
-  }
 
   static List<Preset> _parseCustomPresets(Object? node) {
     if (node is! YamlMap) return const [];

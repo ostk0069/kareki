@@ -57,7 +57,7 @@ void main() {
         files: {
           'bin/main.dart': 'void main() {}\n',
           'lib/dead.dart':
-              "// kareki: ignore=unused_element\n"
+              '// kareki: ignore=unused_element\n'
               'class Dead {}\n'
               '\n'
               'class StillDead {}\n',
@@ -104,7 +104,7 @@ void main() {
         files: {
           'bin/main.dart': 'void main() {}\n',
           'lib/dead.dart':
-              "// kareki: ignore=Dead\n"
+              '// kareki: ignore=Dead\n'
               'class Dead {}\n'
               '\n'
               'class Other {}\n',
