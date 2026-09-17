@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.0
+
+### Added
+
+- Support for Dart language features through Dart 3.12, including dot
+  shorthands, private named initializing formals, extension types, class type
+  aliases, records, and patterns. Extension type declarations and their
+  members now participate in `unused_element` analysis.
+
+### Changed
+
+- Expanded analyzer compatibility from `^9.0.0` to `>=9.0.0 <15.0.0` while
+  retaining Dart 3.10 as the minimum supported SDK.
+- CI now runs the full test suite on every supported Dart minor version and
+  the latest stable SDK.
+- Added coverage reporting with octocov and strengthened regression coverage
+  for malformed input, conditional directives, generated code, dependency
+  modes, and false-positive-prone scenarios.
+
 ## 0.4.3
 
 ### Added
