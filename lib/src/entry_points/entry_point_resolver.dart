@@ -182,10 +182,8 @@ class EntryPointResolver {
         productionRootNames.addAll(file.topLevelIdentifierReferences);
       }
     }
-    for (final path in generatedFilePaths) {
-      // Generated files themselves should not be reported as unused.
-      entryPointPaths.add(path);
-    }
+    // Generated files themselves should not be reported as unused.
+    generatedFilePaths.forEach(entryPointPaths.add);
 
     // Keep-alive annotations contribute declarations as production
     // roots — annotations such as `@RoutePage` / `@Riverpod` signal

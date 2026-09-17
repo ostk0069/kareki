@@ -5,14 +5,14 @@ import 'package:kareki/src/preset/preset.dart';
 /// defaults with user-supplied overrides.
 ///
 /// Resolution order:
-/// 1. Built-in presets whose [Preset.name] appears in [enabledPresetNames].
-/// 2. User-supplied [customPresets]. When a custom preset's name matches
+/// 1. Built-in presets whose [Preset.name] appears in `enabledPresetNames`.
+/// 2. User-supplied `customPresets`. When a custom preset's name matches
 ///    a built-in (or another custom), it **replaces** the previous entry
 ///    — allowing projects to redefine a preset for a specific framework
 ///    version whose annotation names diverge from the built-in
 ///    expectations.
 ///
-/// Custom presets are always active regardless of [enabledPresetNames];
+/// Custom presets are always active regardless of `enabledPresetNames`;
 /// declaring a preset in `custom_presets` is itself an opt-in signal.
 class PresetRegistry {
   PresetRegistry({

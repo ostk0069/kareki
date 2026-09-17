@@ -34,7 +34,7 @@ void main() {
     );
   }
 
-  void _scaffoldMinimalApp({String? karekiConfig}) {
+  void scaffoldMinimalApp({String? karekiConfig}) {
     File(p.join(tempRoot.path, 'pubspec.yaml')).writeAsStringSync(
       'name: app\n'
       'publish_to: none\n'
@@ -53,7 +53,7 @@ void main() {
   }
 
   test('exits 0 and prints "healthy" on a clean config', () async {
-    _scaffoldMinimalApp();
+    scaffoldMinimalApp();
     final r = await runDoctor([]);
     expect(r.exitCode, 0, reason: 'stdout: ${r.stdout}\nstderr: ${r.stderr}');
     expect(r.stdout, contains('healthy'));
@@ -62,7 +62,7 @@ void main() {
   test(
     'exits 1 and reports the dead glob when exclude.files is stale',
     () async {
-      _scaffoldMinimalApp(
+      scaffoldMinimalApp(
         karekiConfig:
             'version: 1\n'
             'exclude:\n'
@@ -77,7 +77,7 @@ void main() {
   );
 
   test('--format json emits machine-readable output', () async {
-    _scaffoldMinimalApp(
+    scaffoldMinimalApp(
       karekiConfig:
           'version: 1\n'
           'ignore:\n'

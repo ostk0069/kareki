@@ -35,6 +35,14 @@
 /// | [PackageInfo] | Metadata for a discovered pub package. |
 library;
 
+import 'package:kareki/src/config/kareki_config.dart';
+import 'package:kareki/src/model/declaration.dart';
+import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/model/package_info.dart';
+import 'package:kareki/src/parser/declaration_collector.dart';
+import 'package:kareki/src/reporter/reporter.dart';
+import 'package:kareki/src/runner.dart';
+
 export 'src/baseline/baseline.dart';
 export 'src/config/kareki_config.dart';
 export 'src/model/declaration.dart';
