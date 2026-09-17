@@ -309,6 +309,52 @@ class DeclarationCollector {
           outAllReferences: outAllReferences,
         );
       }
+    } else if (member is ExtensionTypeDeclaration) {
+      final nameToken = _extensionTypeNameToken(member);
+      final name = nameToken.lexeme;
+      final visitor = _ReferenceVisitor()..visit(member);
+      outAllReferences.addAll(visitor.names);
+      outDeclarations.add(
+        _record(
+          name: name,
+          kind: DeclarationKind.extensionDecl,
+          token: nameToken,
+          node: member,
+          lineInfo: lineInfo,
+          packageName: packageName,
+          path: path,
+          outgoingNames: visitor.names,
+          annotations: _annotationNames(member.metadata),
+        ),
+      );
+      for (final child in _typeDeclarationMembers(member)) {
+        _visitClassMember(
+          enclosingTypeName: name,
+          member: child,
+          packageName: packageName,
+          path: path,
+          lineInfo: lineInfo,
+          outDeclarations: outDeclarations,
+          outAllReferences: outAllReferences,
+        );
+      }
+    } else if (member is ClassTypeAlias) {
+      final name = member.name.lexeme;
+      final visitor = _ReferenceVisitor()..visit(member);
+      outAllReferences.addAll(visitor.names);
+      outDeclarations.add(
+        _record(
+          name: name,
+          kind: DeclarationKind.classDecl,
+          token: member.name,
+          node: member,
+          lineInfo: lineInfo,
+          packageName: packageName,
+          path: path,
+          outgoingNames: visitor.names,
+          annotations: _annotationNames(member.metadata),
+        ),
+      );
     } else if (member is FunctionDeclaration) {
       final name = member.name.lexeme;
       final visitor = _ReferenceVisitor()..visit(member);
@@ -827,6 +873,28 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
   }
 
   @override
+  void visitDotShorthandInvocation(DotShorthandInvocation node) {
+    final name = node.memberName.name;
+    _recordArguments(
+      name == 'new' ? _unnamedDotShorthandKey : name,
+      node.argumentList,
+    );
+    super.visitDotShorthandInvocation(node);
+  }
+
+  @override
+  void visitDotShorthandConstructorInvocation(
+    DotShorthandConstructorInvocation node,
+  ) {
+    final name = node.constructorName.name;
+    _recordArguments(
+      name == 'new' ? _unnamedDotShorthandKey : name,
+      node.argumentList,
+    );
+    super.visitDotShorthandConstructorInvocation(node);
+  }
+
+  @override
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
     // Constructor call. The invocation name is:
     //   - the named constructor's name when present (`Foo.dims(...)`)
@@ -878,6 +946,8 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
   }
 }
 
+const _unnamedDotShorthandKey = '.new';
+
 /// Analyzer 13 replaced several long-standing AST accessors while older
 /// Analyzer versions are still selected on kareki's minimum Dart SDK. These
 /// helpers use stable token/tree APIs that work with both AST shapes.
@@ -905,6 +975,9 @@ Token _constructorTypeToken(ConstructorDeclaration declaration) {
   }
   return token;
 }
+
+Token _extensionTypeNameToken(ExtensionTypeDeclaration declaration) =>
+    declaration.extensionKeyword.next!.next!;
 
 bool _isFieldOrSuperParameter(FormalParameter parameter) {
   if (parameter is FieldFormalParameter || parameter is SuperFormalParameter) {
