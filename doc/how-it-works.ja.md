@@ -28,6 +28,4 @@
 | Dart SDK | `>=3.10.0 <4.0.0` |
 | analyzer | `>=10.2.0 <15.0.0` |
 
-CI では、サポートするすべての Dart minor version と、最新 stable SDK の patch version に対して解析とテストを実行します。これに加えて、analyzer 10.2.0 と、package constraint が許容する最新の analyzer でも境界テストを実行します。
-
-パーサーは、Primary Constructor と簡潔な `new` / `factory` 宣言を含む Dart 3.13 までの言語機能を認識します。declaring parameter はフィールドとして `unused_element` に参加し、通常の Primary Constructor parameter は parameter 系ルールに参加します。
+CI では、サポートするすべての Dart minor version と、最新 stable SDK の patch version に対して解析とテストを実行します。

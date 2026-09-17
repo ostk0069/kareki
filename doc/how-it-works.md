@@ -28,11 +28,4 @@ This layered design lets kareki coexist with codegen-heavy ecosystems without fl
 | Dart SDK | `>=3.10.0 <4.0.0` |
 | analyzer | `>=10.2.0 <15.0.0` |
 
-CI runs analysis and tests against every supported Dart minor version, plus the
-latest stable SDK patch. Separate boundary jobs test analyzer 10.2.0 and the
-latest analyzer version allowed by the package constraint.
-
-The parser recognizes Dart language features through Dart 3.13, including
-primary constructors and concise `new` / `factory` declarations. Declaring
-parameters participate in `unused_element` as fields, while ordinary primary
-constructor parameters participate in the parameter rules.
+CI runs analysis and tests against every supported Dart minor version, plus the latest stable SDK patch.
