@@ -10,30 +10,32 @@
 
 > 枯木 (kareki): 剪定が必要な、生命を失った枝。
 
-**Dart / Flutter のワークスペース全体を対象としたデッドコード検出ツール**です。`dart analyze` が単一パッケージ内の private な未使用宣言しか検出しないのに対し、`kareki` は Melos / pub workspace 全体にまたがる参照を解決し、気づかれないまま積もっていくデッドコード — 呼び出し元のない public API、どこからも import されていないファイル、宣言だけ残った pub 依存 — を洗い出します。
+`kareki` は、**Dart / Flutter のワークスペース全体からデッドコードを見つけるツール**です。
+
+`dart analyze` が検出する未使用宣言は、基本的に単一パッケージ内の private なものに限られます。`kareki` は Melos / pub workspace 内のパッケージを横断して参照関係を解析し、使われていない public API、どこからも import されていないファイル、`pubspec.yaml` に残ったままの不要な依存パッケージなどを検出します。
 
 ## Why kareki?
 
-|  | 提供する価値 |
+|  | 特徴 |
 |---|---|
-| 🌲 | **ワークスペース横断**。Melos / pub workspace 配下の全パッケージにまたがって参照を解決します。 |
-| 🔓 | **public API も対象**。`dart analyze` が見落とす public なクラス・メソッド・フィールドも検出します。 |
-| 🧬 | **コード生成に強い**。freezed / json_serializable / riverpod / auto_route / go_router / drift / hive のプリセットを同梱。 |
-| 🧪 | **`test_only_used`**。`lib/` 配下で、自身のテストからしか使われていないコードを発見します。 |
-| 📉 | **Baseline**。既存コードベースに後付け導入しても、CI が落ちるのは **新規の** 検出のみ。 |
-| 🩺 | **Doctor**。`kareki doctor` が古くなった `ignore` 設定や、もう何も抑制していない suppression コメントを指摘します。 |
-| ⚙️ | **CI 対応**。JSON 出力、決定的な終了コード、環境に依存しない baseline。 |
+| 🌲 | **ワークスペースを横断して解析** — Melos / pub workspace 内のすべてのパッケージについて、相互の参照関係を解析 |
+| 🔓 | **public API も検出** — `dart analyze` では見つからない、未使用の public なクラス、メソッド、フィールドも対象に |
+| 🧬 | **コード生成ライブラリに対応** — freezed / json_serializable / riverpod / auto_route / go_router / drift / hive 向けのプリセットを完備 |
+| 🧪 | **テストからしか使われていないコードを検出** — `lib/` 配下にあり、同じパッケージのテストからしか参照されていないコードを検出 |
+| 📉 | **段階的に導入可能** — ベースラインを作成すれば、既存の検出結果を残したまま、新たに増えたデッドコードだけを CI で検出可能に |
+| 🩺 | **不要になった設定を確認** — `kareki doctor` で、対象がなくなった `ignore` 設定や suppression コメントを確認 |
+| ⚙️ | **CI で使いやすい設計** — JSON 形式の出力、結果に応じた終了コード、環境に依存しないベースラインに対応 |
 
 ## What it finds
 
 | ルール | 検出対象 |
 |---|---|
-| `unused_element` | ワークスペース内のどこからも呼ばれていない public なクラス / 関数 / メソッド / getter / setter / フィールド / トップレベル変数 / 拡張 / 拡張型 / typedef。 |
-| `unused_file` | 他のどのファイルからも `import` / `part` / `export` されていない `.dart` ファイル。 |
-| `unused_pub_dependency` | `pubspec.yaml` に宣言されているがソース中で一度も import されていない依存パッケージ。 |
-| `test_only_used` | `lib/` 配下で、テストコード（`*_test.dart`、`test/`・`integration_test/` 配下）からのみ参照されている public 宣言。 |
-| `unused_parameter` | 関数 / メソッド / 名前付きコンストラクタの引数のうち、本体や initializer から一度も参照されていないもの。Dart 標準の `unused_element_parameter` がカバーしない required な引数や public API も対象。 |
-| `unused_parameter_optional` | 関数 / メソッド / コンストラクタの optional 引数（named または positional optional）のうち、ワークスペース内のどの呼び出し元からも値を渡されていないもの。Dart 標準の `unused_element_parameter` が単一ライブラリ内の private な optional 引数しか見ないのに対して、本ルールは public API / クロスパッケージまで対象を広げる。 |
+| `unused_element` | ワークスペース内のどこからも使われていない public なクラス、関数、メソッド、getter、setter、フィールド、トップレベル変数、extension、extension type、typedef |
+| `unused_file` | ほかのファイルから `import`、`part`、`export` されていない `.dart` ファイル |
+| `unused_pub_dependency` | `pubspec.yaml` に記載されているものの、ソースコードから一度も import されていない依存パッケージ |
+| `test_only_used` | `lib/` 配下にあり、テストコード（`*_test.dart`、`test/`、`integration_test/` 配下）からしか参照されていない public 宣言 |
+| `unused_parameter` | 関数、メソッド、名前付きコンストラクタの本体や初期化処理で一度も参照されていない引数。Dart 標準の `unused_element_parameter` では検出できない必須引数や public API も対象です。 |
+| `unused_parameter_optional` | ワークスペース内のどの呼び出し元からも値を渡されていない省略可能な引数（名前付き引数またはオプショナル位置引数）。単一ライブラリ内の private な省略可能引数だけを調べる Dart 標準の `unused_element_parameter` と異なり、public API やパッケージをまたぐ呼び出しも対象です。 |
 
 ## Install
 
@@ -49,40 +51,42 @@ dart pub get
 
 ## Usage
 
+ワークスペースのルートで、次のコマンドを実行します。
+
 ```sh
 dart run kareki
 ```
 
-詳細は [doc/cli.ja.md](doc/cli.ja.md) へ
+オプションについては、[CLI reference](doc/cli.ja.md) を参照してください。
 
 ## Adopting on an existing codebase
 
-CI に組み込む前に全件修正しようとする必要はありません。現状をスナップショットしてコミットし、以降は **新規の** デッドコードだけで CI を落とすようにします。
+最初からすべてのデッドコードを修正する必要はありません。現在の検出結果をベースラインとして保存しておけば、それ以降に増えたデッドコードだけを CI で検出できます。
 
 ```sh
 dart run kareki --baseline .kareki-baseline.json --write-baseline
 ```
 
-詳細は [doc/baseline.ja.md](doc/baseline.ja.md) へ
+詳しくは、[Baseline](doc/baseline.ja.md) を参照してください。
 
 ## Keeping the config honest
 
-ファイル除外や依存のホワイトリストは、ファイルの移動・改名やパッケージの削除によって、いつの間にか何も指していない設定になりがちです。`kareki doctor` は、もう実態とマッチしていない設定エントリを洗い出します。
+ファイルの移動や名前の変更、パッケージの削除を重ねると、除外設定や依存パッケージの許可リストに不要な項目が残ることがあります。`kareki doctor` を実行すると、現在のコードと一致しなくなった設定を確認できます。
 
 ```sh
 dart run kareki doctor
 ```
 
-詳細は [doc/doctor.ja.md](doc/doctor.ja.md) へ
+詳しくは、[Doctor](doc/doctor.ja.md) を参照してください。
 
 ## Documentation
 
-- [CLI リファレンス](doc/cli.ja.md) — 全オプション、全終了コード
-- [設定](doc/configuration.ja.md) — `kareki-config.yaml`、デフォルト、ビルトインプリセット、カスタムプリセット、抑制、完全な例
-- [Baseline](doc/baseline.ja.md) — 段階的導入
-- [Doctor](doc/doctor.ja.md) — 実態とズレた設定を検出
-- [仕組み](doc/how-it-works.ja.md) — 解析パイプライン、エントリポイントの種出し、サポート対象バージョン
+- [CLI reference](doc/cli.ja.md) — コマンドの使い方、オプション、終了コード
+- [Configuration](doc/configuration.ja.md) — `kareki-config.yaml` の書き方、プリセットや除外・抑制の設定方法
+- [Baseline](doc/baseline.ja.md) — 現在の検出結果を保存し、新しく増えたデッドコードだけを検出する方法
+- [Doctor](doc/doctor.ja.md) — 不要になった除外設定や抑制コメントを見つける方法
+- [How it works](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、エントリポイントの扱い、対応バージョン
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT License です。詳しくは [LICENSE](LICENSE) を参照してください。
