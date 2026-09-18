@@ -8,7 +8,7 @@
 [![CI](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml/badge.svg)](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
-> kareki（枯木）— コードに残った「枯れ枝」を見つけます。
+> 枯木 (kareki): 剪定が必要な、生命を失った枝。
 
 `kareki` は、**Dart / Flutter のワークスペース全体からデッドコードを見つけるツール**です。
 
