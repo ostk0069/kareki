@@ -1,6 +1,7 @@
-# CLI reference
-
-[English](cli.md) | **日本語**
+---
+title: CLIリファレンス
+weight: 2
+---
 
 ワークスペースのルートで実行します。
 

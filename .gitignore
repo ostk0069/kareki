@@ -15,5 +15,10 @@ pubspec.lock
 # Coverage
 coverage/
 
+# Hugo
+/public/
+/resources/_gen/
+.hugo_build.lock
+
 # kareki
 .kareki_baseline.json

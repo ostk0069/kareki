@@ -1,0 +1,104 @@
+name: Deploy documentation to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "doc/**"
+      - "assets/**"
+      - "data/**"
+      - "layouts/**"
+      - "static/**"
+      - "i18n/**"
+      - "hugo.yaml"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/pages.yaml"
+  pull_request:
+    paths:
+      - "doc/**"
+      - "assets/**"
+      - "data/**"
+      - "layouts/**"
+      - "static/**"
+      - "i18n/**"
+      - "hugo.yaml"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/pages.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Docs build
+    runs-on: ubuntu-24.04
+    env:
+      HUGO_VERSION: 0.166.0
+      HUGO_SHA256: eebe2ac57a402a0768096c57142334ffc857790cb159d1f68d609496e394d71c
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Install Hugo
+        run: |
+          wget -O "${RUNNER_TEMP}/hugo.deb" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb"
+          printf '%s  %s\n' "$HUGO_SHA256" "${RUNNER_TEMP}/hugo.deb" \
+            | sha256sum --check --strict
+          sudo dpkg -i "${RUNNER_TEMP}/hugo.deb"
+
+      - name: Build documentation
+        env:
+          HUGO_ENVIRONMENT: production
+        run: hugo --gc --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: public
+
+  deploy:
+    name: Deploy Pages
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

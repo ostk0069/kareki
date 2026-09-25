@@ -79,11 +79,14 @@ See [doc/doctor.md](doc/doctor.md).
 
 ## Documentation
 
+Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the Markdown sources directly:
+
 - [CLI reference](doc/cli.md) — every option, every exit code
 - [Configuration](doc/configuration.md) — `kareki-config.yaml`, defaults, built-in presets, custom presets, suppression, full example
 - [Baseline](doc/baseline.md) — incremental adoption
 - [Doctor](doc/doctor.md) — config-rot detection
 - [How it works](doc/how-it-works.md) — analysis pipeline, entry-point seeding, supported versions
+- [Best practices](doc/operations.md) — scheduled cleanup pull requests with an AI agent
 
 ## License
 

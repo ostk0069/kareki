@@ -1,6 +1,7 @@
-# CLI reference
-
-**English** | [日本語](cli.ja.md)
+---
+title: CLI reference
+weight: 2
+---
 
 Run from the workspace root:
 

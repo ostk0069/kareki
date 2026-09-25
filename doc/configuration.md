@@ -1,6 +1,7 @@
-# Configuration
-
-**English** | [日本語](configuration.ja.md)
+---
+title: Configuration
+weight: 3
+---
 
 `kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional — defaults work out of the box.
 

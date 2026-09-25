@@ -1,6 +1,7 @@
-# How it works
-
-[English](how-it-works.md) | **日本語**
+---
+title: 解析の仕組み
+weight: 6
+---
 
 1. `melos.yaml` または pub workspace 経由でパッケージを検出する。
 2. `package:analyzer` で全 `.dart` ファイルをパースし、宣言と外向きの simple-name 参照を抽出する。

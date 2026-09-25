@@ -1,6 +1,7 @@
-# Configuration
-
-[English](configuration.md) | **日本語**
+---
+title: 設定
+weight: 3
+---
 
 `kareki` はワークスペースのルートにある `kareki-config.yaml` を読み込みます。すべてのキーは省略可能で、デフォルトのままでも動作します。
 

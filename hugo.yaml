@@ -1,0 +1,110 @@
+baseURL: "https://ostk0069.github.io/kareki/"
+title: kareki
+description: Workspace-wide dead code finder for Dart and Flutter.
+contentDir: doc
+enableGitInfo: true
+enableRobotsTXT: true
+hasCJKLanguage: true
+
+defaultContentLanguage: en
+defaultContentLanguageInSubdir: false
+languages:
+  en:
+    label: English
+    locale: en-US
+    weight: 1
+    title: kareki
+  ja:
+    label: 日本語
+    locale: ja-JP
+    weight: 2
+    title: kareki
+
+module:
+  hugoVersion:
+    extended: true
+    min: "0.146.0"
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: false
+  highlight:
+    noClasses: false
+
+outputs:
+  home: [html]
+  page: [html, markdown]
+  section: [html, rss, markdown]
+
+disableKinds:
+  - taxonomy
+  - term
+
+menu:
+  main:
+    - name: pub.dev
+      url: "https://pub.dev/packages/kareki"
+      weight: 1
+      params:
+        icon: dart
+    - name: Search
+      weight: 2
+      params:
+        type: search
+    - name: Language
+      weight: 3
+      params:
+        type: language-switch
+        label: false
+    - name: GitHub
+      url: "https://github.com/ostk0069/kareki"
+      weight: 4
+      params:
+        icon: github
+
+params:
+  description: Workspace-wide dead code finder for Dart and Flutter.
+  externalLinkDecoration: true
+
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    width: wide
+    logo:
+      path: images/kareki-mark-light.png
+      dark: images/kareki-mark.png
+      width: 28
+      height: 28
+
+  theme:
+    default: system
+    displayToggle: true
+
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: strict
+
+  page:
+    width: normal
+    displayPagination: true
+    contextMenu:
+      enable: true
+
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: false
+    width: wide
+
+  displayUpdatedDate: true
+  dateFormat: "January 2, 2006"
+
+  editURL:
+    enable: true
+    base: "https://github.com/ostk0069/kareki/edit/main"

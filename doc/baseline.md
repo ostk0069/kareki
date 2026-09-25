@@ -1,6 +1,7 @@
-# Baseline
-
-**English** | [日本語](baseline.ja.md)
+---
+title: Baseline
+weight: 4
+---
 
 A baseline lets you adopt kareki on a large codebase without first deleting every existing finding: snapshot the current state, commit the snapshot, and the CI only fails on **new** findings going forward.
 
