@@ -1,4 +1,5 @@
 coverage:
+  acceptable: 100%
   paths:
     - coverage/lcov.info
 
