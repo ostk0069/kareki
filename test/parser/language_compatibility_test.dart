@@ -30,10 +30,7 @@ Client defaultClient = .new(endpoint: 'default');
       );
       expect(parsed.callSiteUsage['parse']?.maxPositionalArgs, 1);
       expect(parsed.callSiteUsage['named']?.namedArgsPassed, {'endpoint'});
-      expect(
-        parsed.callSiteUsage['.new']?.namedArgsPassed,
-        {'endpoint'},
-      );
+      expect(parsed.callSiteUsage['.new']?.namedArgsPassed, {'endpoint'});
     });
 
     test('does not invent call-site usage for property access', () {
@@ -78,11 +75,7 @@ extension type UserId(int value) {
       contains(
         isA<DeclarationRecord>()
             .having((d) => d.name, 'name', 'UserId')
-            .having(
-              (d) => d.kind,
-              'kind',
-              DeclarationKind.extensionDecl,
-            ),
+            .having((d) => d.kind, 'kind', DeclarationKind.extensionDecl),
       ),
     );
     expect(

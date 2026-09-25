@@ -27,10 +27,7 @@ class TestWorkspace {
     Set<String> dependencies = const {},
     Set<String> devDependencies = const {},
   }) {
-    final dependencySection = _dependencySection(
-      'dependencies',
-      dependencies,
-    );
+    final dependencySection = _dependencySection('dependencies', dependencies);
     final devDependencySection = _dependencySection(
       'dev_dependencies',
       devDependencies,
