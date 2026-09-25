@@ -11,9 +11,7 @@ void main() {
 
   setUp(() {
     workspace = TestWorkspace.create('kareki_directives_');
-    workspace.writePubspec(
-      dependencies: {'collection', 'meta'},
-    );
+    workspace.writePubspec(dependencies: {'collection', 'meta'});
   });
 
   tearDown(() => workspace.dispose());

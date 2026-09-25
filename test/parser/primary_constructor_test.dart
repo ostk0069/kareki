@@ -49,10 +49,9 @@ class Service.named(final int id, int used, int unused) {
             declaration.name == 'named',
       );
 
-      expect(
-        constructor.unusedParameters.map((parameter) => parameter.name),
-        ['unused'],
-      );
+      expect(constructor.unusedParameters.map((parameter) => parameter.name), [
+        'unused',
+      ]);
     });
 
     test('records enum constant calls for optional parameter usage', () {
