@@ -5,14 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.7.0
 
 ### Added
 
-- New `exclude.parameter_names` configuration for suppressing
-  `unused_parameter` and `unused_parameter_optional` findings by exact parameter
-  name across the workspace. `kareki doctor` reports configured names that no
-  longer suppress a current finding.
+- Added `exclude.parameter_names` to suppress `unused_parameter` and
+  `unused_parameter_optional` findings by exact parameter name across the
+  workspace. `kareki doctor` reports configured names that no longer suppress
+  a current finding.
+- Added a bilingual documentation site for the existing guides, with search,
+  language switching, light and dark themes, and automatic GitHub Pages
+  deployment.
+- Added an operations guide for scheduling recurring dead-code cleanup pull
+  requests with an AI agent.
+
+### Changed
+
+- Enforced 100% line coverage in CI and expanded regression coverage across
+  the CLI, parser, entry-point resolution, and finding serialization.
+- Improved the Japanese README and linked both READMEs to the hosted
+  documentation.
 
 ## 0.6.0
 

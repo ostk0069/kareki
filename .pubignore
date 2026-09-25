@@ -12,3 +12,19 @@ pubspec.lock
 .github/
 .idea/
 .vscode/
+
+# The Markdown sources under doc/ belong in the package, but the Hugo site
+# scaffolding, generated output, and web-only assets do not.
+assets/
+data/
+i18n/
+layouts/
+public/
+resources/
+static/
+go.mod
+go.sum
+hugo.yaml
+
+# Local test output.
+coverage/

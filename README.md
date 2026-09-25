@@ -40,7 +40,7 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  kareki: ^0.1.0
+  kareki: ^0.7.0
 ```
 
 ```sh
