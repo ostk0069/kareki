@@ -15,7 +15,7 @@ Add `kareki` to your development dependencies:
 
 ```yaml {filename="pubspec.yaml"}
 dev_dependencies:
-  kareki: ^0.6.0
+  kareki: ^0.7.0
 ```
 
 Run it from the workspace root:

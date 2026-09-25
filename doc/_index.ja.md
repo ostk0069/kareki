@@ -15,7 +15,7 @@ cascade:
 
 ```yaml {filename="pubspec.yaml"}
 dev_dependencies:
-  kareki: ^0.6.0
+  kareki: ^0.7.0
 ```
 
 ワークスペースのルートで実行します。
