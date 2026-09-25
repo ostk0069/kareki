@@ -9,7 +9,7 @@
 | キー | 型 | 用途 |
 |---|---|---|
 | `packages` | map | ワークスペースのパッケージ glob を上書き（デフォルトは melos.yaml / pub workspace から自動検出）。 |
-| `exclude` | map | 解析対象から除外するファイル / 宣言名。 |
+| `exclude` | map | 解析対象から除外するファイル、宣言名、引数名。 |
 | `entry_points` | map | 追加のエントリポイントとなるファイル / 宣言名。 |
 | `keep_alive_annotations` | map | 有効化するビルトインプリセットと、追加で扱う keep-alive アノテーション名。 |
 | `custom_presets` | map | プロジェクト独自のプリセット、またはビルトインの上書き。 |
@@ -119,6 +119,18 @@ ignore:
   rules: [unused_pub_dependency]
 ```
 
+未使用引数のルールを有効に保ちつつ、ワークスペース全体で意図的に残す
+特定の引数名を許可するには、完全一致のリストを指定します:
+
+```yaml
+exclude:
+  parameter_names: [context]
+```
+
+`exclude.parameter_names` が適用されるのは `unused_parameter` と
+`unused_parameter_optional` だけです。同名の宣言は抑制しません。
+現在の検出を何も抑制していないエントリは `kareki doctor` が報告します。
+
 ## Full example
 
 ```yaml
@@ -131,6 +143,7 @@ packages:
 exclude:
   files: ["**/*.fake.dart"]
   names: [debugFillProperties]
+  parameter_names: [context]
 
 entry_points:
   files: ["**/*.story.dart"]

@@ -4,6 +4,7 @@ import 'package:glob/glob.dart';
 import 'package:kareki/src/baseline/baseline.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/doctor/doctor_finding.dart';
+import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/model/package_info.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/runner.dart';
@@ -23,6 +24,7 @@ const _configCandidates = <String>[
 class _UserConfig {
   _UserConfig({
     required this.excludeFiles,
+    required this.excludeParameterNames,
     required this.ignorePackages,
     required this.ignoredDependencies,
   });
@@ -46,6 +48,7 @@ class _UserConfig {
     final ignore = yaml['ignore'] as YamlMap?;
     return _UserConfig(
       excludeFiles: _stringList(exclude?['files']),
+      excludeParameterNames: _stringSet(exclude?['parameter_names']),
       ignorePackages: _stringSet(ignore?['packages']),
       ignoredDependencies: _stringSetMap(ignore?['dependencies']),
     );
@@ -55,11 +58,13 @@ class _UserConfig {
   /// did not override it — in which case doctor must not flag the
   /// defaults baked into [KarekiConfig.defaults].
   final List<String> excludeFiles;
+  final Set<String> excludeParameterNames;
   final Set<String> ignorePackages;
   final Map<String, Set<String>> ignoredDependencies;
 
   static final empty = _UserConfig(
     excludeFiles: const [],
+    excludeParameterNames: const {},
     ignorePackages: const {},
     ignoredDependencies: const {},
   );
@@ -107,8 +112,8 @@ class DoctorResult {
 
 /// Validates `kareki-config.yaml` against the actual state of the
 /// workspace, surfacing stale `exclude` globs, ignore entries that no
-/// longer match any real package/dependency, and `// kareki:
-/// ignore_for_file=...` directives that suppress nothing.
+/// longer match any real package/dependency, parameter-name allowlist
+/// entries that suppress nothing, and ineffective `// kareki:` directives.
 class DoctorRunner {
   /// Executes one health check pass.
   DoctorResult run(DoctorRequest request) {
@@ -126,6 +131,7 @@ class DoctorRunner {
     final workspacePackageNames = allPackages.map((p) => p.name).toSet();
 
     findings.addAll(_findDeadExcludeGlobs(request, user, analyzedPackages));
+    findings.addAll(_findDeadExcludeParameterNames(request, user));
     findings.addAll(_findDeadIgnorePackages(user, workspacePackageNames));
     findings.addAll(_findDeadIgnoreDependencies(user, allPackages));
     findings.addAll(_findUnusedIgnoreDirectives(request, analyzedPackages));
@@ -186,6 +192,49 @@ class DoctorRunner {
           kind: DoctorIssueKind.unusedIgnorePackage,
           subject: name,
           detail: 'ignore.packages',
+        );
+      }
+    }
+  }
+
+  Iterable<DoctorFinding> _findDeadExcludeParameterNames(
+    DoctorRequest request,
+    _UserConfig user,
+  ) sync* {
+    if (user.excludeParameterNames.isEmpty) return;
+
+    final rawFindings = KarekiRunner()
+        .run(
+          RunRequest(
+            rootPath: request.rootPath,
+            config: request.config,
+            enabledRules: {
+              RuleId.unusedParameter,
+              RuleId.unusedParameterOptional,
+            },
+            disregardParameterNameExcludes: true,
+          ),
+        )
+        .findings;
+    final matchedNames = <String>{};
+    for (final finding in rawFindings) {
+      final marker = finding.ruleId == RuleId.unusedParameter
+          ? '|param:'
+          : '|optparam:';
+      final markerIndex = finding.stableId.lastIndexOf(marker);
+      if (markerIndex >= 0) {
+        matchedNames.add(
+          finding.stableId.substring(markerIndex + marker.length),
+        );
+      }
+    }
+
+    for (final name in user.excludeParameterNames) {
+      if (!matchedNames.contains(name)) {
+        yield DoctorFinding(
+          kind: DoctorIssueKind.unusedExcludeParameterName,
+          subject: name,
+          detail: 'exclude.parameter_names',
         );
       }
     }

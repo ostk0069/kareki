@@ -2,7 +2,7 @@
 
 **English** | [日本語](doctor.ja.md)
 
-`kareki doctor` validates `kareki-config.yaml` against the actual state of your workspace. It surfaces configuration that no longer matches reality — globs that match no file, `ignore.*` entries pointing at packages or dependencies that have been removed, and inline `// kareki: ignore_for_file=...` / `// kareki: ignore=...` directives that suppress nothing.
+`kareki doctor` validates `kareki-config.yaml` against the actual state of your workspace. It surfaces configuration that no longer matches reality — globs and parameter-name excludes that suppress nothing, `ignore.*` entries pointing at packages or dependencies that have been removed, and ineffective inline `// kareki: ignore_for_file=...` / `// kareki: ignore=...` directives.
 
 ```sh
 dart run kareki doctor
@@ -11,6 +11,7 @@ dart run kareki doctor
 | Issue kind | Meaning |
 |---|---|
 | `unused-exclude` | An entry in `exclude.files` matched no `.dart` file in the workspace. |
+| `unused-exclude-parameter-name` | A name in `exclude.parameter_names` suppresses no current `unused_parameter` or `unused_parameter_optional` finding. |
 | `unused-ignore-package` | A name in `ignore.packages` is not a package in the workspace. |
 | `unused-ignore-dependencies-package` | A key in `ignore.dependencies` is not a package in the workspace. |
 | `unused-ignore-dependency` | A value listed under `ignore.dependencies.<pkg>` is not declared in that package's `pubspec.yaml`. |

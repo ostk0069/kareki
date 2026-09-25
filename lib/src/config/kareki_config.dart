@@ -27,6 +27,7 @@ class KarekiConfig {
     required this.sdkPackages,
     required this.output,
     required this.baselinePath,
+    this.excludeParameterNames = const {},
   });
 
   factory KarekiConfig.defaults() => KarekiConfig(
@@ -119,6 +120,7 @@ class KarekiConfig {
         fallback: defaults.excludeFiles,
       ),
       excludeNames: _stringSet(exclude?['names']),
+      excludeParameterNames: _stringSet(exclude?['parameter_names']),
       entryPointFiles: _stringList(
         entryPoints?['files'],
         fallback: defaults.entryPointFiles,
@@ -154,6 +156,9 @@ class KarekiConfig {
 
   /// Declaration simple names to always ignore.
   final Set<String> excludeNames;
+
+  /// Parameter names to ignore for both unused-parameter rules.
+  final Set<String> excludeParameterNames;
 
   /// Glob patterns for additional entry-point files.
   final List<String> entryPointFiles;
