@@ -1,0 +1,38 @@
+:root {
+  --primary-hue: 145deg;
+  --primary-saturation: 38%;
+  --primary-lightness: 42%;
+  --hextra-max-page-width: 88rem;
+  --hextra-max-navbar-width: 96rem;
+  --hextra-max-footer-width: 96rem;
+}
+
+@layer theme {
+  :root {
+    --hx-default-font-family: ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --hx-default-mono-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco,
+      Consolas, "Liberation Mono", monospace;
+  }
+}
+
+.content {
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.content h1 {
+  letter-spacing: -0.035em;
+}
+
+.content h2 {
+  letter-spacing: -0.02em;
+}
+
+.hextra-nav-container {
+  letter-spacing: -0.01em;
+}
+
+.hextra-sidebar-container {
+  font-size: 0.925rem;
+}

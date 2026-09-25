@@ -2,7 +2,10 @@
 
 [English](README.md) | **日本語**
 
-<img width="1645" height="496" alt="header image" src="https://github.com/user-attachments/assets/dc3b1903-8ff1-4556-9d4e-ac847e3c8bd0" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/images/kareki-header-dark.png">
+  <img width="1645" height="496" alt="kareki — Dead-code detector for Dart / Flutter monorepos" src="https://github.com/user-attachments/assets/dc3b1903-8ff1-4556-9d4e-ac847e3c8bd0">
+</picture>
 
 [![pub package](https://img.shields.io/pub/v/kareki.svg)](https://pub.dev/packages/kareki)
 [![CI](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml/badge.svg)](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml)
@@ -81,11 +84,14 @@ dart run kareki doctor
 
 ## Documentation
 
+[ドキュメントサイト](https://ostk0069.github.io/kareki/ja/)から読むことも、Markdown の原文を直接読むこともできます。
+
 - [CLI reference](doc/cli.ja.md) — コマンドの使い方、オプション、終了コード
 - [Configuration](doc/configuration.ja.md) — `kareki-config.yaml` の書き方、プリセットや除外・抑制の設定方法
 - [Baseline](doc/baseline.ja.md) — 現在の検出結果を保存し、新しく増えたデッドコードだけを検出する方法
 - [Doctor](doc/doctor.ja.md) — 不要になった除外設定や抑制コメントを見つける方法
-- [How it works](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、エントリポイントの扱い、対応バージョン
+- [解析の仕組み](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、エントリポイントの扱い、対応バージョン
+- [運用のベストプラクティス](doc/operations.ja.md) — cronとAIエージェントで定期的にクリーンアップPRを作る方法
 
 ## License
 

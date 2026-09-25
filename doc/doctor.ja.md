@@ -1,6 +1,7 @@
-# Doctor
-
-[English](doctor.md) | **日本語**
+---
+title: Doctor
+weight: 5
+---
 
 `kareki doctor` は、`kareki-config.yaml` の内容が現在のワークスペースの実態と整合しているかを検証します。何も抑制しない glob や引数名の除外、すでに存在しないパッケージや依存を指している `ignore.*` のエントリ、効果のない `// kareki: ignore_for_file=...` / `// kareki: ignore=...` ディレクティブなど、現実から取り残された設定を浮き上がらせます。
 

@@ -1,6 +1,7 @@
-# How it works
-
-**English** | [日本語](how-it-works.ja.md)
+---
+title: How it works
+weight: 6
+---
 
 1. Discover packages via `melos.yaml` or pub workspace.
 2. Parse every `.dart` file with `package:analyzer`, extracting declarations + outgoing simple-name references.

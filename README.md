@@ -2,7 +2,10 @@
 
 **English** | [日本語](README.ja.md)
 
-<img width="1645" height="496" alt="header image" src="https://github.com/user-attachments/assets/dc3b1903-8ff1-4556-9d4e-ac847e3c8bd0" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/images/kareki-header-dark.png">
+  <img width="1645" height="496" alt="kareki — Dead-code detector for Dart / Flutter monorepos" src="https://github.com/user-attachments/assets/dc3b1903-8ff1-4556-9d4e-ac847e3c8bd0">
+</picture>
 
 [![pub package](https://img.shields.io/pub/v/kareki.svg)](https://pub.dev/packages/kareki)
 [![CI](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml/badge.svg)](https://github.com/ostk0069/kareki/actions/workflows/ci.yaml)
@@ -79,11 +82,14 @@ See [doc/doctor.md](doc/doctor.md).
 
 ## Documentation
 
+Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the Markdown sources directly:
+
 - [CLI reference](doc/cli.md) — every option, every exit code
 - [Configuration](doc/configuration.md) — `kareki-config.yaml`, defaults, built-in presets, custom presets, suppression, full example
 - [Baseline](doc/baseline.md) — incremental adoption
 - [Doctor](doc/doctor.md) — config-rot detection
 - [How it works](doc/how-it-works.md) — analysis pipeline, entry-point seeding, supported versions
+- [Best practices](doc/operations.md) — scheduled cleanup pull requests with an AI agent
 
 ## License
 
