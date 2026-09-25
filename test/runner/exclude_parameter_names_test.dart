@@ -17,12 +17,13 @@ exclude:
   parameter_names: [context]
 ''');
     workspace.write('lib/api.dart', '''
-void render(Object context, Object other, Object unusedRequired) {
+void render(Object context, Object contextValue, Object other) {
   print(other);
 }
 
-void configure({Object? context, Object? neverPassed}) {
+void configure({Object? context, Object? contextValue, Object? neverPassed}) {
   print(context);
+  print(contextValue);
   print(neverPassed);
 }
 ''');
@@ -42,10 +43,38 @@ void main() {
     final config = KarekiConfig.load(workspace.path);
     expect(config.excludeParameterNames, {'context'});
 
-    final findings = KarekiRunner()
+    final runner = KarekiRunner();
+    final rawFindings = runner
+        .run(
+          RunRequest(
+            rootPath: workspace.path,
+            config: config,
+            disregardParameterNameExcludes: true,
+          ),
+        )
+        .findings;
+    final findings = runner
         .run(RunRequest(rootPath: workspace.path, config: config))
         .findings;
 
+    expect(
+      rawFindings.any(
+        (finding) =>
+            finding.ruleId == RuleId.unusedParameter &&
+            finding.message.contains("'context'"),
+      ),
+      isTrue,
+      reason: '`context` must be detectable before the allowlist is applied',
+    );
+    expect(
+      rawFindings.any(
+        (finding) =>
+            finding.ruleId == RuleId.unusedParameterOptional &&
+            finding.message.contains("'context'"),
+      ),
+      isTrue,
+      reason: '`context` must be detectable before the allowlist is applied',
+    );
     expect(
       findings.any(
         (finding) =>
@@ -66,10 +95,19 @@ void main() {
       findings.any(
         (finding) =>
             finding.ruleId == RuleId.unusedParameter &&
-            finding.message.contains("'unusedRequired'"),
+            finding.message.contains("'contextValue'"),
       ),
       isTrue,
-      reason: 'non-matching parameter names must still be reported',
+      reason: 'parameter-name matching must use exact equality',
+    );
+    expect(
+      findings.any(
+        (finding) =>
+            finding.ruleId == RuleId.unusedParameterOptional &&
+            finding.message.contains("'contextValue'"),
+      ),
+      isTrue,
+      reason: 'parameter-name matching must use exact equality',
     );
     expect(
       findings.any(
