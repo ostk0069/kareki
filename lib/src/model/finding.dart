@@ -12,9 +12,7 @@ enum Severity {
 ///
 /// Constants are passed in CLI flags (`--rule <id>`), printed in
 /// `Finding.ruleId`, and used in the `ignore.rules` config section.
-class RuleId {
-  const RuleId._();
-
+abstract final class RuleId {
   /// A public declaration is not referenced by anyone in the workspace.
   static const String unusedElement = 'unused_element';
 

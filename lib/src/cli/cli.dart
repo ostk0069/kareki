@@ -39,12 +39,10 @@ int runCli(List<String> arguments, {required String workingDirectory}) {
   final rootPath = (args['root'] as String?) ?? workingDirectory;
   final config = KarekiConfig.load(rootPath);
 
-  final formatName = args['format'] as String? ?? config.output.name;
-  final format = _parseFormat(formatName);
-  if (format == null) {
-    stderr.writeln("kareki: unknown format '$formatName'.");
-    return 64;
-  }
+  final formatName = args['format'] as String?;
+  final format = formatName == null
+      ? config.output
+      : OutputFormat.values.byName(formatName);
 
   final packagesArg = (args['packages'] as List<String>?) ?? const [];
   final packages = packagesArg.isEmpty ? null : packagesArg.toSet();
@@ -139,16 +137,6 @@ String? _resolveBaselinePath({
   final raw = override ?? configured;
   if (raw == null || raw.isEmpty) return null;
   return p.isAbsolute(raw) ? raw : p.normalize(p.join(rootPath, raw));
-}
-
-OutputFormat? _parseFormat(String name) {
-  switch (name) {
-    case 'text':
-      return OutputFormat.text;
-    case 'json':
-      return OutputFormat.json;
-  }
-  return null;
 }
 
 Reporter _reporterFor(OutputFormat format) {

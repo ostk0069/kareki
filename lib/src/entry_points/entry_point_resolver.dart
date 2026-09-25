@@ -1,6 +1,5 @@
 import 'package:glob/glob.dart';
 import 'package:kareki/src/config/kareki_config.dart';
-import 'package:kareki/src/model/declaration.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
 import 'package:path/path.dart' as p;
@@ -202,24 +201,5 @@ class EntryPointResolver {
       entryPointPaths: entryPointPaths,
       keepAliveAnnotations: keepAliveAnnotations,
     );
-  }
-
-  /// Whether [kind] is a public-API kind kareki should report.
-  static bool isReportableKind(DeclarationKind kind) {
-    switch (kind) {
-      case DeclarationKind.classDecl:
-      case DeclarationKind.mixinDecl:
-      case DeclarationKind.enumDecl:
-      case DeclarationKind.extensionDecl:
-      case DeclarationKind.typedefDecl:
-      case DeclarationKind.function:
-      case DeclarationKind.method:
-      case DeclarationKind.getter:
-      case DeclarationKind.setter:
-      case DeclarationKind.field:
-      case DeclarationKind.topLevelVariable:
-      case DeclarationKind.constructor:
-        return true;
-    }
   }
 }

@@ -39,12 +39,11 @@ int runDoctor(List<String> arguments, {required String workingDirectory}) {
   final rootPath = (args['root'] as String?) ?? workingDirectory;
   final config = KarekiConfig.load(rootPath);
 
-  final formatName = args['format'] as String? ?? config.output.name;
-  final reporter = _reporterFor(formatName);
-  if (reporter == null) {
-    stderr.writeln("kareki: unknown format '$formatName'.");
-    return 64;
-  }
+  final formatName = args['format'] as String?;
+  final format = formatName == null
+      ? config.output
+      : OutputFormat.values.byName(formatName);
+  final reporter = _reporterFor(format);
 
   final result = DoctorRunner().run(
     DoctorRequest(rootPath: rootPath, config: config),
@@ -60,14 +59,13 @@ int runDoctor(List<String> arguments, {required String workingDirectory}) {
   return result.findings.isEmpty ? 0 : 1;
 }
 
-DoctorReporter? _reporterFor(String name) {
-  switch (name) {
-    case 'text':
+DoctorReporter _reporterFor(OutputFormat format) {
+  switch (format) {
+    case OutputFormat.text:
       return TextDoctorReporter();
-    case 'json':
+    case OutputFormat.json:
       return JsonDoctorReporter();
   }
-  return null;
 }
 
 ArgParser _buildArgParser() {

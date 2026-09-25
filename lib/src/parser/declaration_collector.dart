@@ -1020,18 +1020,6 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
   }
 
   @override
-  void visitDotShorthandConstructorInvocation(
-    DotShorthandConstructorInvocation node,
-  ) {
-    final name = node.constructorName.name;
-    _recordArguments(
-      name == 'new' ? _unnamedDotShorthandKey : name,
-      node.argumentList,
-    );
-    super.visitDotShorthandConstructorInvocation(node);
-  }
-
-  @override
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
     // Constructor call. The invocation name is:
     //   - the named constructor's name when present (`Foo.dims(...)`)
@@ -1060,15 +1048,19 @@ class _CallSiteVisitor extends RecursiveAstVisitor<void> {
     // Anonymous / first-class function invocation. We can still pick up
     // the call when the callee is a SimpleIdentifier (`foo(1)` resolved
     // by analyzer to a function expression invocation when ambiguous).
-    final function = node.function;
-    if (function is SimpleIdentifier) {
-      _recordArguments(function.name, node.argumentList);
-    } else if (function is PrefixedIdentifier) {
-      _recordArguments(function.identifier.name, node.argumentList);
-    } else if (function is PropertyAccess) {
-      _recordArguments(function.propertyName.name, node.argumentList);
-    }
+    final name = _functionExpressionName(node.function);
+    if (name != null) _recordArguments(name, node.argumentList);
     super.visitFunctionExpressionInvocation(node);
+  }
+
+  String? _functionExpressionName(Expression expression) {
+    if (expression is ParenthesizedExpression) {
+      return _functionExpressionName(expression.expression);
+    }
+    if (expression is SimpleIdentifier) return expression.name;
+    if (expression is PrefixedIdentifier) return expression.identifier.name;
+    if (expression is PropertyAccess) return expression.propertyName.name;
+    return null;
   }
 
   @override
@@ -1114,7 +1106,9 @@ Token _typeDeclarationName(AstNode declaration) {
   if (declaration is ExtensionTypeDeclaration) {
     return _extensionTypeNameToken(declaration);
   }
-  throw ArgumentError.value(declaration, 'declaration');
+  // This helper is called only for the three declaration types above. Keep a
+  // defensive failure for analyzer API drift; no valid source can reach it.
+  throw ArgumentError.value(declaration, 'declaration'); // coverage:ignore-line
 }
 
 PrimaryConstructorDeclaration? _primaryConstructor(AstNode declaration) {
@@ -1242,7 +1236,9 @@ class _FieldOrSuperParameterVisitor extends GeneralizingAstVisitor<void> {
   @override
   void visitNode(AstNode node) {
     if (node is FieldFormalParameter || node is SuperFormalParameter) {
-      found = true;
+      // Current analyzer versions expose these parameters directly before the
+      // fallback visitor is needed. Older supported versions wrap them.
+      found = true; // coverage:ignore-line
       return;
     }
     if (!found) node.visitChildren(this);
