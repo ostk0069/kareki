@@ -28,6 +28,7 @@ class RunRequest {
     this.enabledRules,
     this.strictDependencies = false,
     this.disregardFileLevelIgnores = false,
+    this.disregardParameterNameExcludes = false,
   });
 
   /// Workspace root used for package discovery, glob matching, and
@@ -56,6 +57,10 @@ class RunRequest {
   /// figure out which directives actually suppress something and which
   /// are dead.
   final bool disregardFileLevelIgnores;
+
+  /// When `true`, `exclude.parameter_names` is not applied. Used by
+  /// `kareki doctor` to identify entries that suppress no current finding.
+  final bool disregardParameterNameExcludes;
 }
 
 /// Result of one analysis run.
@@ -370,6 +375,10 @@ class KarekiRunner {
             continue;
           }
           for (final param in declaration.unusedParameters) {
+            if (!request.disregardParameterNameExcludes &&
+                request.config.excludeParameterNames.contains(param.name)) {
+              continue;
+            }
             if (ignores.contains(param.name)) continue;
             if (isLineIgnored(
               declaration.libraryPath,
@@ -438,6 +447,10 @@ class KarekiRunner {
               ..mergeFrom(shorthand);
           }
           for (final param in declaration.optionalParameters) {
+            if (!request.disregardParameterNameExcludes &&
+                request.config.excludeParameterNames.contains(param.name)) {
+              continue;
+            }
             if (ignores.contains(param.name)) continue;
             final passed = _optionalParameterPassed(param, usage);
             if (passed) continue;

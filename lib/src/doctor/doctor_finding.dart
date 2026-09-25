@@ -19,6 +19,11 @@ abstract final class DoctorIssueKind {
   /// `exclude.files` glob that matches no `.dart` file in the workspace.
   static const String unusedExclude = 'unused-exclude';
 
+  /// `exclude.parameter_names` entry that suppresses no current
+  /// `unused_parameter` or `unused_parameter_optional` finding.
+  static const String unusedExcludeParameterName =
+      'unused-exclude-parameter-name';
+
   /// `ignore.packages` entry whose package is absent from the workspace.
   static const String unusedIgnorePackage = 'unused-ignore-package';
 

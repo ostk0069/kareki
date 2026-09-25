@@ -127,6 +127,48 @@ ignore:
     });
 
     test(
+      'flags `exclude.parameter_names` entries that suppress no finding',
+      () {
+        _scaffold(
+          tempRoot.path,
+          packages: {
+            'app': {
+              'lib/main.dart': '''
+void render(Object context, Object other) {
+  print(other);
+}
+
+void configure({Object? optionalContext}) {
+  print(optionalContext);
+}
+''',
+            },
+          },
+        );
+        _writeKarekiConfig(tempRoot.path, '''
+version: 1
+exclude:
+  parameter_names:
+    - context
+    - optionalContext
+    - removedParameter
+''');
+
+        final result = DoctorRunner().run(_request(tempRoot.path));
+        final dead = result.findings
+            .where(
+              (finding) =>
+                  finding.kind == DoctorIssueKind.unusedExcludeParameterName,
+            )
+            .toList();
+
+        expect(dead, hasLength(1));
+        expect(dead.single.subject, 'removedParameter');
+        expect(dead.single.detail, 'exclude.parameter_names');
+      },
+    );
+
+    test(
       'flags `ignore.dependencies` parent keys when the package is unknown',
       () {
         _scaffold(

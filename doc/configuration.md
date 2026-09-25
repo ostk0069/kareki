@@ -9,7 +9,7 @@
 | Key | Type | Purpose |
 |---|---|---|
 | `packages` | map | Override workspace package globs (defaults to melos.yaml / pub workspace auto-detection). |
-| `exclude` | map | Files / declaration names to skip from analysis. |
+| `exclude` | map | Files, declaration names, or parameter names to skip from analysis. |
 | `entry_points` | map | Additional entry-point files / declaration names. |
 | `keep_alive_annotations` | map | Enabled built-in presets + ad-hoc keep-alive annotation names. |
 | `custom_presets` | map | Project-defined presets, or overrides of built-ins. |
@@ -119,6 +119,19 @@ ignore:
   rules: [unused_pub_dependency]
 ```
 
+To keep the unused-parameter rules enabled while allowing intentionally
+retained parameters with specific names across the workspace, use an exact-name
+allowlist:
+
+```yaml
+exclude:
+  parameter_names: [context]
+```
+
+`exclude.parameter_names` applies only to `unused_parameter` and
+`unused_parameter_optional`. It does not suppress declarations with the same
+name. `kareki doctor` reports entries that suppress no current finding.
+
 ## Full example
 
 ```yaml
@@ -131,6 +144,7 @@ packages:
 exclude:
   files: ["**/*.fake.dart"]
   names: [debugFillProperties]
+  parameter_names: [context]
 
 entry_points:
   files: ["**/*.story.dart"]
