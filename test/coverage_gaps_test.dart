@@ -62,10 +62,7 @@ environment:
         anyOf(0, 1),
       );
       expect(
-        runCli([
-          '--rule',
-          'not_a_rule',
-        ], workingDirectory: tempRoot.path),
+        runCli(['--rule', 'not_a_rule'], workingDirectory: tempRoot.path),
         64,
       );
     });
@@ -74,10 +71,7 @@ environment:
       final baseline = p.join(tempRoot.path, 'baseline.json');
       File(baseline).writeAsStringSync('[]');
       expect(
-        runCli([
-          '--baseline',
-          baseline,
-        ], workingDirectory: tempRoot.path),
+        runCli(['--baseline', baseline], workingDirectory: tempRoot.path),
         64,
       );
     });
@@ -91,26 +85,16 @@ environment:
           .run(RunRequest(rootPath: tempRoot.path, config: config))
           .findings;
       final baseline = p.join(tempRoot.path, 'baseline.json');
-      Baseline.write(
-        baseline,
-        [findings.first],
-        rootPath: tempRoot.path,
-      );
+      Baseline.write(baseline, [findings.first], rootPath: tempRoot.path);
 
       expect(
-        runCli([
-          '--baseline',
-          baseline,
-        ], workingDirectory: tempRoot.path),
+        runCli(['--baseline', baseline], workingDirectory: tempRoot.path),
         1,
       );
     });
 
     test('doctor dispatch handles help, malformed options, text, and json', () {
-      expect(
-        runCli(['doctor', '--help'], workingDirectory: tempRoot.path),
-        0,
-      );
+      expect(runCli(['doctor', '--help'], workingDirectory: tempRoot.path), 0);
       expect(
         runDoctor(['--not-an-option'], workingDirectory: tempRoot.path),
         64,
@@ -136,10 +120,7 @@ ignore:
         subject: '**/*.old.dart',
         detail: 'exclude.files',
       ),
-      DoctorFinding(
-        kind: DoctorIssueKind.unusedIgnorePackage,
-        subject: 'gone',
-      ),
+      DoctorFinding(kind: DoctorIssueKind.unusedIgnorePackage, subject: 'gone'),
     ];
     expect(TextDoctorReporter().render(const []), contains('healthy'));
     expect(TextDoctorReporter().render(doctorFindings), contains('2 issue'));
@@ -177,9 +158,7 @@ ignore:
     );
     expect(TextReporter().render(findings), contains(tempRoot.path));
     final json =
-        jsonDecode(
-              JsonReporter().render(findings, rootPath: tempRoot.path),
-            )
+        jsonDecode(JsonReporter().render(findings, rootPath: tempRoot.path))
             as Map<String, dynamic>;
     expect(json['findings'], hasLength(2));
     expect(JsonReporter().render(findings), contains(tempRoot.path));
@@ -296,9 +275,7 @@ class Dead {}
 // kareki: ignore_for_file=zzz, aaa
 void used() {}
 ''');
-    File(
-        p.join(tempRoot.path, 'bin', 'main.dart'),
-      )
+    File(p.join(tempRoot.path, 'bin', 'main.dart'))
       ..createSync(recursive: true)
       ..writeAsStringSync('''
 import 'package:coverage_app/stale.dart';
