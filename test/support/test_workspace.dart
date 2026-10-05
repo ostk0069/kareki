@@ -1,7 +1,23 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:path/path.dart' as p;
+import 'package:pub_semver/pub_semver.dart';
+
+final String testLanguageVersion = Platform.version
+    .split('.')
+    .take(2)
+    .join('.');
+final bool supportsPrimaryConstructors =
+    FeatureSet.fromEnableFlags2(
+          sdkLanguageVersion: Version.parse('$testLanguageVersion.0'),
+          // The public AnalysisContextCollection uses the SDK's released
+          // features; parser-only experiment flags are not a resolved contract.
+          flags: [],
+        )
+        .restrictToVersion(Version.parse('$testLanguageVersion.0'))
+        .isEnabled(Feature.primary_constructors);
 
 String fixturePath(String name) {
   final root = p.join(Directory.current.path, 'test', 'fixtures', name);
@@ -12,7 +28,7 @@ String fixturePath(String name) {
 /// Bootstrap synthetic test packages without fetching their deliberately fake
 /// dependency declarations. Imports resolve to real installed test dependencies
 /// or to the explicitly scaffolded local packages, never to production stubs.
-void configureTestPackages(String root) {
+void configureTestPackages(String root, {String languageVersion = '3.10'}) {
   final ownConfig = File(
     p.join(Directory.current.path, '.dart_tool', 'package_config.json'),
   );
@@ -37,9 +53,11 @@ void configureTestPackages(String root) {
     if (name == null) continue;
     entries[name] = {
       'name': name,
-      'rootUri': Uri.directory(p.dirname(file.absolute.path)).toString(),
+      'rootUri': Uri.directory(
+        p.dirname(file.resolveSymbolicLinksSync()),
+      ).toString(),
       'packageUri': 'lib/',
-      'languageVersion': '3.10',
+      'languageVersion': languageVersion,
     };
   }
   final target = File(p.join(root, '.dart_tool', 'package_config.json'));
@@ -64,8 +82,13 @@ class TestWorkspace {
   TestWorkspace._(this.directory);
 
   factory TestWorkspace.create(String prefix, {bool bootstrap = true}) =>
-      TestWorkspace._(Directory.systemTemp.createTempSync(prefix))
-        ..bootstrap = bootstrap;
+      TestWorkspace._(
+        Directory(
+          Directory.systemTemp
+              .createTempSync(prefix)
+              .resolveSymbolicLinksSync(),
+        ),
+      )..bootstrap = bootstrap;
 
   final Directory directory;
   bool bootstrap = true;

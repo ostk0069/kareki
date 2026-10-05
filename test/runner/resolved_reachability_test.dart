@@ -475,9 +475,9 @@ String formatHelper(int value) => value.toString();
   test(
     'primary declaring fields and their accessors share exact identities',
     () async {
-      workspace.write(
-        'analysis_options.yaml',
-        'analyzer:\n  enable-experiment:\n    - primary-constructors\n',
+      configureTestPackages(
+        workspace.path,
+        languageVersion: testLanguageVersion,
       );
       workspace.write('lib/api.dart', '''
 class A.named(final int value) { int read() => value; }
@@ -486,6 +486,10 @@ class A.named(final int value) { int read() => value; }
         'bin/main.dart',
         "import 'package:app/api.dart';\nvoid main() { print(A.named(1).read()); }\n",
       );
+      if (!supportsPrimaryConstructors) {
+        await expectLater(analyze(), throwsA(isA<ResolvedAnalysisException>()));
+        return;
+      }
       final result = await analyze();
       expect(unused(result), isEmpty);
       expect(result.analysisWarnings, isEmpty);

@@ -10,6 +10,9 @@ name-based fallback or mode switch.
 1. Run `dart pub get`, `flutter pub get`, or your workspace bootstrap with the
    project's SDK, then run its normal code-generation commands. Generated and
    excluded sources still contribute references and must resolve.
+   Use an SDK/analyzer combination supporting the target language version.
+   Parser-only support for an experimental syntax is not sufficient for resolved
+   analysis; unsupported language features fail closed instead of producing findings.
 2. Remove `analysis_mode` from configuration and `--analysis-mode` from scripts.
    Obsolete options are rejected with exit code 64 rather than silently ignored.
 3. Run kareki and review findings before updating baselines. Baseline identities

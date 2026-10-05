@@ -1,5 +1,6 @@
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/runner.dart';
 import 'package:test/test.dart';
 
@@ -10,10 +11,6 @@ void main() {
 
   setUp(() {
     workspace = TestWorkspace.create('kareki_primary_constructor_');
-    workspace.write(
-      'analysis_options.yaml',
-      'analyzer:\n  enable-experiment:\n    - primary-constructors\n',
-    );
     workspace.write('pubspec.yaml', '''
 name: primary_constructor_workspace
 publish_to: none
@@ -55,12 +52,18 @@ void main() {
 }
 ''');
 
-    final result = await KarekiRunner().run(
+    configureTestPackages(workspace.path, languageVersion: testLanguageVersion);
+    final analysis = KarekiRunner().run(
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
       ),
     );
+    if (!supportsPrimaryConstructors) {
+      await expectLater(analysis, throwsA(isA<ResolvedAnalysisException>()));
+      return;
+    }
+    final result = await analysis;
 
     expect(
       result.findings.any(
