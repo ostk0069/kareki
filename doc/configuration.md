@@ -10,6 +10,7 @@ weight: 3
 | Key | Type | Purpose |
 |---|---|---|
 | `packages` | map | Override workspace package globs (defaults to melos.yaml / pub workspace auto-detection). |
+| `analysis_mode` | `legacy` \| `resolved` | Analysis engine; defaults to `legacy`. See the [resolved preview limitations](cli.md#experimental-resolved-analysis). |
 | `exclude` | map | Files, declaration names, or parameter names to skip from analysis. |
 | `entry_points` | map | Additional entry-point files / declaration names. |
 | `keep_alive_annotations` | map | Enabled built-in presets + ad-hoc keep-alive annotation names. |

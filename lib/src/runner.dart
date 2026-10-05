@@ -10,11 +10,28 @@ import 'package:kareki/src/model/package_info.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
 import 'package:kareki/src/reachability/reachability_graph.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/reachability/unused_file_detector.dart';
 import 'package:kareki/src/workspace/workspace_loader.dart';
 import 'package:path/path.dart' as p;
 
 const _unnamedDotShorthandKey = '.new';
+
+class _AnalysisInput {
+  _AnalysisInput(
+    this.packages,
+    this.parsedFiles,
+    this.generatedPaths,
+    this.packageRoots,
+    this.entryPoints,
+  );
+
+  final List<PackageInfo> packages;
+  final List<ParsedFile> parsedFiles;
+  final Set<String> generatedPaths;
+  final Map<String, String> packageRoots;
+  final EntryPointSet entryPoints;
+}
 
 /// Configurable input for [KarekiRunner.run].
 class RunRequest {
@@ -29,6 +46,7 @@ class RunRequest {
     this.strictDependencies = false,
     this.disregardFileLevelIgnores = false,
     this.disregardParameterNameExcludes = false,
+    this.analysisMode,
   });
 
   /// Workspace root used for package discovery, glob matching, and
@@ -39,8 +57,13 @@ class RunRequest {
   /// out-of-the-box behaviour.
   final KarekiConfig config;
 
+  final AnalysisMode? analysisMode;
+
+  AnalysisMode get effectiveAnalysisMode => analysisMode ?? config.analysisMode;
+
   /// Optional override; restrict analysis to these package names.
   /// `null` means "all packages in the workspace".
+  /// In resolved mode this limits reports, not reference collection.
   final Set<String>? includePackages;
 
   /// Optional override; only run these rules. `null` means "all rules
@@ -72,6 +95,7 @@ class RunResult {
     required this.packagesAnalyzed,
     required this.filesAnalyzed,
     required this.elapsed,
+    this.analysisWarnings = const [],
   });
 
   /// All detections produced by the run, in deterministic order
@@ -88,6 +112,9 @@ class RunResult {
 
   /// Wall-clock duration of the run.
   final Duration elapsed;
+
+  /// Conservative approximations made by the experimental resolved engine.
+  final List<String> analysisWarnings;
 }
 
 /// Orchestrates workspace discovery, parsing, entry-point resolution,
@@ -98,8 +125,43 @@ class KarekiRunner {
   /// Executes a single analysis described by [request] and returns the
   /// collected findings.
   RunResult run(RunRequest request) {
+    if (request.effectiveAnalysisMode != AnalysisMode.legacy) {
+      throw ArgumentError(
+        'Resolved analysis requires await KarekiRunner().analyze(request).',
+      );
+    }
     final stopwatch = Stopwatch()..start();
+    return _evaluate(request, _prepare(request), stopwatch);
+  }
 
+  /// Async entry point. The legacy engine remains the default.
+  Future<RunResult> analyze(RunRequest request) async {
+    if (request.effectiveAnalysisMode == AnalysisMode.legacy) {
+      return run(request);
+    }
+    final stopwatch = Stopwatch()..start();
+    final input = _prepare(request, resolved: true);
+    final needsGraph =
+        _ruleEnabled(RuleId.unusedElement, request) ||
+        _ruleEnabled(RuleId.testOnlyUsed, request) ||
+        _ruleEnabled(RuleId.unusedParameterOptional, request);
+    final resolved = needsGraph
+        ? await ResolvedReachability.build(
+            files: input.parsedFiles,
+            generatedPaths: input.generatedPaths,
+            entryPoints: input.entryPoints,
+            config: request.config,
+            packageRoots: input.packageRoots,
+            trackArguments: _ruleEnabled(
+              RuleId.unusedParameterOptional,
+              request,
+            ),
+          )
+        : null;
+    return _evaluate(request, input, stopwatch, resolved: resolved);
+  }
+
+  _AnalysisInput _prepare(RunRequest request, {bool resolved = false}) {
     final workspaceLoader = WorkspaceLoader(rootPath: request.rootPath);
     final allPackages = workspaceLoader.load(
       include: request.config.includePackages,
@@ -123,7 +185,18 @@ class KarekiRunner {
     final parsedFiles = <ParsedFile>[];
     final generatedPaths = <String>{};
 
-    for (final pkg in packages) {
+    // Resolved mode separates the reporting scope from reference sources.
+    final sourcePackages = resolved ? [...allPackages] : packages;
+    if (resolved) {
+      // A nested workspace package (for example, example/) owns its files.
+      // Collect it first so the parent's recursive walk cannot create a
+      // second set of declaration records with a different package owner.
+      sourcePackages.sort(
+        (a, b) => b.rootPath.length.compareTo(a.rootPath.length),
+      );
+    }
+    final collectedPaths = <String>{};
+    for (final pkg in sourcePackages) {
       for (final file in _dartFilesIn(pkg)) {
         final relForGlob = p.relative(file.path, from: request.rootPath);
         final excluded = excludeGlobs.any(
@@ -131,12 +204,21 @@ class KarekiRunner {
         );
         ParsedFile? parsed;
         try {
+          if (resolved &&
+              !collectedPaths.add(file.resolveSymbolicLinksSync())) {
+            continue;
+          }
           parsed = collector.collect(
             path: file.path,
             packageName: pkg.name,
             content: file.readAsStringSync(),
           );
-        } on Object {
+        } on Object catch (error) {
+          if (resolved) {
+            throw ResolvedAnalysisException([
+              'Cannot parse ${file.path}: $error',
+            ]);
+          }
           // Skip files the parser cannot read.
           continue;
         }
@@ -157,7 +239,7 @@ class KarekiRunner {
       presetRegistry: presetRegistry,
     );
     final packageRoots = <String, String>{
-      for (final pkg in packages) pkg.name: pkg.rootPath,
+      for (final pkg in sourcePackages) pkg.name: pkg.rootPath,
     };
     final entryPoints = entryResolver.resolve(
       files: parsedFiles,
@@ -171,6 +253,31 @@ class KarekiRunner {
       packageRoots: packageRoots,
     );
 
+    return _AnalysisInput(
+      packages,
+      parsedFiles,
+      generatedPaths,
+      packageRoots,
+      entryPoints,
+    );
+  }
+
+  RunResult _evaluate(
+    RunRequest request,
+    _AnalysisInput input,
+    Stopwatch stopwatch, {
+    ResolvedReachability? resolved,
+  }) {
+    final packages = input.packages;
+    final parsedFiles = input.parsedFiles;
+    final generatedPaths = input.generatedPaths;
+    final packageRoots = input.packageRoots;
+    final entryPoints = input.entryPoints;
+    final presetRegistry = PresetRegistry(
+      enabledPresetNames: request.config.enabledPresetNames,
+      customPresets: request.config.customPresets,
+    );
+
     final declarationFiles = parsedFiles
         .where((f) => !generatedPaths.contains(f.path))
         .toList();
@@ -181,10 +288,9 @@ class KarekiRunner {
     // BFS from all entry points (production ∪ test). Used by
     // `unused_element` — anything reachable from any entry point is
     // alive.
-    final reachable = bfs.compute(
-      index: index,
-      roots: entryPoints.allRootNames,
-    );
+    final reachable =
+        resolved?.reachable ??
+        bfs.compute(index: index, roots: entryPoints.allRootNames);
     // BFS from production entry points only. A declaration reachable
     // from `reachable` but not from `productionReachable` is consumed
     // only by tests (`test_only_used`).
@@ -200,11 +306,13 @@ class KarekiRunner {
       return isTestSourcePath(record.libraryPath, packageRoot: pkgRoot);
     }
 
-    final productionReachable = bfs.compute(
-      index: index,
-      roots: entryPoints.productionRootNames,
-      filter: (record) => !isRecordInTestSource(record),
-    );
+    final productionReachable =
+        resolved?.productionReachable ??
+        bfs.compute(
+          index: index,
+          roots: entryPoints.productionRootNames,
+          filter: (record) => !isRecordInTestSource(record),
+        );
 
     final fileIgnores = <String, Set<String>>{
       for (final file in declarationFiles) file.path: file.fileLevelIgnores,
@@ -263,10 +371,12 @@ class KarekiRunner {
             : (fileIgnores[declaration.libraryPath] ?? const {});
         final isReachable =
             reachable.contains(declaration) ||
-            entryPoints.allRootNames.contains(declaration.name);
+            (resolved == null &&
+                entryPoints.allRootNames.contains(declaration.name));
         final isProductionReachable =
             productionReachable.contains(declaration) ||
-            entryPoints.productionRootNames.contains(declaration.name);
+            (resolved == null &&
+                entryPoints.productionRootNames.contains(declaration.name));
 
         // `@override` declarations are framework / supertype contract
         // implementations: invoked via dynamic dispatch whenever the
@@ -437,9 +547,12 @@ class KarekiRunner {
           final enclosing = declaration.enclosingTypeName;
           if (enclosing != null && enclosing.startsWith('_')) continue;
 
-          var usage = aggregated[declaration.name];
+          var usage = resolved == null
+              ? aggregated[declaration.name]
+              : resolved.argumentUsage[declaration];
           final shorthand = aggregated[_unnamedDotShorthandKey];
-          if (declaration.kind == DeclarationKind.constructor &&
+          if (resolved == null &&
+              declaration.kind == DeclarationKind.constructor &&
               declaration.name == declaration.enclosingTypeName &&
               shorthand != null) {
             usage = CallSiteUsage()
@@ -447,6 +560,13 @@ class KarekiRunner {
               ..mergeFrom(shorthand);
           }
           for (final param in declaration.optionalParameters) {
+            // Only a per-parameter non-use proof permits a resolved finding.
+            // Known usage wins over an unknown path; missing evidence does not.
+            if (resolved != null &&
+                resolved.optionalArgumentStates[param] !=
+                    OptionalArgumentState.unused) {
+              continue;
+            }
             if (!request.disregardParameterNameExcludes &&
                 request.config.excludeParameterNames.contains(param.name)) {
               continue;
@@ -524,12 +644,17 @@ class KarekiRunner {
       }
     }
 
+    final reportingPackages = packages.map((p) => p.name).toSet();
+    findings.removeWhere((f) => !reportingPackages.contains(f.packageName));
     stopwatch.stop();
     return RunResult(
       findings: findings,
       packagesAnalyzed: packages.length,
-      filesAnalyzed: declarationFiles.length,
+      filesAnalyzed: declarationFiles
+          .where((f) => reportingPackages.contains(f.packageName))
+          .length,
       elapsed: stopwatch.elapsed,
+      analysisWarnings: resolved?.warnings ?? const [],
     );
   }
 

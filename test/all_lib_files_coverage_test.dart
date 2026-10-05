@@ -23,8 +23,14 @@ import 'package:kareki/src/parser/declaration_collector.dart'
 import 'package:kareki/src/preset/builtin_presets.dart' deferred as coverage14;
 import 'package:kareki/src/preset/preset.dart' deferred as coverage15;
 import 'package:kareki/src/preset/preset_registry.dart' deferred as coverage16;
+import 'package:kareki/src/reachability/external_decoder_models.dart'
+    deferred as coverage24;
+import 'package:kareki/src/reachability/json_value_origins.dart'
+    deferred as coverage23;
 import 'package:kareki/src/reachability/reachability_graph.dart'
     deferred as coverage17;
+import 'package:kareki/src/reachability/resolved_reachability.dart'
+    deferred as coverage22;
 import 'package:kareki/src/reachability/unused_file_detector.dart'
     deferred as coverage18;
 import 'package:kareki/src/reporter/reporter.dart' deferred as coverage19;
@@ -88,6 +94,9 @@ void main() {
       coverage19.loadLibrary(),
       coverage20.loadLibrary(),
       coverage21.loadLibrary(),
+      coverage22.loadLibrary(),
+      coverage23.loadLibrary(),
+      coverage24.loadLibrary(),
     ]);
   });
 }

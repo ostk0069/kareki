@@ -49,5 +49,7 @@ export 'src/model/declaration.dart';
 export 'src/model/finding.dart';
 export 'src/model/package_info.dart';
 export 'src/parser/declaration_collector.dart';
+export 'src/reachability/resolved_reachability.dart'
+    show ResolvedAnalysisException;
 export 'src/reporter/reporter.dart';
 export 'src/runner.dart';

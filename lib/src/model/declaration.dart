@@ -67,8 +67,22 @@ class OptionalParameterRecord {
   final int? positionalIndex;
 }
 
-/// Argument usage observed at all call sites of a single simple name,
-/// aggregated across the workspace. Used to drive the
+/// Optional-argument knowledge within the analysis scope.
+enum OptionalArgumentState {
+  /// A scanned call supplies this parameter, directly or through a conservative
+  /// callback-flow path. This retains potential uses, not runtime execution proof.
+  used,
+
+  /// No scanned call supplies it and no unknown call path remains, within the
+  /// analysis scope. This is not a guarantee about external API consumers.
+  unused,
+
+  /// An unmodelled call path could supply this parameter.
+  unknown,
+}
+
+/// Argument usage observed at all call sites of a callable (resolved identity,
+/// or a simple name in legacy mode), aggregated across the workspace. Drives the
 /// `unused_parameter_optional` rule.
 class CallSiteUsage {
   CallSiteUsage();

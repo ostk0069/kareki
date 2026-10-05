@@ -10,6 +10,7 @@ weight: 3
 | キー | 型 | 用途 |
 |---|---|---|
 | `packages` | map | ワークスペースのパッケージ glob を上書き（デフォルトは melos.yaml / pub workspace から自動検出）。 |
+| `analysis_mode` | `legacy` \| `resolved` | 解析方式。既定は `legacy`。実験的なresolved方式の制約は[CLIリファレンス](cli.ja.md)を参照。 |
 | `exclude` | map | 解析対象から除外するファイル、宣言名、引数名。 |
 | `entry_points` | map | 追加のエントリポイントとなるファイル / 宣言名。 |
 | `keep_alive_annotations` | map | 有効化するビルトインプリセットと、追加で扱う keep-alive アノテーション名。 |

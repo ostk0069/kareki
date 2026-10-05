@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -6,13 +7,45 @@ import 'package:kareki/src/baseline/baseline.dart';
 import 'package:kareki/src/cli/doctor_cli.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/reporter/reporter.dart';
 import 'package:kareki/src/runner.dart';
 import 'package:path/path.dart' as p;
 
 /// Entry point used by both `bin/kareki.dart` and tests.
 int runCli(List<String> arguments, {required String workingDirectory}) {
+  return _runCli(
+        arguments,
+        workingDirectory: workingDirectory,
+        asynchronous: false,
+      )
+      as int;
+}
+
+/// Async CLI entry point; required for the opt-in resolved engine.
+Future<int> runCliAsync(
+  List<String> arguments, {
+  required String workingDirectory,
+}) async {
+  return await _runCli(
+    arguments,
+    workingDirectory: workingDirectory,
+    asynchronous: true,
+  );
+}
+
+FutureOr<int> _runCli(
+  List<String> arguments, {
+  required String workingDirectory,
+  required bool asynchronous,
+}) {
   if (arguments.isNotEmpty && arguments.first == 'doctor') {
+    if (asynchronous) {
+      return runDoctorAsync(
+        arguments.skip(1).toList(),
+        workingDirectory: workingDirectory,
+      );
+    }
     return runDoctor(
       arguments.skip(1).toList(),
       workingDirectory: workingDirectory,
@@ -37,7 +70,13 @@ int runCli(List<String> arguments, {required String workingDirectory}) {
   }
 
   final rootPath = (args['root'] as String?) ?? workingDirectory;
-  final config = KarekiConfig.load(rootPath);
+  final KarekiConfig config;
+  try {
+    config = KarekiConfig.load(rootPath);
+  } on FormatException catch (error) {
+    stderr.writeln('kareki: $error');
+    return 64;
+  }
 
   final formatName = args['format'] as String?;
   final format = formatName == null
@@ -62,9 +101,43 @@ int runCli(List<String> arguments, {required String workingDirectory}) {
     includePackages: packages,
     enabledRules: rules,
     strictDependencies: args['strict'] as bool,
+    analysisMode: args['analysis-mode'] == null
+        ? null
+        : AnalysisMode.values.byName(args['analysis-mode'] as String),
   );
 
-  final result = KarekiRunner().run(request);
+  int report(RunResult result) =>
+      _reportResult(result, args, rootPath, config, format);
+  if (asynchronous) return _analyzeAndReport(request, report);
+  if (request.effectiveAnalysisMode == AnalysisMode.resolved) {
+    stderr.writeln('kareki: resolved mode requires runCliAsync.');
+    return 64;
+  }
+  return report(KarekiRunner().run(request));
+}
+
+Future<int> _analyzeAndReport(
+  RunRequest request,
+  int Function(RunResult) report,
+) async {
+  try {
+    return report(await KarekiRunner().analyze(request));
+  } on ResolvedAnalysisException catch (error) {
+    stderr.writeln('kareki: $error');
+    return 2;
+  }
+}
+
+int _reportResult(
+  RunResult result,
+  ArgResults args,
+  String rootPath,
+  KarekiConfig config,
+  OutputFormat format,
+) {
+  for (final warning in result.analysisWarnings) {
+    stderr.writeln('kareki: $warning');
+  }
 
   final baselineOverride = args['baseline'] as String?;
   final baselinePath = _resolveBaselinePath(
@@ -156,6 +229,11 @@ Usage: kareki [options]
 
 ArgParser _buildArgParser() {
   return ArgParser()
+    ..addOption(
+      'analysis-mode',
+      allowed: ['legacy', 'resolved'],
+      help: 'Analysis engine (resolved is experimental and requires pub get).',
+    )
     ..addOption(
       'root',
       help: 'Workspace root directory (defaults to current directory).',

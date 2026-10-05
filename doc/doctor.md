@@ -22,3 +22,24 @@ dart run kareki doctor
 Only **user-supplied** entries are checked. Built-in defaults (e.g. the bundled `**/*.g.dart` exclude) are never flagged.
 
 Exits `0` when the configuration is clean, `1` when at least one issue is reported.
+
+## Resolved analysis (preview)
+
+```sh
+dart run kareki doctor --analysis-mode resolved
+```
+
+The flag overrides `analysis_mode` in config; the default remains `legacy`.
+Use the same mode that generated your baseline. Baseline IDs and report JSON
+formats are unchanged, and doctor does not modify files.
+
+All semantic checks (parameter exclusions, inline directives, stale baseline
+entries) use the selected engine. Resolution failures return exit code `2`
+without a report. If conservative approximations are necessary (e.g. callbacks
+or dynamic calls), doctor skips these semantic checks, warns on stderr and
+returns `2`; structural checks such as unmatched globs can still be reported.
+An empty JSON findings array with exit code `2` does **not** mean healthy.
+Invalid options/config return `64`.
+
+Programmatic users can call `await DoctorRunner().analyze(request)` with
+`analysisMode: AnalysisMode.resolved`. Synchronous `run()` remains legacy-only.

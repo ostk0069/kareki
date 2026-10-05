@@ -90,7 +90,14 @@ class _UserConfig {
 
 /// Configurable input for [DoctorRunner.run].
 class DoctorRequest {
-  DoctorRequest({required this.rootPath, required this.config});
+  DoctorRequest({
+    required this.rootPath,
+    required this.config,
+    this.analysisMode,
+  });
+
+  final AnalysisMode? analysisMode;
+  AnalysisMode get effectiveAnalysisMode => analysisMode ?? config.analysisMode;
 
   /// Workspace root, same semantics as [RunRequest.rootPath].
   final String rootPath;
@@ -101,7 +108,15 @@ class DoctorRequest {
 
 /// Result of one `doctor` invocation.
 class DoctorResult {
-  DoctorResult({required this.findings, required this.elapsed});
+  DoctorResult({
+    required this.findings,
+    required this.elapsed,
+    this.analysisWarnings = const [],
+  });
+
+  /// Nonempty when conservative analysis prevented semantic cleanup checks.
+  /// Structural findings may still be returned; this is not a healthy result.
+  final List<String> analysisWarnings;
 
   /// Issues found in the configuration, in deterministic order.
   final List<DoctorFinding> findings;
@@ -117,6 +132,67 @@ class DoctorResult {
 class DoctorRunner {
   /// Executes one health check pass.
   DoctorResult run(DoctorRequest request) {
+    if (request.effectiveAnalysisMode == AnalysisMode.resolved) {
+      throw ArgumentError(
+        'Resolved doctor requires await DoctorRunner().analyze(request).',
+      );
+    }
+    return _run(request);
+  }
+
+  /// Uses the selected engine for every semantic check. No partial health
+  /// report is returned if resolution fails.
+  Future<DoctorResult> analyze(DoctorRequest request) async {
+    if (request.effectiveAnalysisMode == AnalysisMode.legacy) {
+      return run(request);
+    }
+    final stopwatch = Stopwatch()..start();
+    final runner = KarekiRunner();
+    RunRequest input({bool parameters = false, bool comments = false}) =>
+        RunRequest(
+          rootPath: request.rootPath,
+          config: request.config,
+          analysisMode: request.effectiveAnalysisMode,
+          enabledRules: parameters
+              ? {RuleId.unusedParameter, RuleId.unusedParameterOptional}
+              : null,
+          disregardParameterNameExcludes: parameters,
+          disregardFileLevelIgnores: comments,
+        );
+    final ordinary = await runner.analyze(input());
+    final parameters = await runner.analyze(input(parameters: true));
+    final comments = await runner.analyze(input(comments: true));
+    final warnings = {
+      ...ordinary.analysisWarnings,
+      ...parameters.analysisWarnings,
+      ...comments.analysisWarnings,
+    };
+    if (warnings.isNotEmpty) {
+      warnings.add(
+        'Semantic doctor checks skipped because analysis used conservative approximations; no baseline or suppression cleanup is recommended.',
+      );
+    }
+    final result = _run(
+      request,
+      ordinary: ordinary,
+      parameters: parameters,
+      comments: comments,
+      skipSemantic: warnings.isNotEmpty,
+    );
+    return DoctorResult(
+      findings: result.findings,
+      elapsed: stopwatch.elapsed,
+      analysisWarnings: warnings.toList()..sort(),
+    );
+  }
+
+  DoctorResult _run(
+    DoctorRequest request, {
+    RunResult? ordinary,
+    RunResult? parameters,
+    RunResult? comments,
+    bool skipSemantic = false,
+  }) {
     final stopwatch = Stopwatch()..start();
     final findings = <DoctorFinding>[];
 
@@ -131,11 +207,19 @@ class DoctorRunner {
     final workspacePackageNames = allPackages.map((p) => p.name).toSet();
 
     findings.addAll(_findDeadExcludeGlobs(request, user, analyzedPackages));
-    findings.addAll(_findDeadExcludeParameterNames(request, user));
+    if (!skipSemantic) {
+      findings.addAll(
+        _findDeadExcludeParameterNames(request, user, parameters),
+      );
+    }
     findings.addAll(_findDeadIgnorePackages(user, workspacePackageNames));
     findings.addAll(_findDeadIgnoreDependencies(user, allPackages));
-    findings.addAll(_findUnusedIgnoreDirectives(request, analyzedPackages));
-    findings.addAll(_findStaleBaselineEntries(request));
+    if (!skipSemantic) {
+      findings.addAll(
+        _findUnusedIgnoreDirectives(request, analyzedPackages, comments),
+      );
+      findings.addAll(_findStaleBaselineEntries(request, ordinary));
+    }
 
     findings.sort((a, b) {
       final byKind = a.kind.compareTo(b.kind);
@@ -200,22 +284,25 @@ class DoctorRunner {
   Iterable<DoctorFinding> _findDeadExcludeParameterNames(
     DoctorRequest request,
     _UserConfig user,
+    RunResult? analysis,
   ) sync* {
     if (user.excludeParameterNames.isEmpty) return;
 
-    final rawFindings = KarekiRunner()
-        .run(
-          RunRequest(
-            rootPath: request.rootPath,
-            config: request.config,
-            enabledRules: {
-              RuleId.unusedParameter,
-              RuleId.unusedParameterOptional,
-            },
-            disregardParameterNameExcludes: true,
-          ),
-        )
-        .findings;
+    final rawFindings =
+        (analysis ??
+                KarekiRunner().run(
+                  RunRequest(
+                    rootPath: request.rootPath,
+                    config: request.config,
+                    analysisMode: request.effectiveAnalysisMode,
+                    enabledRules: {
+                      RuleId.unusedParameter,
+                      RuleId.unusedParameterOptional,
+                    },
+                    disregardParameterNameExcludes: true,
+                  ),
+                ))
+            .findings;
     final matchedNames = <String>{};
     for (final finding in rawFindings) {
       final marker = finding.ruleId == RuleId.unusedParameter
@@ -271,6 +358,7 @@ class DoctorRunner {
   Iterable<DoctorFinding> _findUnusedIgnoreDirectives(
     DoctorRequest request,
     List<PackageInfo> analyzedPackages,
+    RunResult? analysis,
   ) sync* {
     final excludeGlobs = request.config.excludeFiles
         .map((pattern) => Glob(pattern, recursive: true))
@@ -322,15 +410,17 @@ class DoctorRunner {
     // findings list contains every detection — including the ones the
     // directives suppress. A directive that maps to none of those raw
     // findings is genuinely dead.
-    final findings = KarekiRunner()
-        .run(
-          RunRequest(
-            rootPath: request.rootPath,
-            config: request.config,
-            disregardFileLevelIgnores: true,
-          ),
-        )
-        .findings;
+    final findings =
+        (analysis ??
+                KarekiRunner().run(
+                  RunRequest(
+                    rootPath: request.rootPath,
+                    config: request.config,
+                    analysisMode: request.effectiveAnalysisMode,
+                    disregardFileLevelIgnores: true,
+                  ),
+                ))
+            .findings;
 
     // For each file in fileIgnores, build the set of "names that would
     // have matched a finding from that file" — both rule ids (the
@@ -343,7 +433,7 @@ class DoctorRunner {
     // directives without false negatives when the same rule fires on
     // another line of the file.
     final matchedByFileLine = <String, Map<int, Set<String>>>{};
-    final symbolPattern = RegExp(r"'([\w_]+)'");
+    final symbolPattern = RegExp(r"'([\w.]+)(?:\(\))?'");
     for (final finding in findings) {
       final matched = matchedByFile.putIfAbsent(finding.filePath, () => {})
         ..add(finding.ruleId);
@@ -351,8 +441,9 @@ class DoctorRunner {
       final lineSet = byLine.putIfAbsent(finding.line, () => <String>{})
         ..add(finding.ruleId);
       for (final m in symbolPattern.allMatches(finding.message)) {
-        matched.add(m.group(1)!);
-        lineSet.add(m.group(1)!);
+        final name = m.group(1)!.split('.').last;
+        matched.add(name);
+        lineSet.add(name);
       }
     }
 
@@ -389,6 +480,7 @@ class DoctorRunner {
 
   Iterable<DoctorFinding> _findStaleBaselineEntries(
     DoctorRequest request,
+    RunResult? analysis,
   ) sync* {
     final baselinePath = request.config.baselinePath;
     if (baselinePath == null || baselinePath.isEmpty) return;
@@ -407,9 +499,16 @@ class DoctorRunner {
       return;
     }
 
-    final findings = KarekiRunner()
-        .run(RunRequest(rootPath: request.rootPath, config: request.config))
-        .findings;
+    final findings =
+        (analysis ??
+                KarekiRunner().run(
+                  RunRequest(
+                    rootPath: request.rootPath,
+                    config: request.config,
+                    analysisMode: request.effectiveAnalysisMode,
+                  ),
+                ))
+            .findings;
 
     // Compare against the *unfiltered* finding set, because cli.dart
     // already subtracts the baseline before reporting. Re-running here

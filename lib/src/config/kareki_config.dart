@@ -8,6 +8,9 @@ import 'package:yaml/yaml.dart';
 /// Output report formats.
 enum OutputFormat { text, json }
 
+/// Resolved analysis is experimental and requires a bootstrapped workspace.
+enum AnalysisMode { legacy, resolved }
+
 /// Parsed configuration from `kareki-config.yaml`.
 class KarekiConfig {
   KarekiConfig({
@@ -28,6 +31,7 @@ class KarekiConfig {
     required this.output,
     required this.baselinePath,
     this.excludeParameterNames = const {},
+    this.analysisMode = AnalysisMode.legacy,
   });
 
   factory KarekiConfig.defaults() => KarekiConfig(
@@ -111,6 +115,10 @@ class KarekiConfig {
     final keepAlive = yaml['keep_alive_annotations'] as YamlMap?;
     final ignore = yaml['ignore'] as YamlMap?;
     final output = yaml['output'] as YamlMap?;
+    final mode = yaml['analysis_mode'];
+    if (mode != null && !AnalysisMode.values.any((m) => m.name == mode)) {
+      throw const FormatException('analysis_mode must be legacy or resolved.');
+    }
 
     return KarekiConfig(
       includePackages: _stringList(packages?['include']),
@@ -142,11 +150,16 @@ class KarekiConfig {
           : defaults.sdkPackages,
       output: _parseFormat(output?['format']) ?? defaults.output,
       baselinePath: yaml['baseline']?.toString(),
+      analysisMode: mode == null
+          ? AnalysisMode.legacy
+          : AnalysisMode.values.byName(mode as String),
     );
   }
 
   /// Glob patterns for packages to include (overrides melos.yaml when set).
   final List<String> includePackages;
+
+  final AnalysisMode analysisMode;
 
   /// Glob patterns for packages to exclude.
   final List<String> excludePackages;
