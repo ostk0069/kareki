@@ -14,7 +14,6 @@ dart run kareki
 | オプション | 説明 |
 |---|---|
 | `--root <path>` | ワークスペースのルート。デフォルトはカレントディレクトリ。 |
-| `--analysis-mode <mode>` | `legacy`（既定）または実験的な `resolved`。設定の `analysis_mode` を上書きします。 |
 | `-f`, `--format <name>` | 出力フォーマット: `text` \| `json`。`kareki-config.yaml` の設定を上書きします。 |
 | `--packages <name>` | 解析対象を指定したパッケージに限定。複数指定可。 |
 | `--rule <id>` | 指定したルールのみ有効化。複数指定可。 |
@@ -32,12 +31,12 @@ dart run kareki
 | `2` | 名前・型の解決が完了しなかった。検出結果の出力やベースライン更新は行わない。 |
 | `64` | CLI の使い方が不正。 |
 
-## 実験的な宣言IDによる解析
+## 宣言IDによる解析
 
 `pub get` / ワークスペースのbootstrapとコード生成を済ませてから実行します。
 
 ```sh
-dart run kareki --analysis-mode resolved --rule unused_element,test_only_used,unused_parameter_optional
+dart run kareki --rule unused_element,test_only_used,unused_parameter_optional
 ```
 
 今回移行したルールは `unused_element`、`test_only_used`、`unused_parameter_optional` です。
@@ -53,8 +52,8 @@ resolved方式では `--packages` と `ignore.packages` は報告対象を限定
 同名宣言によって隠れていた未使用コードが新たに検出されることがあります。
 差分を確認してからベースラインへ受け入れてください。
 
-`dart run kareki doctor --analysis-mode resolved` で、同じ解析方式による
-抑制・ベースライン検証ができます。両コマンドとも設定の `analysis_mode` にも従います。
+`dart run kareki doctor` で、同じ解析方式による
+抑制・ベースライン検証ができます。旧方式と解析方式の切替設定は撤去しました。
 doctorは解決失敗や、保守的な近似により安全に検証できない場合に終了コード2を返します。
-resolved方式のベースラインを旧方式のdoctorで整理しないでください。
+旧バージョンのbaselineは検出差分を確認してから整理してください。
 詳細は[doctor](doctor.ja.md)を参照してください。

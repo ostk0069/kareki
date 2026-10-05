@@ -90,14 +90,7 @@ class _UserConfig {
 
 /// Configurable input for [DoctorRunner.run].
 class DoctorRequest {
-  DoctorRequest({
-    required this.rootPath,
-    required this.config,
-    this.analysisMode,
-  });
-
-  final AnalysisMode? analysisMode;
-  AnalysisMode get effectiveAnalysisMode => analysisMode ?? config.analysisMode;
+  DoctorRequest({required this.rootPath, required this.config});
 
   /// Workspace root, same semantics as [RunRequest.rootPath].
   final String rootPath;
@@ -131,37 +124,31 @@ class DoctorResult {
 /// entries that suppress nothing, and ineffective `// kareki:` directives.
 class DoctorRunner {
   /// Executes one health check pass.
-  DoctorResult run(DoctorRequest request) {
-    if (request.effectiveAnalysisMode == AnalysisMode.resolved) {
-      throw ArgumentError(
-        'Resolved doctor requires await DoctorRunner().analyze(request).',
-      );
-    }
-    return _run(request);
-  }
+  Future<DoctorResult> run(DoctorRequest request) => analyze(request);
 
-  /// Uses the selected engine for every semantic check. No partial health
+  /// Shares one resolved source snapshot across every semantic check. No partial health
   /// report is returned if resolution fails.
   Future<DoctorResult> analyze(DoctorRequest request) async {
-    if (request.effectiveAnalysisMode == AnalysisMode.legacy) {
-      return run(request);
-    }
     final stopwatch = Stopwatch()..start();
     final runner = KarekiRunner();
     RunRequest input({bool parameters = false, bool comments = false}) =>
         RunRequest(
           rootPath: request.rootPath,
           config: request.config,
-          analysisMode: request.effectiveAnalysisMode,
           enabledRules: parameters
               ? {RuleId.unusedParameter, RuleId.unusedParameterOptional}
               : null,
           disregardParameterNameExcludes: parameters,
           disregardFileLevelIgnores: comments,
         );
-    final ordinary = await runner.analyze(input());
-    final parameters = await runner.analyze(input(parameters: true));
-    final comments = await runner.analyze(input(comments: true));
+    final variants = await runner.analyzeVariants([
+      input(),
+      input(parameters: true),
+      input(comments: true),
+    ]);
+    final ordinary = variants[0];
+    final parameters = variants[1];
+    final comments = variants[2];
     final warnings = {
       ...ordinary.analysisWarnings,
       ...parameters.analysisWarnings,
@@ -188,9 +175,9 @@ class DoctorRunner {
 
   DoctorResult _run(
     DoctorRequest request, {
-    RunResult? ordinary,
-    RunResult? parameters,
-    RunResult? comments,
+    required RunResult ordinary,
+    required RunResult parameters,
+    required RunResult comments,
     bool skipSemantic = false,
   }) {
     final stopwatch = Stopwatch()..start();
@@ -284,25 +271,11 @@ class DoctorRunner {
   Iterable<DoctorFinding> _findDeadExcludeParameterNames(
     DoctorRequest request,
     _UserConfig user,
-    RunResult? analysis,
+    RunResult analysis,
   ) sync* {
     if (user.excludeParameterNames.isEmpty) return;
 
-    final rawFindings =
-        (analysis ??
-                KarekiRunner().run(
-                  RunRequest(
-                    rootPath: request.rootPath,
-                    config: request.config,
-                    analysisMode: request.effectiveAnalysisMode,
-                    enabledRules: {
-                      RuleId.unusedParameter,
-                      RuleId.unusedParameterOptional,
-                    },
-                    disregardParameterNameExcludes: true,
-                  ),
-                ))
-            .findings;
+    final rawFindings = analysis.findings;
     final matchedNames = <String>{};
     for (final finding in rawFindings) {
       final marker = finding.ruleId == RuleId.unusedParameter
@@ -358,7 +331,7 @@ class DoctorRunner {
   Iterable<DoctorFinding> _findUnusedIgnoreDirectives(
     DoctorRequest request,
     List<PackageInfo> analyzedPackages,
-    RunResult? analysis,
+    RunResult analysis,
   ) sync* {
     final excludeGlobs = request.config.excludeFiles
         .map((pattern) => Glob(pattern, recursive: true))
@@ -406,21 +379,11 @@ class DoctorRunner {
 
     if (fileIgnores.isEmpty && lineIgnoresByPath.isEmpty) return;
 
-    // Run a full analysis with comment-based ignores DISABLED, so the
+    // Use the reporting variant with comment-based ignores DISABLED, so the
     // findings list contains every detection — including the ones the
     // directives suppress. A directive that maps to none of those raw
     // findings is genuinely dead.
-    final findings =
-        (analysis ??
-                KarekiRunner().run(
-                  RunRequest(
-                    rootPath: request.rootPath,
-                    config: request.config,
-                    analysisMode: request.effectiveAnalysisMode,
-                    disregardFileLevelIgnores: true,
-                  ),
-                ))
-            .findings;
+    final findings = analysis.findings;
 
     // For each file in fileIgnores, build the set of "names that would
     // have matched a finding from that file" — both rule ids (the
@@ -480,7 +443,7 @@ class DoctorRunner {
 
   Iterable<DoctorFinding> _findStaleBaselineEntries(
     DoctorRequest request,
-    RunResult? analysis,
+    RunResult analysis,
   ) sync* {
     final baselinePath = request.config.baselinePath;
     if (baselinePath == null || baselinePath.isEmpty) return;
@@ -499,16 +462,7 @@ class DoctorRunner {
       return;
     }
 
-    final findings =
-        (analysis ??
-                KarekiRunner().run(
-                  RunRequest(
-                    rootPath: request.rootPath,
-                    config: request.config,
-                    analysisMode: request.effectiveAnalysisMode,
-                  ),
-                ))
-            .findings;
+    final findings = analysis.findings;
 
     // Compare against the *unfiltered* finding set, because cli.dart
     // already subtracts the baseline before reporting. Re-running here

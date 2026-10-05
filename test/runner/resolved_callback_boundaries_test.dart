@@ -73,7 +73,6 @@ void main() {
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
-        analysisMode: AnalysisMode.resolved,
         enabledRules: {RuleId.unusedParameterOptional},
       ),
     );

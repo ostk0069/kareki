@@ -7,49 +7,52 @@ import '../support/test_workspace.dart';
 
 void main() {
   group('workspace analysis', () {
-    test('single package detects unused elements, files, and dependencies', () {
-      final root = fixturePath('single_package');
-      final result = KarekiRunner().run(
-        RunRequest(rootPath: root, config: KarekiConfig.load(root)),
-      );
+    test(
+      'single package detects unused elements, files, and dependencies',
+      () async {
+        final root = fixturePath('single_package');
+        final result = await KarekiRunner().run(
+          RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+        );
 
-      expect(result.packagesAnalyzed, 1);
-      expect(result.filesAnalyzed, greaterThan(0));
-      expect(
-        result.findings.map((finding) => finding.ruleId).toSet(),
-        containsAll(<String>{
-          RuleId.unusedElement,
-          RuleId.unusedFile,
-          RuleId.unusedPubDependency,
-        }),
-      );
-      expect(
-        result.findings.any(
-          (finding) =>
-              finding.ruleId == RuleId.unusedElement &&
-              finding.message.contains('UnusedClass'),
-        ),
-        isTrue,
-      );
-      expect(
-        result.findings.any(
-          (finding) =>
-              finding.ruleId == RuleId.unusedFile &&
-              finding.filePath.endsWith('orphan.dart'),
-        ),
-        isTrue,
-      );
-      expect(
-        result.findings
-            .where((finding) => finding.ruleId == RuleId.unusedPubDependency)
-            .map((finding) => finding.message),
-        containsAll(<dynamic>[contains("'meta'"), contains("'collection'")]),
-      );
-    });
+        expect(result.packagesAnalyzed, 1);
+        expect(result.filesAnalyzed, greaterThan(0));
+        expect(
+          result.findings.map((finding) => finding.ruleId).toSet(),
+          containsAll(<String>{
+            RuleId.unusedElement,
+            RuleId.unusedFile,
+            RuleId.unusedPubDependency,
+          }),
+        );
+        expect(
+          result.findings.any(
+            (finding) =>
+                finding.ruleId == RuleId.unusedElement &&
+                finding.message.contains('UnusedClass'),
+          ),
+          isTrue,
+        );
+        expect(
+          result.findings.any(
+            (finding) =>
+                finding.ruleId == RuleId.unusedFile &&
+                finding.filePath.endsWith('orphan.dart'),
+          ),
+          isTrue,
+        );
+        expect(
+          result.findings
+              .where((finding) => finding.ruleId == RuleId.unusedPubDependency)
+              .map((finding) => finding.message),
+          containsAll(<dynamic>[contains("'meta'"), contains("'collection'")]),
+        );
+      },
+    );
 
-    test('used symbols are not flagged', () {
+    test('used symbols are not flagged', () async {
       final root = fixturePath('single_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
       final flaggedNames = result.findings
@@ -66,9 +69,9 @@ void main() {
       );
     });
 
-    test('cross-package reachability works', () {
+    test('cross-package reachability works', () async {
       final root = fixturePath('multi_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
 
@@ -99,9 +102,9 @@ void main() {
       );
     });
 
-    test('rule filter restricts emitted rules', () {
+    test('rule filter restricts emitted rules', () async {
       final root = fixturePath('single_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(
           rootPath: root,
           config: KarekiConfig.load(root),
@@ -114,9 +117,9 @@ void main() {
       });
     });
 
-    test('package filter restricts analysis to one package', () {
+    test('package filter restricts analysis to one package', () async {
       final root = fixturePath('multi_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(
           rootPath: root,
           config: KarekiConfig.load(root),

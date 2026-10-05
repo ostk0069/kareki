@@ -39,23 +39,21 @@ void main() {
 
   tearDown(() => workspace.dispose());
 
-  test('suppresses matching names for both unused parameter rules', () {
+  test('suppresses matching names for both unused parameter rules', () async {
     final config = KarekiConfig.load(workspace.path);
     expect(config.excludeParameterNames, {'context'});
 
     final runner = KarekiRunner();
-    final rawFindings = runner
-        .run(
-          RunRequest(
-            rootPath: workspace.path,
-            config: config,
-            disregardParameterNameExcludes: true,
-          ),
-        )
-        .findings;
-    final findings = runner
-        .run(RunRequest(rootPath: workspace.path, config: config))
-        .findings;
+    final rawFindings = (await runner.run(
+      RunRequest(
+        rootPath: workspace.path,
+        config: config,
+        disregardParameterNameExcludes: true,
+      ),
+    )).findings;
+    final findings = (await runner.run(
+      RunRequest(rootPath: workspace.path, config: config),
+    )).findings;
 
     expect(
       rawFindings.any(

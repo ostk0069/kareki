@@ -3,12 +3,12 @@ title: How it works
 weight: 6
 ---
 
-The default `legacy` engine works as follows:
+Kareki uses a single declaration-identity analysis engine:
 
 1. Discover packages via `melos.yaml` or pub workspace.
-2. Parse every `.dart` file with `package:analyzer`, extracting declarations + outgoing simple-name references.
+2. Parse every `.dart` file with `package:analyzer`, extracting declaration metadata and suppression directives.
 3. Resolve entry points (implicit conventions + active presets + generated-file references + config).
-4. BFS the simple-name graph from those root identifiers.
+4. Resolve references with analyzer and traverse the graph of exact declaration identities.
 5. Report unreached declarations, unreferenced files, and undeclared pub deps.
 
 ## Entry-point seeding
@@ -20,13 +20,13 @@ Entry-point seeding combines four layers:
 | Implicit | Dart / Flutter SDK conventions (`main`, `_test`, `bin/`, `integration_test/`, `lib/l10n/`, `flutter_test_config.dart`). |
 | Tool conventions | `entry_points.files` config (defaults: playbook / widgetbook globs). |
 | Annotations | Active preset keep-alives + `custom_presets.*.keep_alive_annotations` + `keep_alive_annotations.custom`. |
-| Generated code | Files matching `exclude.files` or carrying a `GENERATED CODE` header — their identifier references seed BFS roots. |
+| Generated code | Files matching `exclude.files` or carrying a `GENERATED CODE` header — their resolved declarations and references seed the graph. |
 
 This layered design lets kareki coexist with codegen-heavy ecosystems without flooding you with false positives.
 
-## Resolved analysis (preview)
+## Resolved analysis
 
-The experimental `resolved` engine uses `AnalysisContextCollection` to resolve
+The analysis engine uses `AnalysisContextCollection` to resolve
 references and builds a graph keyed by defining library, physical source file,
 declaration offset and kind. This internal identity is separate from baseline
 IDs. Roots from entry files, generated files and annotations use individual
@@ -96,9 +96,8 @@ dynamic calls in a file. To review an upgrade, use
 inspect the source closure, audit the implementation, add regression tests and
 only then update the catalog; the tool never trusts a new digest automatically.
 
-Use `await KarekiRunner().analyze(request)` with
-`analysisMode: AnalysisMode.resolved` for the programmatic API. The synchronous
-`run()` accepts legacy analysis only. See [CLI preview notes](cli.md).
+Use `await KarekiRunner().analyze(request)` or `await KarekiRunner().run(request)`.
+Both APIs are asynchronous. See [migration notes](migration.md).
 
 Optional argument usage is keyed by the same declaration identity and aggregates
 all scanned call sites, including unreachable/generated code. Usage propagates

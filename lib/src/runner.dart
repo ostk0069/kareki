@@ -9,13 +9,10 @@ import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/model/package_info.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
-import 'package:kareki/src/reachability/reachability_graph.dart';
 import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/reachability/unused_file_detector.dart';
 import 'package:kareki/src/workspace/workspace_loader.dart';
 import 'package:path/path.dart' as p;
-
-const _unnamedDotShorthandKey = '.new';
 
 class _AnalysisInput {
   _AnalysisInput(
@@ -46,7 +43,6 @@ class RunRequest {
     this.strictDependencies = false,
     this.disregardFileLevelIgnores = false,
     this.disregardParameterNameExcludes = false,
-    this.analysisMode,
   });
 
   /// Workspace root used for package discovery, glob matching, and
@@ -57,13 +53,9 @@ class RunRequest {
   /// out-of-the-box behaviour.
   final KarekiConfig config;
 
-  final AnalysisMode? analysisMode;
-
-  AnalysisMode get effectiveAnalysisMode => analysisMode ?? config.analysisMode;
-
   /// Optional override; restrict analysis to these package names.
   /// `null` means "all packages in the workspace".
-  /// In resolved mode this limits reports, not reference collection.
+  /// This limits reports, not reference collection.
   final Set<String>? includePackages;
 
   /// Optional override; only run these rules. `null` means "all rules
@@ -113,7 +105,7 @@ class RunResult {
   /// Wall-clock duration of the run.
   final Duration elapsed;
 
-  /// Conservative approximations made by the experimental resolved engine.
+  /// Conservative approximations made by the resolved engine.
   final List<String> analysisWarnings;
 }
 
@@ -124,27 +116,37 @@ class RunResult {
 class KarekiRunner {
   /// Executes a single analysis described by [request] and returns the
   /// collected findings.
-  RunResult run(RunRequest request) {
-    if (request.effectiveAnalysisMode != AnalysisMode.legacy) {
-      throw ArgumentError(
-        'Resolved analysis requires await KarekiRunner().analyze(request).',
-      );
-    }
-    final stopwatch = Stopwatch()..start();
-    return _evaluate(request, _prepare(request), stopwatch);
-  }
+  Future<RunResult> run(RunRequest request) => analyze(request);
 
-  /// Async entry point. The legacy engine remains the default.
-  Future<RunResult> analyze(RunRequest request) async {
-    if (request.effectiveAnalysisMode == AnalysisMode.legacy) {
-      return run(request);
+  /// Resolves declaration identities before evaluating rules.
+  Future<RunResult> analyze(RunRequest request) async =>
+      (await analyzeVariants([request])).single;
+
+  /// Evaluate reporting variants against one immutable source snapshot.
+  ///
+  /// Requests must share the same root, configuration instance, and package
+  /// filter instance. Only rules and suppression/reporting flags may differ.
+  /// Resolution is performed once with the union of required capabilities;
+  /// no analyzer state survives the call or is reused across invocations.
+  Future<List<RunResult>> analyzeVariants(List<RunRequest> requests) async {
+    if (requests.isEmpty) return [];
+    final request = requests.first;
+    if (requests.any(
+      (other) =>
+          other.rootPath != request.rootPath ||
+          !identical(other.config, request.config) ||
+          !identical(other.includePackages, request.includePackages),
+    )) {
+      throw ArgumentError('Analysis variants must share their source scope.');
     }
     final stopwatch = Stopwatch()..start();
-    final input = _prepare(request, resolved: true);
-    final needsGraph =
-        _ruleEnabled(RuleId.unusedElement, request) ||
-        _ruleEnabled(RuleId.testOnlyUsed, request) ||
-        _ruleEnabled(RuleId.unusedParameterOptional, request);
+    final input = _prepare(request);
+    final needsGraph = requests.any(
+      (variant) =>
+          _ruleEnabled(RuleId.unusedElement, variant) ||
+          _ruleEnabled(RuleId.testOnlyUsed, variant) ||
+          _ruleEnabled(RuleId.unusedParameterOptional, variant),
+    );
     final resolved = needsGraph
         ? await ResolvedReachability.build(
             files: input.parsedFiles,
@@ -152,16 +154,19 @@ class KarekiRunner {
             entryPoints: input.entryPoints,
             config: request.config,
             packageRoots: input.packageRoots,
-            trackArguments: _ruleEnabled(
-              RuleId.unusedParameterOptional,
-              request,
+            trackArguments: requests.any(
+              (variant) =>
+                  _ruleEnabled(RuleId.unusedParameterOptional, variant),
             ),
           )
         : null;
-    return _evaluate(request, input, stopwatch, resolved: resolved);
+    return [
+      for (final variant in requests)
+        _evaluate(variant, input, stopwatch, resolved: resolved),
+    ];
   }
 
-  _AnalysisInput _prepare(RunRequest request, {bool resolved = false}) {
+  _AnalysisInput _prepare(RunRequest request) {
     final workspaceLoader = WorkspaceLoader(rootPath: request.rootPath);
     final allPackages = workspaceLoader.load(
       include: request.config.includePackages,
@@ -185,16 +190,14 @@ class KarekiRunner {
     final parsedFiles = <ParsedFile>[];
     final generatedPaths = <String>{};
 
-    // Resolved mode separates the reporting scope from reference sources.
-    final sourcePackages = resolved ? [...allPackages] : packages;
-    if (resolved) {
-      // A nested workspace package (for example, example/) owns its files.
-      // Collect it first so the parent's recursive walk cannot create a
-      // second set of declaration records with a different package owner.
-      sourcePackages.sort(
-        (a, b) => b.rootPath.length.compareTo(a.rootPath.length),
-      );
-    }
+    // Reporting filters never remove reference sources.
+    final sourcePackages = [...allPackages];
+    // A nested workspace package (for example, example/) owns its files.
+    // Collect it first so the parent's recursive walk cannot create a
+    // second set of declaration records with a different package owner.
+    sourcePackages.sort(
+      (a, b) => b.rootPath.length.compareTo(a.rootPath.length),
+    );
     final collectedPaths = <String>{};
     for (final pkg in sourcePackages) {
       for (final file in _dartFilesIn(pkg)) {
@@ -204,8 +207,7 @@ class KarekiRunner {
         );
         ParsedFile? parsed;
         try {
-          if (resolved &&
-              !collectedPaths.add(file.resolveSymbolicLinksSync())) {
+          if (!collectedPaths.add(file.resolveSymbolicLinksSync())) {
             continue;
           }
           parsed = collector.collect(
@@ -214,13 +216,9 @@ class KarekiRunner {
             content: file.readAsStringSync(),
           );
         } on Object catch (error) {
-          if (resolved) {
-            throw ResolvedAnalysisException([
-              'Cannot parse ${file.path}: $error',
-            ]);
-          }
-          // Skip files the parser cannot read.
-          continue;
+          throw ResolvedAnalysisException([
+            'Cannot parse ${file.path}: $error',
+          ]);
         }
         parsedFiles.add(parsed);
         if (excluded || parsed.isGeneratedByHeader) {
@@ -281,16 +279,17 @@ class KarekiRunner {
     final declarationFiles = parsedFiles
         .where((f) => !generatedPaths.contains(f.path))
         .toList();
-    final index = DeclarationIndex.fromRecords(
-      declarationFiles.expand((f) => f.declarations),
-    );
-    final bfs = ReachabilityBfs();
+    final declarations = declarationFiles.expand((f) => f.declarations);
+    final enclosingTypes = {
+      for (final declaration in declarations)
+        if (declaration.enclosingTypeName == null)
+          (declaration.packageName, declaration.libraryPath, declaration.name):
+              declaration,
+    };
     // BFS from all entry points (production ∪ test). Used by
     // `unused_element` — anything reachable from any entry point is
     // alive.
-    final reachable =
-        resolved?.reachable ??
-        bfs.compute(index: index, roots: entryPoints.allRootNames);
+    final reachable = resolved?.reachable ?? const <DeclarationRecord>{};
     // BFS from production entry points only. A declaration reachable
     // from `reachable` but not from `productionReachable` is consumed
     // only by tests (`test_only_used`).
@@ -307,12 +306,7 @@ class KarekiRunner {
     }
 
     final productionReachable =
-        resolved?.productionReachable ??
-        bfs.compute(
-          index: index,
-          roots: entryPoints.productionRootNames,
-          filter: (record) => !isRecordInTestSource(record),
-        );
+        resolved?.productionReachable ?? const <DeclarationRecord>{};
 
     final fileIgnores = <String, Set<String>>{
       for (final file in declarationFiles) file.path: file.fileLevelIgnores,
@@ -344,12 +338,10 @@ class KarekiRunner {
     final testOnlyUsedEnabled = _ruleEnabled(RuleId.testOnlyUsed, request);
 
     if (unusedElementEnabled || testOnlyUsedEnabled) {
-      for (final declaration in index.all) {
+      for (final declaration in declarations) {
         if (!declaration.isPublic) continue;
-        // Operator methods (`<`, `[]`, `+`, ...) are called via syntactic
-        // sugar (`a < b`, `obj[i]`), not via a SimpleIdentifier. The
-        // simple-name BFS can never reach them, so reporting is always a
-        // false positive.
+        // Preserve the reporting policy for operators. Their resolved edges
+        // still retain dependencies, but operators themselves are not findings.
         if (_isOperatorName(declaration.name)) continue;
         // A "public" member of a library-private type (`_Foo.bar`) is only
         // reachable from inside the library and is already covered by
@@ -369,26 +361,24 @@ class KarekiRunner {
         final ignores = request.disregardFileLevelIgnores
             ? const <String>{}
             : (fileIgnores[declaration.libraryPath] ?? const {});
-        final isReachable =
-            reachable.contains(declaration) ||
-            (resolved == null &&
-                entryPoints.allRootNames.contains(declaration.name));
-        final isProductionReachable =
-            productionReachable.contains(declaration) ||
-            (resolved == null &&
-                entryPoints.productionRootNames.contains(declaration.name));
+        final isReachable = reachable.contains(declaration);
+        final isProductionReachable = productionReachable.contains(declaration);
 
         // `@override` declarations are framework / supertype contract
         // implementations: invoked via dynamic dispatch whenever the
         // enclosing type is reachable (e.g. `CustomPainter.shouldRepaint`,
-        // `Widget.build`). Reporting them as unused is almost always a
-        // false positive caused by the simple-name BFS not modeling
-        // virtual dispatch.
+        // `Widget.build`). Keep the conservative reporting exemption for a
+        // reachable host in addition to the graph's resolved override edges.
         var hasReachableOverrideHost = false;
         var hasProductionReachableOverrideHost = false;
         if (declaration.annotations.contains('override') &&
             enclosingTypeName != null) {
-          final enclosing = index.enclosingType(declaration);
+          final enclosing =
+              enclosingTypes[(
+                declaration.packageName,
+                declaration.libraryPath,
+                enclosingTypeName,
+              )];
           if (enclosing != null) {
             if (reachable.contains(enclosing)) {
               hasReachableOverrideHost = true;
@@ -517,17 +507,6 @@ class KarekiRunner {
     }
 
     if (_ruleEnabled(RuleId.unusedParameterOptional, request)) {
-      // Aggregate call-site usage across every parsed file in the
-      // workspace — including generated and excluded files. A
-      // generated client passing `endpoint:` to a hand-written
-      // constructor is a legitimate consumer of that parameter.
-      final aggregated = <String, CallSiteUsage>{};
-      for (final file in parsedFiles) {
-        file.callSiteUsage.forEach((name, usage) {
-          aggregated.putIfAbsent(name, CallSiteUsage.new).mergeFrom(usage);
-        });
-      }
-
       for (final file in declarationFiles) {
         final ignores = request.disregardFileLevelIgnores
             ? const <String>{}
@@ -547,24 +526,11 @@ class KarekiRunner {
           final enclosing = declaration.enclosingTypeName;
           if (enclosing != null && enclosing.startsWith('_')) continue;
 
-          var usage = resolved == null
-              ? aggregated[declaration.name]
-              : resolved.argumentUsage[declaration];
-          final shorthand = aggregated[_unnamedDotShorthandKey];
-          if (resolved == null &&
-              declaration.kind == DeclarationKind.constructor &&
-              declaration.name == declaration.enclosingTypeName &&
-              shorthand != null) {
-            usage = CallSiteUsage()
-              ..mergeFrom(usage ?? CallSiteUsage())
-              ..mergeFrom(shorthand);
-          }
           for (final param in declaration.optionalParameters) {
             // Only a per-parameter non-use proof permits a resolved finding.
             // Known usage wins over an unknown path; missing evidence does not.
-            if (resolved != null &&
-                resolved.optionalArgumentStates[param] !=
-                    OptionalArgumentState.unused) {
+            if (resolved!.optionalArgumentStates[param] !=
+                OptionalArgumentState.unused) {
               continue;
             }
             if (!request.disregardParameterNameExcludes &&
@@ -572,8 +538,6 @@ class KarekiRunner {
               continue;
             }
             if (ignores.contains(param.name)) continue;
-            final passed = _optionalParameterPassed(param, usage);
-            if (passed) continue;
             if (isLineIgnored(
               declaration.libraryPath,
               param.line,
@@ -710,19 +674,6 @@ class KarekiRunner {
         : '$enclosing.${declaration.name}';
     return "Optional parameter '${parameter.name}' of '$qualifier' is "
         'never passed at any call site.';
-  }
-
-  bool _optionalParameterPassed(
-    OptionalParameterRecord parameter,
-    CallSiteUsage? usage,
-  ) {
-    if (usage == null) return false;
-    if (parameter.isNamed) {
-      return usage.namedArgsPassed.contains(parameter.name);
-    }
-    final index = parameter.positionalIndex;
-    if (index == null) return false;
-    return usage.maxPositionalArgs > index;
   }
 
   String _testOnlyMessageFor(DeclarationRecord declaration) {

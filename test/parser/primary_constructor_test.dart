@@ -33,7 +33,6 @@ class Point(final int x, int input, {var String? label, int? optional}) {
         ['optional'],
         reason: 'declaring parameters behave as fields, not optional params',
       );
-      expect(constructor.outgoingNames, contains('input'));
     });
 
     test('analyzes normal parameters in a named primary constructor', () {
@@ -72,7 +71,6 @@ enum Status({int? code, int? unused}) {
         constructor.optionalParameters.map((parameter) => parameter.name),
         containsAll(<String>['code', 'unused']),
       );
-      expect(parsed.callSiteUsage['Status']?.namedArgsPassed, {'code'});
     });
 
     test('collects a bodyless const primary constructor', () {

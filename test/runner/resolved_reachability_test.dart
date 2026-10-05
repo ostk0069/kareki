@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:kareki/kareki.dart';
 import 'package:kareki/src/cli/cli.dart';
-import 'package:kareki/src/doctor/doctor_runner.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:path/path.dart' as p;
@@ -34,14 +33,9 @@ void main() {
     );
   }
 
-  RunRequest request({
-    AnalysisMode mode = AnalysisMode.resolved,
-    Set<String>? packages,
-    Set<String>? rules,
-  }) => RunRequest(
+  RunRequest request({Set<String>? packages, Set<String>? rules}) => RunRequest(
     rootPath: workspace.path,
     config: KarekiConfig.load(workspace.path),
-    analysisMode: mode,
     includePackages: packages,
     enabledRules: rules ?? {RuleId.unusedElement, RuleId.testOnlyUsed},
   );
@@ -200,12 +194,6 @@ class App { App(); void run() {} }
     expect(childOnly.filesAnalyzed, 2);
     expect(childOnly.findings.single.stableId, exampleFindings.single.stableId);
 
-    // The opt-in fix does not silently migrate legacy finding IDs or counts.
-    final legacy = await KarekiRunner().analyze(
-      request(mode: AnalysisMode.legacy),
-    );
-    expect(legacy.filesAnalyzed, 6);
-
     // Analyzer returns canonical paths even when the checkout is opened via
     // a symlink. Reporting and the graph must still share the same records.
     final aliasWorkspace = TestWorkspace.create('kareki_resolved_alias_');
@@ -216,7 +204,6 @@ class App { App(); void run() {} }
         RunRequest(
           rootPath: alias,
           config: KarekiConfig.load(alias),
-          analysisMode: AnalysisMode.resolved,
           enabledRules: {RuleId.unusedElement, RuleId.testOnlyUsed},
         ),
       );
@@ -357,11 +344,9 @@ void main() {
       expect(unused(result), isEmpty);
       expect(result.analysisWarnings, isEmpty);
       expect(
-        await runCliAsync([
+        await runCli([
           '--root',
           workspace.path,
-          '--analysis-mode',
-          'resolved',
           '--rule',
           'unused_element',
         ], workingDirectory: workspace.path),
@@ -373,11 +358,9 @@ void main() {
       );
       workspace.write('baseline.json', 'keep existing baseline');
       expect(
-        await runCliAsync([
+        await runCli([
           '--root',
           workspace.path,
-          '--analysis-mode',
-          'resolved',
           '--baseline',
           'baseline.json',
           '--write-baseline',
@@ -450,8 +433,6 @@ void main() {
           files: [file],
           generatedPaths: {},
           entryPoints: EntryPointSet(
-            productionRootNames: {},
-            testRootNames: {},
             entryPointPaths: {},
             keepAliveAnnotations: {},
           ),
@@ -492,7 +473,7 @@ String formatHelper(int value) => value.toString();
   );
 
   test(
-    'primary declaring parameters are retained conservatively if unmapped',
+    'primary declaring fields and their accessors share exact identities',
     () async {
       workspace.write(
         'analysis_options.yaml',
@@ -505,7 +486,9 @@ class A.named(final int value) { int read() => value; }
         'bin/main.dart',
         "import 'package:app/api.dart';\nvoid main() { print(A.named(1).read()); }\n",
       );
-      expect(unused(await analyze()), isEmpty);
+      final result = await analyze();
+      expect(unused(result), isEmpty);
+      expect(result.analysisWarnings, isEmpty);
     },
   );
 
@@ -922,8 +905,6 @@ void main() {
         files: [file],
         generatedPaths: {},
         entryPoints: EntryPointSet(
-          productionRootNames: {},
-          testRootNames: {},
           entryPointPaths: {},
           keepAliveAnnotations: {},
         ),
@@ -938,8 +919,6 @@ void main() {
           files: [file],
           generatedPaths: {},
           entryPoints: EntryPointSet(
-            productionRootNames: {},
-            testRootNames: {},
             entryPointPaths: {},
             keepAliveAnnotations: {},
           ),
@@ -956,54 +935,41 @@ void main() {
     await expectLater(analyze, throwsA(isA<ResolvedAnalysisException>()));
   });
 
-  test(
-    'CLI warnings and unsupported synchronous/doctor modes are explicit',
-    () async {
-      workspace.write(
-        'bin/main.dart',
-        "import 'package:app/api.dart';\nvoid main() { dynamic a = A(); a.save(); }\n",
-      );
-      expect(
-        await runCliAsync([
-          '--root',
-          workspace.path,
-          '--analysis-mode',
-          'resolved',
-          '--rule',
-          'unused_element',
-        ], workingDirectory: workspace.path),
-        0,
-      );
-      expect(
-        runCli([
-          '--root',
-          workspace.path,
-          '--analysis-mode',
-          'resolved',
-        ], workingDirectory: workspace.path),
-        64,
-      );
-      workspace.write('kareki-config.yaml', 'analysis_mode: resolved\n');
-      expect(
-        () => DoctorRunner().run(
-          DoctorRequest(
-            rootPath: workspace.path,
-            config: KarekiConfig.load(workspace.path),
-          ),
-        ),
-        throwsArgumentError,
-      );
-      workspace.write('kareki-config.yaml', 'analysis_mode: invalid\n');
-      expect(
-        await runCliAsync([
-          'doctor',
-          '--root',
-          workspace.path,
-        ], workingDirectory: workspace.path),
-        64,
-      );
-    },
-  );
+  test('CLI warnings and removed mode options are explicit', () async {
+    workspace.write(
+      'bin/main.dart',
+      "import 'package:app/api.dart';\nvoid main() { dynamic a = A(); a.save(); }\n",
+    );
+    expect(
+      await runCli([
+        '--root',
+        workspace.path,
+        '--rule',
+        'unused_element',
+      ], workingDirectory: workspace.path),
+      0,
+    );
+    expect(
+      await runCli([
+        '--root',
+        workspace.path,
+        '--analysis-mode',
+        'resolved',
+      ], workingDirectory: workspace.path),
+      64,
+    );
+    workspace.write('kareki-config.yaml', '');
+
+    workspace.write('kareki-config.yaml', 'analysis_mode: invalid\n');
+    expect(
+      await runCli([
+        'doctor',
+        '--root',
+        workspace.path,
+      ], workingDirectory: workspace.path),
+      64,
+    );
+  });
 
   test(
     'same-file homonyms separate, including bodies of dead members',
@@ -1019,8 +985,6 @@ void main() {
       );
       expect(unused(result), isNot(contains(contains("'A.save'"))));
       expect(result.analysisWarnings, isEmpty);
-      final legacy = KarekiRunner().run(request(mode: AnalysisMode.legacy));
-      expect(unused(legacy), isNot(contains(contains("'B.save'"))));
     },
   );
 
@@ -1507,11 +1471,9 @@ class B { void save() {} }
       );
       expect(analyze, throwsA(isA<ResolvedAnalysisException>()));
       workspace.write('baseline.json', 'preserve this content');
-      final code = await runCliAsync([
+      final code = await runCli([
         '--root',
         workspace.path,
-        '--analysis-mode',
-        'resolved',
         '--baseline',
         'baseline.json',
         '--write-baseline',
@@ -1538,68 +1500,52 @@ class B { void save() {} }
     },
   );
 
-  test(
-    'sync API rejects resolved mode and async legacy results match',
-    () async {
-      expect(() => KarekiRunner().run(request()), throwsArgumentError);
-      final legacyRequest = request(mode: AnalysisMode.legacy);
-      expect(
-        (await KarekiRunner().analyze(
-          legacyRequest,
-        )).findings.map((f) => f.stableId),
-        KarekiRunner().run(legacyRequest).findings.map((f) => f.stableId),
-      );
-    },
-  );
+  test('run and analyze both resolve declaration identities', () async {
+    final result = await KarekiRunner().run(request());
+    expect(
+      result.findings.map((f) => f.stableId),
+      (await analyze()).findings.map((f) => f.stableId),
+    );
+  });
 
-  test(
-    'config opt-in, CLI override, suppression and stable baseline IDs',
-    () async {
-      workspace.write('lib/unique.dart', 'void uniqueDead() {}\n');
-      workspace.write('kareki-config.yaml', 'analysis_mode: resolved\n');
-      expect(
-        KarekiConfig.load(workspace.path).analysisMode,
-        AnalysisMode.resolved,
-      );
-      final result = await analyze();
-      final legacy = KarekiRunner().run(request(mode: AnalysisMode.legacy));
-      final shared = result.findings.firstWhere(
-        (f) => f.message.contains("'uniqueDead'"),
-      );
-      expect(legacy.findings.map((f) => f.stableId), contains(shared.stableId));
-      expect(
-        await runCliAsync([
-          '--root',
-          workspace.path,
-          '--analysis-mode',
-          'legacy',
-        ], workingDirectory: workspace.path),
-        1,
-      );
-      expect(
-        await runCliAsync([
-          'doctor',
-          '--root',
-          workspace.path,
-        ], workingDirectory: workspace.path),
-        0,
-      );
-      workspace.write('lib/api.dart', '''
+  test('default resolution, suppression and stable baseline IDs', () async {
+    workspace.write('lib/unique.dart', 'void uniqueDead() {}\n');
+    workspace.write('kareki-config.yaml', '');
+    final result = await analyze();
+    final shared = result.findings.firstWhere(
+      (f) => f.message.contains("'uniqueDead'"),
+    );
+    expect(shared.stableId, contains('uniqueDead'));
+    expect(
+      await runCli([
+        '--root',
+        workspace.path,
+      ], workingDirectory: workspace.path),
+      1,
+    );
+    expect(
+      await runCli([
+        'doctor',
+        '--root',
+        workspace.path,
+      ], workingDirectory: workspace.path),
+      0,
+    );
+    workspace.write('lib/api.dart', '''
 class A { void save() {} }
 class B {
   // kareki: ignore=unused_element
   void save() {}
 }
 ''');
-      expect(unused(await analyze()), isNot(contains(contains("'B.save'"))));
-      workspace.write('kareki-config.yaml', 'analysis_mode: invalid\n');
-      expect(
-        await runCliAsync([
-          '--root',
-          workspace.path,
-        ], workingDirectory: workspace.path),
-        64,
-      );
-    },
-  );
+    expect(unused(await analyze()), isNot(contains(contains("'B.save'"))));
+    workspace.write('kareki-config.yaml', 'analysis_mode: invalid\n');
+    expect(
+      await runCli([
+        '--root',
+        workspace.path,
+      ], workingDirectory: workspace.path),
+      64,
+    );
+  });
 }

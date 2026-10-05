@@ -276,7 +276,10 @@ void invokeDynamic(dynamic object) => object.save();
 
 class _Fixture {
   _Fixture({required this.sharedConfig, bool writePackageConfig = true}) {
-    workspace = TestWorkspace.create('kareki_resolved_probe_');
+    workspace = TestWorkspace.create(
+      'kareki_resolved_probe_',
+      bootstrap: false,
+    );
     // Match analyzer's physical paths on platforms where /tmp is a symlink.
     root = workspace.directory.resolveSymbolicLinksSync();
     workspace.write('pubspec.yaml', '''

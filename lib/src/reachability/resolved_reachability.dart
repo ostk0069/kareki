@@ -7,7 +7,6 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:analyzer/source/line_info.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/model/declaration.dart';
@@ -224,6 +223,7 @@ class _ResolvedGraph {
   final _canonicalPaths = <String, String>{};
   final edges = <_Id, Set<_Id>>{};
   final elements = <_Id, Element>{};
+  final _elementIds = Map<Element, _Id>.identity();
   final recordIds = <DeclarationRecord, _Id>{};
   final productionRoots = <_Id>{};
   final testRoots = <_Id>{};
@@ -258,7 +258,13 @@ class _ResolvedGraph {
     var element = input.baseElement;
     if (element is PropertyAccessorElement) {
       element = element.nonSynthetic.baseElement;
+      if (element is FieldFormalParameterElement && element.field != null) {
+        // A primary field's induced accessor points back to its declaring
+        // formal, whereas ordinary accessors point back to their field.
+        element = element.field!.baseElement;
+      }
     }
+    if (_elementIds[element] case final cached?) return cached;
     final fragment = element.firstFragment;
     final source = fragment.libraryFragment?.source;
     final library = element.library;
@@ -270,6 +276,7 @@ class _ResolvedGraph {
       kind: element.kind.name,
       name: element.lookupName,
     );
+    _elementIds[element] = id;
     if (elements.containsKey(id)) return id;
     elements[id] = element;
     edges.putIfAbsent(id, () => {});
@@ -489,6 +496,10 @@ class _ResolvedGraph {
   void finish(EntryPointSet entryPoints, KarekiConfig config) {
     connectConditionalFacades();
     final entryPaths = entryPoints.entryPointPaths.map(canonical).toSet();
+    final idsByUnit = <String, Set<_Id>>{};
+    for (final id in elements.keys) {
+      idsByUnit.putIfAbsent(id.unit, () => {}).add(id);
+    }
     for (final file in files.entries) {
       if (entryPaths.contains(file.key) ||
           conditionalPaths.contains(file.key)) {
@@ -499,9 +510,9 @@ class _ResolvedGraph {
             ? productionRoots
             : testRoots;
         roots.add(fileId(file.key));
-        roots.addAll(elements.keys.where((id) => id.unit == file.key));
+        roots.addAll(idsByUnit[file.key] ?? const {});
         if (conditionalPaths.contains(file.key)) {
-          for (final id in elements.keys.where((id) => id.unit == file.key)) {
+          for (final id in idsByUnit[file.key] ?? const <_Id>{}) {
             markUncertain(id, 'Conditional target: ${file.key}');
           }
         }
@@ -522,9 +533,7 @@ class _ResolvedGraph {
           markUncertain(id, 'Declaration could not be mapped to an element.');
           productionRoots.add(id);
           productionRoots.add(fileId(file.key));
-          productionRoots.addAll(
-            elements.keys.where((node) => node.unit == file.key),
-          );
+          productionRoots.addAll(idsByUnit[file.key] ?? const {});
           warnings.add(
             'Could not map ${record.libraryPath}:${record.line} ${record.name}; retained conservatively.',
           );
@@ -538,10 +547,13 @@ class _ResolvedGraph {
     // Keep one warning per file/name, but retain every source location. Owners
     // (including initializer hosts) may share an AST site.
     final unresolvedEvidence = <(String, String), Set<String>>{};
+    final recordsByName = <String, Map<DeclarationRecord, _Id>>{};
+    for (final entry in recordIds.entries) {
+      recordsByName.putIfAbsent(entry.key.name, () => {})[entry.key] =
+          entry.value;
+    }
     for (final (owner, name) in unknown) {
-      final candidates = recordIds.entries.where(
-        (entry) => entry.key.name == name,
-      );
+      final candidates = recordsByName[name]?.entries ?? const [];
       if (candidates.isEmpty) continue;
       for (final candidate in candidates) {
         edge(owner, candidate.value);
@@ -557,11 +569,9 @@ class _ResolvedGraph {
     }
     for (final entry in unresolvedEvidence.entries) {
       final (unit, name) = entry.key;
-      final candidates = recordIds.keys
-          .where((record) => record.name == name)
-          .map(
-            (record) => '${record.libraryPath}:${record.line} ${record.name}',
-          );
+      final candidates = recordsByName[name]!.keys.map(
+        (record) => '${record.libraryPath}:${record.line} ${record.name}',
+      );
       warnings.add(
         'Unresolved reference "$name" in $unit; matching declarations retained conservatively when reachable.'
         '\n  Sites: ${sortedEvidence(entry.value)}'
@@ -1157,11 +1167,16 @@ class _CallbackDeclarations extends GeneralizingAstVisitor<void> {
 
 class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
   _ResolvedVisitor(this.graph, this.path, this.file)
-    : owner = graph.fileId(path);
+    : owner = graph.fileId(path) {
+    for (final record in file.declarations) {
+      _recordsByName.putIfAbsent(record.name, () => []).add(record);
+    }
+  }
 
   final _ResolvedGraph graph;
   final String path;
   final ParsedFile file;
+  final _recordsByName = <String, List<DeclarationRecord>>{};
   _Id owner;
   _Id? initializerHost;
   JsonValueOrigins? _jsonOrigins;
@@ -1286,16 +1301,12 @@ class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
         : element.name ?? element.kind.name;
     if (source == null) return label;
     final sourcePath = graph.canonical(source.fullName);
-    try {
-      final location = LineInfo.fromContent(
-        source.contents.data,
-      ).getLocation(fragment.offset);
-      return '$label at $sourcePath:${location.lineNumber}:${location.columnNumber}';
-    } on Object {
-      // Extra diagnostic context must never turn an unreadable source into a
-      // successful proof or an analysis failure.
-      return '$label at $sourcePath (offset ${fragment.offset})';
-    }
+    // Reuse the resolved source snapshot rather than rereading the file, which
+    // could have changed or become unavailable after resolution.
+    final location = fragment.libraryFragment!.lineInfo.getLocation(
+      fragment.offset,
+    );
+    return '$label at $sourcePath:${location.lineNumber}:${location.columnNumber}';
   }
 
   String evidence(AstNode node) {
@@ -1334,7 +1345,11 @@ class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
       final id = graph.ensure(element)!;
       owner = id;
       initializerHost = null;
-      for (final record in file.declarations) {
+      final name = element is ConstructorElement && element.name == 'new'
+          ? element.enclosingElement.name
+          : element.name;
+      for (final record
+          in _recordsByName[name] ?? const <DeclarationRecord>[]) {
         if (record.offset >= node.offset &&
             record.offset < node.end &&
             _matches(record, element)) {
@@ -1342,6 +1357,25 @@ class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
         }
       }
       if (element is InterfaceElement) graph.expandType(element);
+      // Primary constructor fields have no VariableDeclaration; their field
+      // fragment offset can be the class name. The declaring parameter provides
+      // both the precise source position and the actual associated field.
+      if (element is ConstructorElement) {
+        for (final parameter in element.formalParameters) {
+          if (parameter is! FieldFormalParameterElement ||
+              parameter.field == null) {
+            continue;
+          }
+          for (final record
+              in _recordsByName[parameter.name] ??
+                  const <DeclarationRecord>[]) {
+            if (record.kind == DeclarationKind.field &&
+                record.offset == parameter.firstFragment.offset) {
+              graph.recordIds[record] = graph.ensure(parameter.field)!;
+            }
+          }
+        }
+      }
       if (element is LocalVariableElement) graph.edge(previous, id);
       if (element is FieldElement &&
           node is VariableDeclaration &&

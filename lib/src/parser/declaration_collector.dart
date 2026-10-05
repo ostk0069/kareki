@@ -19,8 +19,6 @@ class ParsedFile {
     required this.exports,
     required this.fileLevelIgnores,
     required this.lineLevelIgnores,
-    required this.topLevelIdentifierReferences,
-    required this.callSiteUsage,
     required this.isGeneratedByHeader,
     required this.hasTopLevelMain,
   });
@@ -52,16 +50,6 @@ class ParsedFile {
   /// simple symbol names silenced on that line.
   final Map<int, Set<String>> lineLevelIgnores;
 
-  /// All top-level identifier names referenced anywhere in the file. Used
-  /// for generated-code keep-alive scanning.
-  final Set<String> topLevelIdentifierReferences;
-
-  /// Per-callable call-site argument usage observed in this file, keyed
-  /// by the simple invocation name (top-level function, method name, or
-  /// constructor name — class name for unnamed constructors). Used to
-  /// drive `unused_parameter_optional`.
-  final Map<String, CallSiteUsage> callSiteUsage;
-
   /// `true` when the file's first content lines contain a standard
   /// "GENERATED CODE - DO NOT MODIFY BY HAND" header, indicating it was
   /// produced by a codegen tool whose extension is not in the default
@@ -76,8 +64,7 @@ class ParsedFile {
   final bool hasTopLevelMain;
 }
 
-/// Parses a Dart source file and extracts declarations plus their outgoing
-/// simple-name references.
+/// Parses declaration metadata, local parameter reads, and suppression directives.
 class DeclarationCollector {
   ParsedFile collect({
     required String path,
@@ -132,7 +119,6 @@ class DeclarationCollector {
     }
 
     final declarations = <DeclarationRecord>[];
-    final topLevelReferences = <String>{};
 
     for (final member in unit.declarations) {
       _visitTopLevel(
@@ -141,7 +127,6 @@ class DeclarationCollector {
         path: path,
         lineInfo: lineInfo,
         outDeclarations: declarations,
-        outAllReferences: topLevelReferences,
       );
     }
 
@@ -154,8 +139,6 @@ class DeclarationCollector {
           d.enclosingTypeName == null &&
           d.kind == DeclarationKind.function,
     );
-    final callSiteVisitor = _CallSiteVisitor();
-    unit.accept(callSiteVisitor);
     return ParsedFile(
       path: path,
       packageName: packageName,
@@ -166,8 +149,6 @@ class DeclarationCollector {
       exports: exports,
       fileLevelIgnores: fileLevelIgnores,
       lineLevelIgnores: lineLevelIgnores,
-      topLevelIdentifierReferences: topLevelReferences,
-      callSiteUsage: callSiteVisitor.usage,
       isGeneratedByHeader: isGeneratedByHeader,
       hasTopLevelMain: hasTopLevelMain,
     );
@@ -200,13 +181,10 @@ class DeclarationCollector {
     required String path,
     required LineInfo lineInfo,
     required List<DeclarationRecord> outDeclarations,
-    required Set<String> outAllReferences,
   }) {
     if (member is ClassDeclaration) {
       final nameToken = _typeDeclarationName(member);
       final name = nameToken.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -216,7 +194,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
@@ -228,7 +205,6 @@ class DeclarationCollector {
         path: path,
         lineInfo: lineInfo,
         outDeclarations: outDeclarations,
-        outAllReferences: outAllReferences,
       );
       for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
@@ -238,13 +214,10 @@ class DeclarationCollector {
           path: path,
           lineInfo: lineInfo,
           outDeclarations: outDeclarations,
-          outAllReferences: outAllReferences,
         );
       }
     } else if (member is MixinDeclaration) {
       final name = member.name.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -254,7 +227,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
@@ -266,14 +238,11 @@ class DeclarationCollector {
           path: path,
           lineInfo: lineInfo,
           outDeclarations: outDeclarations,
-          outAllReferences: outAllReferences,
         );
       }
     } else if (member is EnumDeclaration) {
       final nameToken = _typeDeclarationName(member);
       final name = nameToken.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -283,7 +252,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
@@ -295,7 +263,6 @@ class DeclarationCollector {
         path: path,
         lineInfo: lineInfo,
         outDeclarations: outDeclarations,
-        outAllReferences: outAllReferences,
       );
       for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
@@ -305,15 +272,12 @@ class DeclarationCollector {
           path: path,
           lineInfo: lineInfo,
           outDeclarations: outDeclarations,
-          outAllReferences: outAllReferences,
         );
       }
     } else if (member is ExtensionDeclaration) {
       final nameToken = member.name;
       final extensionName = nameToken?.lexeme;
       if (nameToken != null) {
-        final visitor = _ReferenceVisitor()..visit(member);
-        outAllReferences.addAll(visitor.names);
         outDeclarations.add(
           _record(
             name: nameToken.lexeme,
@@ -323,7 +287,6 @@ class DeclarationCollector {
             lineInfo: lineInfo,
             packageName: packageName,
             path: path,
-            outgoingNames: visitor.names,
             annotations: _annotationNames(member.metadata),
           ),
         );
@@ -336,14 +299,11 @@ class DeclarationCollector {
           path: path,
           lineInfo: lineInfo,
           outDeclarations: outDeclarations,
-          outAllReferences: outAllReferences,
         );
       }
     } else if (member is ExtensionTypeDeclaration) {
       final nameToken = _extensionTypeNameToken(member);
       final name = nameToken.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -353,7 +313,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
@@ -365,7 +324,6 @@ class DeclarationCollector {
         path: path,
         lineInfo: lineInfo,
         outDeclarations: outDeclarations,
-        outAllReferences: outAllReferences,
       );
       for (final child in _typeDeclarationMembers(member)) {
         _visitClassMember(
@@ -375,13 +333,10 @@ class DeclarationCollector {
           path: path,
           lineInfo: lineInfo,
           outDeclarations: outDeclarations,
-          outAllReferences: outAllReferences,
         );
       }
     } else if (member is ClassTypeAlias) {
       final name = member.name.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -391,14 +346,11 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
     } else if (member is FunctionDeclaration) {
       final name = member.name.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       final isGetter = member.isGetter;
       final isSetter = member.isSetter;
       final annotations = _annotationNames(member.metadata);
@@ -423,7 +375,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: annotations,
           unusedParameters: paramAnalysis.unused,
           optionalParameters: paramAnalysis.optional,
@@ -432,8 +383,6 @@ class DeclarationCollector {
     } else if (member is TopLevelVariableDeclaration) {
       for (final variable in member.variables.variables) {
         final name = variable.name.lexeme;
-        final visitor = _ReferenceVisitor()..visit(variable);
-        outAllReferences.addAll(visitor.names);
         outDeclarations.add(
           _record(
             name: name,
@@ -443,15 +392,12 @@ class DeclarationCollector {
             lineInfo: lineInfo,
             packageName: packageName,
             path: path,
-            outgoingNames: visitor.names,
             annotations: _annotationNames(member.metadata),
           ),
         );
       }
     } else if (member is GenericTypeAlias) {
       final name = member.name.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -461,14 +407,11 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
     } else if (member is FunctionTypeAlias) {
       final name = member.name.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       outDeclarations.add(
         _record(
           name: name,
@@ -478,7 +421,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: _annotationNames(member.metadata),
         ),
       );
@@ -492,12 +434,9 @@ class DeclarationCollector {
     required String path,
     required LineInfo lineInfo,
     required List<DeclarationRecord> outDeclarations,
-    required Set<String> outAllReferences,
   }) {
     if (member is MethodDeclaration) {
       final name = member.name.lexeme;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       final annotations = _annotationNames(member.metadata);
       final paramAnalysis = _analyzeParameters(
         params: member.parameters,
@@ -520,7 +459,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: visitor.names,
           annotations: annotations,
           enclosingTypeName: enclosingTypeName,
           unusedParameters: paramAnalysis.unused,
@@ -530,8 +468,6 @@ class DeclarationCollector {
     } else if (member is FieldDeclaration) {
       for (final variable in member.fields.variables) {
         final name = variable.name.lexeme;
-        final visitor = _ReferenceVisitor()..visit(variable);
-        outAllReferences.addAll(visitor.names);
         outDeclarations.add(
           _record(
             name: name,
@@ -541,7 +477,6 @@ class DeclarationCollector {
             lineInfo: lineInfo,
             packageName: packageName,
             path: path,
-            outgoingNames: visitor.names,
             annotations: _annotationNames(member.metadata),
             enclosingTypeName: enclosingTypeName,
           ),
@@ -549,8 +484,6 @@ class DeclarationCollector {
       }
     } else if (member is ConstructorDeclaration) {
       final nameToken = member.name;
-      final visitor = _ReferenceVisitor()..visit(member);
-      outAllReferences.addAll(visitor.names);
       final annotations = _annotationNames(member.metadata);
       final paramAnalysis = _analyzeParameters(
         params: member.parameters,
@@ -575,7 +508,6 @@ class DeclarationCollector {
             lineInfo: lineInfo,
             packageName: packageName,
             path: path,
-            outgoingNames: visitor.names,
             annotations: annotations,
             enclosingTypeName: enclosingTypeName,
             unusedParameters: paramAnalysis.unused,
@@ -600,7 +532,6 @@ class DeclarationCollector {
             lineInfo: lineInfo,
             packageName: packageName,
             path: path,
-            outgoingNames: visitor.names,
             annotations: annotations,
             enclosingTypeName: enclosingTypeName,
             optionalParameters: paramAnalysis.optional,
@@ -618,19 +549,10 @@ class DeclarationCollector {
     required String path,
     required LineInfo lineInfo,
     required List<DeclarationRecord> outDeclarations,
-    required Set<String> outAllReferences,
   }) {
     if (declaration == null) return;
 
     final body = declaration.body;
-    final additionalReferences = <AstNode>[
-      ...?body?.initializers,
-      if (body != null) body.body,
-      ..._primaryConstructorFieldInitializers(typeDeclaration),
-    ];
-    final visitor = _ReferenceVisitor()..visit(declaration);
-    additionalReferences.forEach(visitor.visit);
-    outAllReferences.addAll(visitor.names);
 
     final paramAnalysis = _analyzeParameters(
       params: declaration.formalParameters,
@@ -658,7 +580,6 @@ class DeclarationCollector {
         lineInfo: lineInfo,
         packageName: packageName,
         path: path,
-        outgoingNames: visitor.names,
         annotations: const <String>{},
         enclosingTypeName: enclosingTypeName,
         unusedParameters: isUnnamed
@@ -669,15 +590,12 @@ class DeclarationCollector {
     );
 
     for (final parameter in declaration.formalParameters.parameters) {
-      // Extension type representation fields already predate Dart 3.13.
-      // Recording them here introduces broad same-name reachability (for
-      // example every `value` representation keeping unrelated types alive),
-      // so preserve the existing extension-type behavior.
+      // Representation fields are an intrinsic part of an extension type,
+      // not independently removable declarations.
       if (typeDeclaration is ExtensionTypeDeclaration) continue;
       if (!_isPrimaryDeclaringParameter(parameter)) continue;
       final nameToken = parameter.name;
       if (nameToken == null) continue;
-      final fieldVisitor = _ReferenceVisitor()..visit(parameter);
       outDeclarations.add(
         _record(
           name: nameToken.lexeme,
@@ -687,7 +605,6 @@ class DeclarationCollector {
           lineInfo: lineInfo,
           packageName: packageName,
           path: path,
-          outgoingNames: fieldVisitor.names,
           annotations: _annotationNames(parameter.metadata),
           enclosingTypeName: enclosingTypeName,
         ),
@@ -703,7 +620,6 @@ class DeclarationCollector {
     required LineInfo lineInfo,
     required String packageName,
     required String path,
-    required Set<String> outgoingNames,
     required Set<String> annotations,
     String? enclosingTypeName,
     List<ParameterRecord> unusedParameters = const [],
@@ -720,7 +636,6 @@ class DeclarationCollector {
       line: location.lineNumber,
       column: location.columnNumber,
       isPublic: !name.startsWith('_'),
-      outgoingNames: outgoingNames,
       annotations: annotations,
       enclosingTypeName: enclosingTypeName,
       unusedParameters: unusedParameters,
@@ -978,117 +893,6 @@ class _ParameterAnalysis {
   final List<OptionalParameterRecord> optional;
 }
 
-/// Visits call sites in a single compilation unit and aggregates the
-/// argument shape per simple invocation name. The aggregation is the
-/// same simple-name approximation used elsewhere in kareki — call sites
-/// to two unrelated declarations sharing a name collapse together,
-/// which trades precision for analyzer-version independence.
-class _CallSiteVisitor extends RecursiveAstVisitor<void> {
-  final Map<String, CallSiteUsage> usage = <String, CallSiteUsage>{};
-
-  CallSiteUsage _slot(String name) =>
-      usage.putIfAbsent(name, CallSiteUsage.new);
-
-  void _recordArguments(String name, ArgumentList args) {
-    final slot = _slot(name);
-    var positionalCount = 0;
-    for (final arg in args.arguments) {
-      final namedArgument = _namedArgumentName(arg);
-      if (namedArgument != null) {
-        slot.mergeNamed(namedArgument);
-      } else {
-        positionalCount++;
-      }
-    }
-    slot.mergePositional(positionalCount);
-  }
-
-  @override
-  void visitMethodInvocation(MethodInvocation node) {
-    _recordArguments(node.methodName.name, node.argumentList);
-    super.visitMethodInvocation(node);
-  }
-
-  @override
-  void visitDotShorthandInvocation(DotShorthandInvocation node) {
-    final name = node.memberName.name;
-    _recordArguments(
-      name == 'new' ? _unnamedDotShorthandKey : name,
-      node.argumentList,
-    );
-    super.visitDotShorthandInvocation(node);
-  }
-
-  @override
-  void visitInstanceCreationExpression(InstanceCreationExpression node) {
-    // Constructor call. The invocation name is:
-    //   - the named constructor's name when present (`Foo.dims(...)`)
-    //   - otherwise the class's simple name (`Foo(...)`)
-    final ctorName = node.constructorName.name?.name;
-    final classNameToken = node.constructorName.type.name;
-    final classSimpleName = classNameToken.lexeme;
-    _recordArguments(ctorName ?? classSimpleName, node.argumentList);
-    super.visitInstanceCreationExpression(node);
-  }
-
-  @override
-  void visitEnumConstantArguments(EnumConstantArguments node) {
-    final constructorName = node.constructorSelector?.name.name;
-    final name = constructorName == null || constructorName == 'new'
-        ? _enclosingEnumName(node)
-        : constructorName;
-    if (name != null) {
-      _recordArguments(name, node.argumentList);
-    }
-    super.visitEnumConstantArguments(node);
-  }
-
-  @override
-  void visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
-    // Anonymous / first-class function invocation. We can still pick up
-    // the call when the callee is a SimpleIdentifier (`foo(1)` resolved
-    // by analyzer to a function expression invocation when ambiguous).
-    final name = _functionExpressionName(node.function);
-    if (name != null) _recordArguments(name, node.argumentList);
-    super.visitFunctionExpressionInvocation(node);
-  }
-
-  String? _functionExpressionName(Expression expression) {
-    if (expression is ParenthesizedExpression) {
-      return _functionExpressionName(expression.expression);
-    }
-    if (expression is SimpleIdentifier) return expression.name;
-    if (expression is PrefixedIdentifier) return expression.identifier.name;
-    if (expression is PropertyAccess) return expression.propertyName.name;
-    return null;
-  }
-
-  @override
-  void visitRedirectingConstructorInvocation(
-    RedirectingConstructorInvocation node,
-  ) {
-    final ctorName = node.constructorName?.name;
-    if (ctorName != null) {
-      _recordArguments(ctorName, node.argumentList);
-    }
-    super.visitRedirectingConstructorInvocation(node);
-  }
-
-  @override
-  void visitSuperConstructorInvocation(SuperConstructorInvocation node) {
-    // Super constructor call passes arguments to a parent constructor;
-    // record under the simple name so `super.Foo(x: 1)` keeps a parent
-    // `x:` alive.
-    final ctorName = node.constructorName?.name;
-    if (ctorName != null) {
-      _recordArguments(ctorName, node.argumentList);
-    }
-    super.visitSuperConstructorInvocation(node);
-  }
-}
-
-const _unnamedDotShorthandKey = '.new';
-
 /// Analyzer 13 replaced several long-standing AST accessors while older
 /// Analyzer versions are still selected on kareki's minimum Dart SDK. These
 /// helpers use stable token/tree APIs that work with both AST shapes.
@@ -1128,17 +932,6 @@ Iterable<AstNode> _primaryConstructorFieldInitializers(
       if (initializer != null) yield initializer;
     }
   }
-}
-
-String? _enclosingEnumName(AstNode node) {
-  var ancestor = node.parent;
-  while (ancestor != null) {
-    if (ancestor is EnumDeclaration) {
-      return _typeDeclarationName(ancestor).lexeme;
-    }
-    ancestor = ancestor.parent;
-  }
-  return null;
 }
 
 Iterable<ClassMember> _typeDeclarationMembers(AstNode declaration) {
@@ -1194,14 +987,6 @@ String? _primaryDeclaringKeyword(FormalParameter parameter) {
     if (identical(token, name) || token.next == null) return null;
     token = token.next!;
   }
-}
-
-String? _namedArgumentName(AstNode argument) {
-  final name = argument.beginToken;
-  if (name.next?.lexeme == ':') {
-    return name.lexeme;
-  }
-  return null;
 }
 
 class _DirectClassMemberVisitor extends GeneralizingAstVisitor<void> {

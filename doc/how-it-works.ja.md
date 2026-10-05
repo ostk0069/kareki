@@ -3,12 +3,12 @@ title: 解析の仕組み
 weight: 6
 ---
 
-既定の `legacy` 方式は次のように動作します。
+宣言単位の解析方式だけを使用します。
 
 1. `melos.yaml` または pub workspace 経由でパッケージを検出する。
-2. `package:analyzer` で全 `.dart` ファイルをパースし、宣言と外向きの simple-name 参照を抽出する。
+2. `package:analyzer` で全 `.dart` ファイルをパースし、宣言のメタデータと抑制指示を抽出する。
 3. エントリポイントを解決する（暗黙の規約、有効なプリセット、生成ファイル中の参照、設定の組み合わせ）。
-4. simple-name グラフを、それらのルート識別子から BFS で辿る。
+4. analyzerで参照先を解決し、宣言IDのグラフをエントリポイントから辿る。
 5. 到達できなかった宣言、参照されていないファイル、宣言されていない pub 依存を報告する。
 
 ## Entry-point seeding
@@ -24,9 +24,9 @@ weight: 6
 
 このレイヤ構造により、コード生成を多用するエコシステムでも false positive を撒き散らさずに kareki を共存させられます。
 
-## 宣言単位の解析（プレビュー）
+## 宣言単位の解析
 
-実験的な `resolved` 方式は `AnalysisContextCollection` で参照先を解決し、
+宣言単位の解析方式は `AnalysisContextCollection` で参照先を解決し、
 ライブラリ・実ファイル・宣言位置・種別に基づくIDでグラフを作ります。
 この内部IDはベースライン用のIDとは別です。起点ファイル・生成コード・
 アノテーションからの起点も宣言単位になります。
@@ -85,9 +85,8 @@ null との比較も読み取りとして扱います。decoder の hook と明�
 で参照先を確認し、実装の監査・回帰テスト後にカタログを更新します。
 このツール自体が新しいハッシュを自動承認することはありません。
 
-プログラムからは `analysisMode: AnalysisMode.resolved` を指定して
-`await KarekiRunner().analyze(request)` を使います。
-同期の `run()` はlegacy方式専用です。[CLIの制約](cli.ja.md)も参照してください。
+プログラムからは `await KarekiRunner().analyze(request)` または
+`await KarekiRunner().run(request)` を使います。[移行手順](migration.ja.md)も参照してください。
 
 optional引数は同じ宣言IDをキーとして、未到達・生成コードも含む全呼び出し箇所から
 集計します。実際のoverride関係とredirecting factoryを通じて使用状況を伝播させ、

@@ -23,22 +23,21 @@ dart run kareki doctor
 
 設定がクリーンであれば `0` で終了し、1 件以上の Issue があれば `1` で終了します。
 
-## 宣言単位の解析（プレビュー）
+## 宣言単位の解析
 
 ```sh
-dart run kareki doctor --analysis-mode resolved
+dart run kareki doctor
 ```
 
-フラグは設定の `analysis_mode` を上書きします。既定は引き続き `legacy` です。
-ベースラインを作成した解析方式と揃えてください。保存用ID・JSON形式は変更せず、
-doctor自身がファイルを書き換えることもありません。
+参照解決は１回だけ行い、同じ解析結果を各チェックで共有します。
+保存用ID・JSON形式は変更せず、doctor自身がファイルを書き換えることもありません。
 
-引数名除外・行/ファイル抑制・不要なベースライン項目の判定は、すべて選択した方式で
+引数名除外・行/ファイル抑制・不要なベースライン項目の判定は、すべて宣言単位の方式で
 行います。参照解決に失敗すると結果を報告せず終了コード `2` を返します。
 callbackやdynamicなど保守的な近似が必要な場合も、これらの判定を保留し、
 標準エラーに理由を示して `2` を返します。未一致globなど構造的なチェック結果は
 報告できます。終了コード `2` の空のJSON検出一覧は「正常」を意味しません。
 オプションや設定が不正な場合は `64` です。
 
-APIでは `analysisMode: AnalysisMode.resolved` を指定して
-`await DoctorRunner().analyze(request)` を使用します。同期 `run()` はlegacy専用です。
+APIでは `await DoctorRunner().analyze(request)` または `await DoctorRunner().run(request)`
+を使用します。同期APIと旧方式へのフォールバックはありません。

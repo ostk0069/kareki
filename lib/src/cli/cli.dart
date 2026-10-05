@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -13,43 +12,16 @@ import 'package:kareki/src/runner.dart';
 import 'package:path/path.dart' as p;
 
 /// Entry point used by both `bin/kareki.dart` and tests.
-int runCli(List<String> arguments, {required String workingDirectory}) {
-  return _runCli(
-        arguments,
-        workingDirectory: workingDirectory,
-        asynchronous: false,
-      )
-      as int;
-}
-
-/// Async CLI entry point; required for the opt-in resolved engine.
-Future<int> runCliAsync(
+Future<int> runCli(
   List<String> arguments, {
   required String workingDirectory,
 }) async {
-  return await _runCli(
-    arguments,
-    workingDirectory: workingDirectory,
-    asynchronous: true,
-  );
-}
-
-FutureOr<int> _runCli(
-  List<String> arguments, {
-  required String workingDirectory,
-  required bool asynchronous,
-}) {
   if (arguments.isNotEmpty && arguments.first == 'doctor') {
-    if (asynchronous) {
-      return runDoctorAsync(
-        arguments.skip(1).toList(),
-        workingDirectory: workingDirectory,
-      );
-    }
-    return runDoctor(
+    final code = await runDoctor(
       arguments.skip(1).toList(),
       workingDirectory: workingDirectory,
     );
+    return code;
   }
 
   final parser = _buildArgParser();
@@ -101,19 +73,12 @@ FutureOr<int> _runCli(
     includePackages: packages,
     enabledRules: rules,
     strictDependencies: args['strict'] as bool,
-    analysisMode: args['analysis-mode'] == null
-        ? null
-        : AnalysisMode.values.byName(args['analysis-mode'] as String),
   );
 
   int report(RunResult result) =>
       _reportResult(result, args, rootPath, config, format);
-  if (asynchronous) return _analyzeAndReport(request, report);
-  if (request.effectiveAnalysisMode == AnalysisMode.resolved) {
-    stderr.writeln('kareki: resolved mode requires runCliAsync.');
-    return 64;
-  }
-  return report(KarekiRunner().run(request));
+  final code = await _analyzeAndReport(request, report);
+  return code;
 }
 
 Future<int> _analyzeAndReport(
@@ -229,11 +194,6 @@ Usage: kareki [options]
 
 ArgParser _buildArgParser() {
   return ArgParser()
-    ..addOption(
-      'analysis-mode',
-      allowed: ['legacy', 'resolved'],
-      help: 'Analysis engine (resolved is experimental and requires pub get).',
-    )
     ..addOption(
       'root',
       help: 'Workspace root directory (defaults to current directory).',

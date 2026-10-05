@@ -74,7 +74,6 @@ Future<void> run() async { $body }
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
-        analysisMode: AnalysisMode.resolved,
         enabledRules: {RuleId.unusedElement},
       ),
     );

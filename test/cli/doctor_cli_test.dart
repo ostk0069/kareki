@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/test_workspace.dart';
+
 void main() {
   late Directory tempRoot;
 
@@ -41,6 +43,7 @@ void main() {
       'environment:\n'
       '  sdk: ">=3.6.0 <4.0.0"\n',
     );
+    configureTestPackages(tempRoot.path);
     Directory(p.join(tempRoot.path, 'lib')).createSync();
     File(
       p.join(tempRoot.path, 'lib', 'main.dart'),

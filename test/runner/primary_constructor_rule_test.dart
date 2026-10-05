@@ -10,6 +10,10 @@ void main() {
 
   setUp(() {
     workspace = TestWorkspace.create('kareki_primary_constructor_');
+    workspace.write(
+      'analysis_options.yaml',
+      'analyzer:\n  enable-experiment:\n    - primary-constructors\n',
+    );
     workspace.write('pubspec.yaml', '''
 name: primary_constructor_workspace
 publish_to: none
@@ -29,7 +33,7 @@ resolution: workspace
 
   tearDown(() => workspace.dispose());
 
-  test('primary constructors participate in all applicable rules', () {
+  test('primary constructors participate in all applicable rules', () async {
     workspace.write('app/lib/api.dart', '''
 class Point.named(final int usedField, final int unusedField, int unusedInput) {
   int read() => usedField;
@@ -51,7 +55,7 @@ void main() {
 }
 ''');
 
-    final result = KarekiRunner().run(
+    final result = await KarekiRunner().run(
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
@@ -73,6 +77,7 @@ void main() {
             finding.message.contains("'Point.unusedField'"),
       ),
       isTrue,
+      reason: result.analysisWarnings.join('\n'),
     );
     expect(
       result.findings.any(

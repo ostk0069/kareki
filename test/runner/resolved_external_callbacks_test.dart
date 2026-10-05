@@ -73,7 +73,6 @@ void run() { $body }
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
-        analysisMode: AnalysisMode.resolved,
         enabledRules: {RuleId.unusedParameterOptional},
       ),
     );
@@ -607,12 +606,17 @@ class Consumer {
 part 'part.dart';
 typedef Builder = int Function(int, {int optional});
 abstract class Route { factory Route(int ignored, Builder builder) = Child; }
-class Base { Base(this.callback); final Builder callback; }
-class Child extends Base implements Route { Child(int ignored, Builder builder) : super(builder); }
+class Base { Base(int ignored, this.callback); final Builder callback; }
+class Child extends Base implements Route { Child(int ignored, Builder builder) : super(ignored, builder); }
 ''');
       external.write('lib/part.dart', '''
 part of 'api.dart';
-int invoke(Base value) => value.callback(1, optional: 7);
+void noop() {}
+int invoke(Base value) {
+  noop();
+  (value.callback).call(1, optional: 7);
+  return (value).callback(1, optional: 7);
+}
 ''');
       final result = await analyze(target, 'Route(0, target);');
       expect(result.findings, isEmpty);

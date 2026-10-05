@@ -4,21 +4,22 @@ import 'dart:io';
 import 'package:kareki/kareki.dart';
 import 'package:kareki/src/doctor/doctor_runner.dart';
 
-/// Read-only, single-process benchmark. Run each mode in a fresh process.
-/// Usage: `dart tool/resolved_analysis/benchmark.dart ROOT legacy|resolved [doctor]`
+/// Read-only benchmark. Run each measurement in a fresh process.
+/// Usage: `dart tool/resolved_analysis/benchmark.dart ROOT [doctor]`
 /// JSON is written to stdout; redirect it outside the target checkout.
 Future<void> main(List<String> arguments) async {
-  if (arguments.length < 2 || arguments.length > 3) {
-    stderr.writeln('Usage: benchmark.dart ROOT legacy|resolved [doctor]');
+  if (arguments.isEmpty ||
+      arguments.length > 2 ||
+      (arguments.length == 2 && arguments[1] != 'doctor')) {
+    stderr.writeln('Usage: benchmark.dart ROOT [doctor]');
     exitCode = 64;
     return;
   }
   final root = Directory(arguments[0]).absolute.path;
-  final mode = AnalysisMode.values.byName(arguments[1]);
-  final doctor = arguments.length == 3 && arguments[2] == 'doctor';
+  final doctor = arguments.length == 2;
   final watch = Stopwatch()..start();
   final report = <String, Object?>{
-    'mode': mode.name,
+    'mode': 'resolved',
     'doctor': doctor,
     'runtime': Platform.version,
     'root': root,
@@ -27,7 +28,7 @@ Future<void> main(List<String> arguments) async {
     final config = KarekiConfig.load(root);
     if (doctor) {
       final result = await DoctorRunner().analyze(
-        DoctorRequest(rootPath: root, config: config, analysisMode: mode),
+        DoctorRequest(rootPath: root, config: config),
       );
       report['warnings'] = result.analysisWarnings;
       if (result.analysisWarnings.isNotEmpty) {
@@ -47,7 +48,6 @@ Future<void> main(List<String> arguments) async {
         RunRequest(
           rootPath: root,
           config: config,
-          analysisMode: mode,
           enabledRules: {
             RuleId.unusedElement,
             RuleId.testOnlyUsed,

@@ -9,13 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Experimental `--analysis-mode resolved` / `analysis_mode: resolved` for
-  `unused_element`, `test_only_used`, and `unused_parameter_optional`, backed by analyzer-resolved declaration
-  identities. Same-name declarations in unrelated classes and packages no
-  longer share reachability.
-- `KarekiRunner.analyze()` and `runCliAsync()` provide asynchronous analysis;
-  existing synchronous entry points and the default legacy engine remain.
-- Resolved mode reports conservative approximations, fails with exit code 2
+- Analyzer-resolved declaration identities for `unused_element`, `test_only_used`,
+  and `unused_parameter_optional`. Same-name declarations in unrelated classes
+  and packages no longer share reachability.
+- Resolved analysis reports conservative approximations, fails with exit code 2
   when resolution is incomplete, and never writes a baseline on that failure.
   Package filters restrict findings while references are collected across the
   discovered workspace.
@@ -52,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with audited dependency closures. Changes to defining/transitive sources or
   language versions retain the existing dynamic fallback. Read-only final List
   iteration is tracked without relaxing mutation, capture or escape protection.
-- `kareki doctor --analysis-mode resolved` and `DoctorRunner.analyze()` use the
-  selected engine for suppression and baseline checks. Incomplete resolution or
+- `kareki doctor` and `DoctorRunner.analyze()` use the
+  resolved engine for suppression and baseline checks. Incomplete resolution or
   conservative approximations exit with 2 instead of recommending unsafe cleanup.
 - Doctor now recognizes simple-name suppressions on qualified member findings.
 - Resolved analysis explicitly resolves analyzer-excluded generated libraries
@@ -61,8 +58,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Context selection and analyzer failures are reported as incomplete analysis
   (exit code 2), preserving the existing baseline.
 
+### Changed
+
+- **Breaking:** removed the legacy engine, simple-name reachability/call-site
+  indexes, and `analysis_mode` / `--analysis-mode` selection. Resolution errors
+  never fall back to name-based results. Bootstrap dependencies and generate
+  sources before running graph-based rules.
+- **Breaking:** runner `run()` and CLI APIs now return Futures. Use `await`;
+  see the migration guide. Removed legacy-only parser reference metadata.
+- Doctor resolves one source snapshot for all semantic checks. Graph assembly
+  uses indexed declarations and references instead of repeated full scans.
+
 ### Fixed
 
+- Primary-constructor declaring fields map to their actual analyzer field IDs.
 - Closed SDK JSON reads no longer retain unrelated workspace `[]` operators.
   Resolved mode verifies the `dart:convert` declaration, the standard codec
   receiver and absence of a reviver, then checks all local aliases for escape

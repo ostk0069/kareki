@@ -82,10 +82,10 @@ $ dart run example.dart
 ```dart
 import 'package:kareki/kareki.dart';
 
-void main() {
+Future<void> main() async {
   const root = '.';
   final config = KarekiConfig.load(root);
-  final result = KarekiRunner().run(
+  final result = await KarekiRunner().run(
     RunRequest(rootPath: root, config: config),
   );
   print(TextReporter().render(result.findings, rootPath: root));

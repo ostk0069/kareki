@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -20,31 +19,10 @@ Usage: kareki doctor [options]
 
 /// Entry point for `dart run kareki doctor ...`. [arguments] are the
 /// arguments after the leading `doctor` token.
-int runDoctor(List<String> arguments, {required String workingDirectory}) {
-  return _runDoctor(
-        arguments,
-        workingDirectory: workingDirectory,
-        asynchronous: false,
-      )
-      as int;
-}
-
-Future<int> runDoctorAsync(
+Future<int> runDoctor(
   List<String> arguments, {
   required String workingDirectory,
 }) async {
-  return await _runDoctor(
-    arguments,
-    workingDirectory: workingDirectory,
-    asynchronous: true,
-  );
-}
-
-FutureOr<int> _runDoctor(
-  List<String> arguments, {
-  required String workingDirectory,
-  required bool asynchronous,
-}) {
   final parser = _buildArgParser();
 
   final ArgResults args;
@@ -76,19 +54,9 @@ FutureOr<int> _runDoctor(
       : OutputFormat.values.byName(formatName);
   final reporter = _reporterFor(format);
 
-  final request = DoctorRequest(
-    rootPath: rootPath,
-    config: config,
-    analysisMode: args['analysis-mode'] == null
-        ? null
-        : AnalysisMode.values.byName(args['analysis-mode'] as String),
-  );
-  if (asynchronous) return _analyzeAndReport(request, reporter);
-  if (request.effectiveAnalysisMode == AnalysisMode.resolved) {
-    stderr.writeln('kareki: resolved doctor requires runDoctorAsync.');
-    return 64;
-  }
-  return _report(DoctorRunner().run(request), reporter);
+  final request = DoctorRequest(rootPath: rootPath, config: config);
+  final code = await _analyzeAndReport(request, reporter);
+  return code;
 }
 
 Future<int> _analyzeAndReport(
@@ -136,11 +104,6 @@ DoctorReporter _reporterFor(OutputFormat format) {
 
 ArgParser _buildArgParser() {
   return ArgParser()
-    ..addOption(
-      'analysis-mode',
-      allowed: ['legacy', 'resolved'],
-      help: 'Analysis engine used to validate suppressions and baselines.',
-    )
     ..addOption(
       'root',
       help: 'Workspace root directory (defaults to current directory).',

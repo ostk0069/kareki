@@ -1,5 +1,5 @@
 import 'package:kareki/src/config/kareki_config.dart';
-import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/runner.dart';
 import 'package:test/test.dart';
 
@@ -15,29 +15,25 @@ void main() {
 
   tearDown(() => workspace.dispose());
 
-  test('an incomplete source does not hide findings in valid files', () {
-    workspace.write('lib/broken.dart', '''
+  test(
+    'an incomplete source fails without returning partial findings',
+    () async {
+      workspace.write('lib/broken.dart', '''
 class Broken {
   void unfinished(
 ''');
-    workspace.write('lib/api.dart', 'class KnownUnused {}\n');
-    workspace.write('bin/main.dart', 'void main() {}\n');
+      workspace.write('lib/api.dart', 'class KnownUnused {}\n');
+      workspace.write('bin/main.dart', 'void main() {}\n');
 
-    final result = KarekiRunner().run(
-      RunRequest(
-        rootPath: workspace.path,
-        config: KarekiConfig.load(workspace.path),
-      ),
-    );
-
-    expect(result.filesAnalyzed, 3);
-    expect(
-      result.findings.any(
-        (finding) =>
-            finding.ruleId == RuleId.unusedElement &&
-            finding.message.contains("'KnownUnused'"),
-      ),
-      isTrue,
-    );
-  });
+      await expectLater(
+        KarekiRunner().run(
+          RunRequest(
+            rootPath: workspace.path,
+            config: KarekiConfig.load(workspace.path),
+          ),
+        ),
+        throwsA(isA<ResolvedAnalysisException>()),
+      );
+    },
+  );
 }

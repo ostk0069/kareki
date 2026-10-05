@@ -8,7 +8,7 @@
 ///    attached to a declaration, that declaration is treated as
 ///    reachable by the BFS even if no caller is found. Used because
 ///    framework-managed code is invoked via reflection, code generation,
-///    or runtime dispatch that the simple-name BFS cannot follow.
+///    or runtime dispatch not visible as explicit source references.
 ///
 /// 2. **Annotation-implied pub packages**: when one of the keys in
 ///    [annotationImpliedPackages] appears anywhere in source, the

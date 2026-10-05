@@ -43,21 +43,17 @@ void main() {
     );
   }
 
-  Future<RunResult> analyze({AnalysisMode mode = AnalysisMode.resolved}) =>
-      KarekiRunner().analyze(
-        RunRequest(
-          rootPath: workspace.path,
-          config: KarekiConfig.load(workspace.path),
-          analysisMode: mode,
-          enabledRules: {RuleId.unusedParameterOptional},
-        ),
-      );
-  DoctorRequest doctorRequest({AnalysisMode mode = AnalysisMode.resolved}) =>
-      DoctorRequest(
-        rootPath: workspace.path,
-        config: KarekiConfig.load(workspace.path),
-        analysisMode: mode,
-      );
+  Future<RunResult> analyze() => KarekiRunner().analyze(
+    RunRequest(
+      rootPath: workspace.path,
+      config: KarekiConfig.load(workspace.path),
+      enabledRules: {RuleId.unusedParameterOptional},
+    ),
+  );
+  DoctorRequest doctorRequest() => DoctorRequest(
+    rootPath: workspace.path,
+    config: KarekiConfig.load(workspace.path),
+  );
   Iterable<String> messages(RunResult result) =>
       result.findings.map((f) => f.message);
 
@@ -81,8 +77,6 @@ void closed({int? absent}) {}
             files: files,
             generatedPaths: {},
             entryPoints: EntryPointSet(
-              productionRootNames: {},
-              testRootNames: {},
               entryPointPaths: {p.join(workspace.path, 'bin/main.dart')},
               keepAliveAnnotations: {},
             ),
@@ -228,7 +222,7 @@ void consume(void Function({int? used}) callback) { callback(used: 1); }
 ''', 'consume(target);');
       workspace.write(
         'kareki-config.yaml',
-        'analysis_mode: resolved\nexclude:\n  parameter_names: [absent, used]\n',
+        'exclude:\n  parameter_names: [absent, used]\n',
       );
       final result = await DoctorRunner().analyze(doctorRequest());
       expect(result.analysisWarnings, isEmpty);
@@ -610,7 +604,6 @@ class B { void save({int? value}) { print(value); } void send(int a, [int? extra
         ]),
       );
       expect(result.analysisWarnings, isEmpty);
-      expect((await analyze(mode: AnalysisMode.legacy)).findings, isEmpty);
     },
   );
 
@@ -781,27 +774,17 @@ class B { void save({int? value}) { print(value); } }
         findings,
         rootPath: workspace.path,
       );
-      workspace.write(
-        'kareki-config.yaml',
-        'analysis_mode: resolved\nbaseline: baseline.json\n',
-      );
+      workspace.write('kareki-config.yaml', 'baseline: baseline.json\n');
       var result = await DoctorRunner().analyze(doctorRequest());
       expect(result.findings, isEmpty);
       expect(result.analysisWarnings, isEmpty);
-      final legacy = await DoctorRunner().analyze(
-        doctorRequest(mode: AnalysisMode.legacy),
-      );
-      expect(
-        legacy.findings.map((f) => f.kind),
-        contains(DoctorIssueKind.unusedBaselineEntry),
-      );
       workspace.write(
         'kareki-config.yaml',
-        'analysis_mode: resolved\nexclude:\n  parameter_names: [value, nonexistent]\n',
+        'exclude:\n  parameter_names: [value, nonexistent]\n',
       );
       result = await DoctorRunner().analyze(doctorRequest());
       expect(result.findings.map((f) => f.subject), ['nonexistent']);
-      workspace.write('kareki-config.yaml', 'analysis_mode: resolved\n');
+      workspace.write('kareki-config.yaml', '');
       workspace.write('lib/api.dart', '''
 class A { void save({int? value}) { print(value); } }
 class B {
@@ -810,12 +793,6 @@ class B {
 }
 ''');
       expect((await DoctorRunner().analyze(doctorRequest())).findings, isEmpty);
-      expect(
-        (await DoctorRunner().analyze(
-          doctorRequest(mode: AnalysisMode.legacy),
-        )).findings.map((f) => f.kind),
-        contains(DoctorIssueKind.unusedIgnoreDirective),
-      );
     },
   );
 
@@ -839,18 +816,16 @@ class B {
         contains(contains('Semantic doctor checks skipped')),
       );
       expect(
-        await runCliAsync([
+        await runCli([
           'doctor',
           '--root',
           workspace.path,
-          '--analysis-mode',
-          'resolved',
         ], workingDirectory: workspace.path),
         2,
       );
-      workspace.write('kareki-config.yaml', 'analysis_mode: resolved\n');
+      workspace.write('kareki-config.yaml', '');
       expect(
-        await runDoctorAsync([
+        await runDoctor([
           '--root',
           workspace.path,
         ], workingDirectory: workspace.path),
@@ -874,12 +849,12 @@ class B {
   );
 
   test(
-    'doctor CLI supports opt-in, override, synchronous rejection and resolution failure',
+    'doctor CLI rejects removed mode options and incomplete resolution',
     () async {
       source('void save({int? value}) { print(value); }', 'save(value: 1);');
-      workspace.write('kareki-config.yaml', 'analysis_mode: resolved\n');
+      workspace.write('kareki-config.yaml', '');
       expect(
-        await runCliAsync([
+        await runCli([
           'doctor',
           '--root',
           workspace.path,
@@ -889,23 +864,26 @@ class B {
         0,
       );
       expect(
-        runDoctor(['--root', workspace.path], workingDirectory: workspace.path),
-        64,
-      );
-      expect(
-        runCli([
-          'doctor',
+        await runDoctor([
           '--root',
           workspace.path,
           '--analysis-mode',
           'legacy',
+        ], workingDirectory: workspace.path),
+        64,
+      );
+      expect(
+        await runCli([
+          'doctor',
+          '--root',
+          workspace.path,
         ], workingDirectory: workspace.path),
         0,
       );
       workspace.write('baseline.json', 'do not change');
       workspace.write('lib/broken.dart', 'MissingType broken = MissingType();');
       expect(
-        await runDoctorAsync([
+        await runDoctor([
           '--root',
           workspace.path,
         ], workingDirectory: workspace.path),

@@ -19,8 +19,8 @@ void main() {
 
   tearDown(() => workspace.dispose());
 
-  test('strict mode adds unused dev dependencies only', () {
-    RunResult run({bool strict = false}) => KarekiRunner().run(
+  test('strict mode adds unused dev dependencies only', () async {
+    Future<RunResult> run({bool strict = false}) => KarekiRunner().run(
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
@@ -29,10 +29,12 @@ void main() {
       ),
     );
 
-    final defaultMessages = run().findings.map((finding) => finding.message);
-    final strictMessages = run(
+    final defaultMessages = (await run()).findings.map(
+      (finding) => finding.message,
+    );
+    final strictMessages = (await run(
       strict: true,
-    ).findings.map((finding) => finding.message);
+    )).findings.map((finding) => finding.message);
 
     expect(defaultMessages, contains(contains("Dependency 'collection'")));
     expect(defaultMessages, isNot(contains(contains("Dependency 'test'"))));

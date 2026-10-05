@@ -27,8 +27,6 @@ import 'package:kareki/src/reachability/external_decoder_models.dart'
     deferred as coverage24;
 import 'package:kareki/src/reachability/json_value_origins.dart'
     deferred as coverage23;
-import 'package:kareki/src/reachability/reachability_graph.dart'
-    deferred as coverage17;
 import 'package:kareki/src/reachability/resolved_reachability.dart'
     deferred as coverage22;
 import 'package:kareki/src/reachability/unused_file_detector.dart'
@@ -89,7 +87,6 @@ void main() {
       coverage14.loadLibrary(),
       coverage15.loadLibrary(),
       coverage16.loadLibrary(),
-      coverage17.loadLibrary(),
       coverage18.loadLibrary(),
       coverage19.loadLibrary(),
       coverage20.loadLibrary(),

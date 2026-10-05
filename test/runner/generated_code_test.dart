@@ -15,7 +15,7 @@ void main() {
 
   tearDown(() => workspace.dispose());
 
-  test('excluded code keeps the APIs it references alive', () {
+  test('excluded code keeps the APIs it references alive', () async {
     workspace.write('lib/api.dart', '''
 class KeptByGenerated {}
 class TrulyUnused {}
@@ -30,7 +30,7 @@ void configureGeneratedModel() => configure(token: 'generated');
 ''');
     workspace.write('bin/main.dart', 'void main() {}\n');
 
-    final result = KarekiRunner().run(
+    final result = await KarekiRunner().run(
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),

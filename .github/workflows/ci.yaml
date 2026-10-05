@@ -51,7 +51,9 @@ jobs:
         # Runs kareki against the example package and asserts each rule
         # id fires exactly once. Guards against the example drifting
         # out of sync with the detectors it's supposed to demonstrate.
-        run: dart run tool/verify_example.dart
+        run: |
+          (cd example && dart pub get)
+          dart run tool/verify_example.dart
 
   analyzer-boundaries:
     name: Analyzer (${{ matrix.boundary }})

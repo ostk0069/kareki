@@ -7,9 +7,9 @@ import '../support/test_workspace.dart';
 
 void main() {
   group('unused_parameter', () {
-    test('flags body-unused parameters and skips exemptions', () {
+    test('flags body-unused parameters and skips exemptions', () async {
       final root = fixturePath('unused_parameter');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
       final messages = result.findings
@@ -51,9 +51,9 @@ void main() {
       }
     });
 
-    test('can be disabled by the rule filter', () {
+    test('can be disabled by the rule filter', () async {
       final root = fixturePath('unused_parameter');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(
           rootPath: root,
           config: KarekiConfig.load(root),
