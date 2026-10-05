@@ -68,6 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   see the migration guide. Removed legacy-only parser reference metadata.
 - Doctor resolves one source snapshot for all semantic checks. Graph assembly
   uses indexed declarations and references instead of repeated full scans.
+- Reuse resolved library units across collected parts within the same analysis
+  context, cache test-source classification for each build, and avoid repeated
+  inherited-method lookups. Analysis scope and conservative safeguards remain
+  unchanged; no persistent cache is introduced.
 
 ### Fixed
 

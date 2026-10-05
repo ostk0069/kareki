@@ -86,27 +86,64 @@ class ResolvedReachability {
             .toSet()
             .toList(),
       );
+      final visitedUnits = <String>{};
       for (final entry in graph.files.entries) {
+        if (visitedUnits.contains(entry.key)) continue;
         resolving = entry.value.path;
-        final result = !File(entry.key).existsSync()
-            ? null
-            : await _contextForSource(
-                collection,
-                entry.key,
-              ).currentSession.getResolvedUnit(entry.key);
-        if (result is! ResolvedUnitResult || !result.exists) {
+        final context = _contextForSource(collection, entry.key);
+        final units = <ResolvedUnitResult>[];
+        if (File(entry.key).existsSync()) {
+          final result = entry.value.partOf == null
+              ? await context.currentSession.getResolvedLibrary(entry.key)
+              : await context.currentSession.getResolvedLibraryContaining(
+                  entry.key,
+                );
+          if (result is ResolvedLibraryResult &&
+              result.units.any(
+                (unit) => graph.canonical(unit.path) == entry.key,
+              )) {
+            units.addAll(result.units);
+          } else {
+            // An orphan part can still have a resolved unit even when it is
+            // absent from its named library. Preserve analyzer's unit-level
+            // diagnostics and semantics instead of rejecting it prematurely.
+            final unit = await context.currentSession.getResolvedUnit(
+              entry.key,
+            );
+            if (unit is ResolvedUnitResult) units.add(unit);
+          }
+        }
+        // Resolving one part already resolves its entire library. Consume the
+        // sibling units now, without retaining ASTs or requesting them again.
+        // A part owned by another context must still use its own options and
+        // package configuration; dependencies do not become workspace sources.
+        for (final unit in units) {
+          final path = graph.canonical(unit.path);
+          final file = graph.files[path];
+          if (!unit.exists ||
+              file == null ||
+              visitedUnits.contains(path) ||
+              !identical(_contextForSource(collection, path), context)) {
+            continue;
+          }
+          visitedUnits.add(path);
+          for (final diagnostic in unit.diagnostics) {
+            if (diagnostic.diagnosticCode.severity.name != 'ERROR') continue;
+            final line = unit.lineInfo
+                .getLocation(diagnostic.offset)
+                .lineNumber;
+            problems.add('${file.path}:$line: ${diagnostic.message}');
+          }
+          unit.unit.accept(_ResolvedVisitor(graph, path, file));
+          graph.collectConditionalFacade(path, unit.unit);
+        }
+      }
+      // Missing units and unavailable libraries share one fail-closed check.
+      // A successful sibling must never hide an unresolved collected source.
+      for (final entry in graph.files.entries) {
+        if (!visitedUnits.contains(entry.key)) {
           problems.add('${entry.value.path}: no resolved compilation unit.');
-          continue;
         }
-        for (final diagnostic in result.diagnostics) {
-          if (diagnostic.diagnosticCode.severity.name != 'ERROR') continue;
-          final line = result.lineInfo
-              .getLocation(diagnostic.offset)
-              .lineNumber;
-          problems.add('${entry.value.path}:$line: ${diagnostic.message}');
-        }
-        result.unit.accept(_ResolvedVisitor(graph, entry.key, entry.value));
-        graph.collectConditionalFacade(entry.key, result.unit);
       }
       if (problems.isNotEmpty) throw ResolvedAnalysisException(problems);
       await graph.summarizeExternalCallbacks();
@@ -201,6 +238,15 @@ class _ResolvedGraph {
   }) {
     files.addEntries(sourceFiles.map((f) => MapEntry(canonical(f.path), f)));
     generated.addAll(generatedPaths.map(canonical));
+    for (final entry in files.entries) {
+      if (!generated.contains(entry.key) &&
+          isTestSourcePath(
+            entry.value.path,
+            packageRoot: packageRoots[entry.value.packageName]!,
+          )) {
+        _testPaths.add(entry.key);
+      }
+    }
   }
 
   final Map<String, String> packageRoots;
@@ -220,6 +266,7 @@ class _ResolvedGraph {
   final argumentEvidence = <_Id, Set<String>>{};
   final files = <String, ParsedFile>{};
   final generated = <String>{};
+  final _testPaths = <String>{};
   final _canonicalPaths = <String, String>{};
   final edges = <_Id, Set<_Id>>{};
   final elements = <_Id, Element>{};
@@ -316,12 +363,7 @@ class _ResolvedGraph {
           argumentTargets.putIfAbsent(contract, () => {}).add(implementation);
           argumentTargets.putIfAbsent(implementation, () => {}).add(contract);
         }
-        edge(
-          id,
-          ensure(
-            type.lookUpMethod(name: member.name!, library: ancestor.library),
-          ),
-        );
+        edge(id, implementation);
       }
       for (final member in ancestor.getters.where((m) => !m.isStatic)) {
         edge(
@@ -484,14 +526,9 @@ class _ResolvedGraph {
       ..addAll(remainingSites);
   }
 
-  bool isTest(_Id id) {
-    final file = files[id.unit];
-    if (file == null || generated.contains(id.unit)) return false;
-    return isTestSourcePath(
-      file.path,
-      packageRoot: packageRoots[file.packageName]!,
-    );
-  }
+  // Classification is constant for this build, including generated-file roots.
+  // Reachability may inspect many declarations and edges from the same unit.
+  bool isTest(_Id id) => _testPaths.contains(id.unit);
 
   void finish(EntryPointSet entryPoints, KarekiConfig config) {
     connectConditionalFacades();
