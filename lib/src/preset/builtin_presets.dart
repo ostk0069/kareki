@@ -93,6 +93,7 @@ const Preset goRouterPreset = Preset(
 /// drift — last_verified: drift 2.x.
 const Preset driftPreset = Preset(
   name: 'drift',
+  keepDriftColumns: true,
   keepAliveAnnotations: {'DriftDatabase', 'DriftAccessor', 'UseRowClass'},
   annotationImpliedPackages: {
     'DriftDatabase': {'drift'},

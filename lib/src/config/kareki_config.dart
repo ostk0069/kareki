@@ -40,6 +40,8 @@ class KarekiConfig {
       '**/*.freezed.dart',
       '**/*.gr.dart',
       '**/*.generated.dart',
+      '**/*.drift.dart',
+      '**/*.steps.dart',
       '**/*.pb.dart',
       '**/*.pbenum.dart',
       '**/*.pbjson.dart',

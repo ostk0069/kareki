@@ -11,6 +11,7 @@ import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/model/declaration.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
+import 'package:kareki/src/preset/preset_registry.dart';
 import 'package:kareki/src/reachability/external_decoder_models.dart';
 import 'package:kareki/src/reachability/json_value_origins.dart';
 import 'package:path/path.dart' as p;
@@ -59,6 +60,10 @@ class ResolvedReachability {
       generatedPaths,
       packageRoots,
       trackArguments: trackArguments,
+      keepDriftColumns: PresetRegistry(
+        enabledPresetNames: config.enabledPresetNames,
+        customPresets: config.customPresets,
+      ).keepDriftColumns,
     );
     final problems = <String>[];
     for (final root in packageRoots.values.toSet()) {
@@ -235,6 +240,7 @@ class _ResolvedGraph {
     Set<String> generatedPaths,
     this.packageRoots, {
     required this.trackArguments,
+    required this.keepDriftColumns,
   }) {
     files.addEntries(sourceFiles.map((f) => MapEntry(canonical(f.path), f)));
     generated.addAll(generatedPaths.map(canonical));
@@ -251,6 +257,7 @@ class _ResolvedGraph {
 
   final Map<String, String> packageRoots;
   final bool trackArguments;
+  final bool keepDriftColumns;
   late final decoderModels = ExternalDecoderModels(
     isWorkspaceSource: (path) => files.containsKey(canonical(path)),
   );
@@ -346,6 +353,7 @@ class _ResolvedGraph {
   void expandType(InterfaceElement type) {
     final id = ensure(type)!;
     if (!expandedTypes.add(id)) return;
+    if (keepDriftColumns) connectDriftColumns(type, id);
     // Preserve implicit runtime hooks and actual inherited contracts. This is
     // deliberately conservative within a type hierarchy, never across homonyms.
     for (final name in ['call', 'toJson']) {
@@ -379,6 +387,41 @@ class _ResolvedGraph {
           ensure(
             type.lookUpSetter(name: member.name!, library: ancestor.library),
           ),
+        );
+      }
+    }
+  }
+
+  // drift_dev reads schema declarations, rather than invoking the original
+  // getters at runtime. Generated implementations can override every column.
+  // Model this as an edge from the table, not as unconditional keep-alive:
+  // unused tables and unrelated same-named types must remain reportable.
+  void connectDriftColumns(InterfaceElement type, _Id id) {
+    bool isDriftType(InterfaceElement element, String name) =>
+        element.name == name &&
+        element.library.uri.scheme == 'package' &&
+        element.library.uri.pathSegments.first == 'drift';
+
+    final hierarchy = [type, ...type.allSupertypes.map((t) => t.element)];
+    if (!hierarchy.any((t) => isDriftType(t, 'Table'))) return;
+    for (final owner in hierarchy) {
+      for (final field in owner.fields) {
+        if (field.isStatic || field.getter == null) continue;
+        final column = field.type;
+        if (column is! InterfaceType) continue;
+        final columnTypes = [column, ...column.allSupertypes];
+        if (!columnTypes.any(
+          (t) =>
+              isDriftType(t.element, 'Column') ||
+              (field.isLate &&
+                  field.isFinal &&
+                  isDriftType(t.element, 'ColumnBuilder')),
+        )) {
+          continue;
+        }
+        edge(
+          id,
+          ensure(type.lookUpGetter(name: field.name!, library: owner.library)),
         );
       }
     }

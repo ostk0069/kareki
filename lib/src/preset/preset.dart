@@ -22,6 +22,7 @@ class Preset {
     required this.name,
     this.keepAliveAnnotations = const {},
     this.annotationImpliedPackages = const {},
+    this.keepDriftColumns = false,
   });
 
   /// Stable identifier used to opt-in/out and to override built-ins.
@@ -29,6 +30,9 @@ class Preset {
   /// User configuration that defines a `custom_presets` entry with the
   /// same [name] replaces the built-in preset entirely.
   final String name;
+
+  /// Preserve schema columns of reachable, resolved drift Table subtypes.
+  final bool keepDriftColumns;
 
   /// Annotation simple names that mark a declaration as keep-alive.
   final Set<String> keepAliveAnnotations;

@@ -9,6 +9,7 @@ import 'package:kareki/src/parser/declaration_collector.dart';
 /// - packages implied by annotations used in source (via the merged
 ///   preset registry passed as `annotationImpliedPackages`),
 /// - packages explicitly suppressed via `ignoredDeps`,
+/// - resolved native Flutter plugins used by the build/registration pipeline,
 /// - `sdkPackages` (Flutter / Dart SDK packages).
 class PubDependencyChecker {
   List<Finding> check({
@@ -17,6 +18,7 @@ class PubDependencyChecker {
     required Map<String, Set<String>> annotationImpliedPackages,
     required Set<String> sdkPackages,
     Set<String> ignoredDeps = const {},
+    Set<String> nativePluginDependencies = const {},
     bool strict = false,
   }) {
     final imported = <String>{};
@@ -56,6 +58,7 @@ class PubDependencyChecker {
     final unused = declared
         .difference(imported)
         .difference(implicitlyNeeded)
+        .difference(nativePluginDependencies)
         .difference(ignoredDeps)
         .difference(sdkPackages);
     return [

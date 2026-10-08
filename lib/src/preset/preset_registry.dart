@@ -51,6 +51,9 @@ class PresetRegistry {
     for (final preset in _resolved) ...preset.keepAliveAnnotations,
   };
 
+  /// Whether an active preset models drift's schema-generation inputs.
+  bool get keepDriftColumns => _resolved.any((p) => p.keepDriftColumns);
+
   /// Union of annotation → implied pub packages across active presets.
   Map<String, Set<String>> get annotationImpliedPackages {
     final result = <String, Set<String>>{};

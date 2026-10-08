@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:glob/glob.dart';
 import 'package:kareki/src/config/kareki_config.dart';
+import 'package:kareki/src/dependency/native_plugin_dependencies.dart';
 import 'package:kareki/src/dependency/pub_dependency_checker.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/model/declaration.dart';
@@ -593,6 +594,7 @@ class KarekiRunner {
             .addAll(packages);
       });
 
+      final nativePlugins = NativePluginDependencies();
       for (final pkg in packages) {
         findings.addAll(
           PubDependencyChecker().check(
@@ -603,6 +605,10 @@ class KarekiRunner {
             annotationImpliedPackages: annotationImpliedPackages,
             sdkPackages: request.config.sdkPackages,
             strict: request.strictDependencies,
+            nativePluginDependencies: nativePlugins.forPackage(
+              pkg,
+              strict: request.strictDependencies,
+            ),
           ),
         );
       }

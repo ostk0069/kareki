@@ -8,6 +8,8 @@ import 'package:kareki/src/baseline/baseline.dart' deferred as coverage01;
 import 'package:kareki/src/cli/cli.dart' deferred as coverage02;
 import 'package:kareki/src/cli/doctor_cli.dart' deferred as coverage03;
 import 'package:kareki/src/config/kareki_config.dart' deferred as coverage04;
+import 'package:kareki/src/dependency/native_plugin_dependencies.dart'
+    deferred as coverage25;
 import 'package:kareki/src/dependency/pub_dependency_checker.dart'
     deferred as coverage05;
 import 'package:kareki/src/doctor/doctor_finding.dart' deferred as coverage06;
@@ -94,6 +96,7 @@ void main() {
       coverage22.loadLibrary(),
       coverage23.loadLibrary(),
       coverage24.loadLibrary(),
+      coverage25.loadLibrary(),
     ]);
   });
 }

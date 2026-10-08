@@ -24,7 +24,7 @@ weight: 3
 
 | Setting | Built-in value |
 |---|---|
-| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
+| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.drift.dart`, `.steps.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
 | `entry_points.files` | `**/*.story.dart`, `**/widgetbook/**/*.dart` |
 | `keep_alive_annotations.presets` | `freezed`, `json_serializable`, `riverpod`, `auto_route`, `go_router`, `drift`, `hive`, `meta` |
 | `sdk_packages` | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine` |
@@ -66,6 +66,23 @@ custom_presets:
 ```
 
 When `custom_presets.<name>` matches a built-in name, the built-in is **replaced entirely** — useful for pinning to a framework version whose annotation names have diverged from kareki's defaults.
+
+The built-in `drift` preset also preserves column declarations of reachable
+`package:drift` `Table` subtypes, including inherited and mixin columns. These are
+inputs to schema generation even when generated code overrides the original
+getters. Unrelated same-named types and unused tables are not kept alive by this
+rule. Replacing the `drift` preset also replaces this built-in behavior.
+
+Drift schema snapshots and `flutter_rust_bridge` files are recognized by their
+generator-specific headers. Generated files are excluded from findings, but
+their imports, references and argument usage still participate in analysis.
+
+`unused_pub_dependency` retains dependencies whose resolved `pubspec.yaml`
+declares a native Flutter plugin (`ffiPlugin: true` or a nonempty `pluginClass`).
+Flutter can register or bundle these without a Dart import. The check reads the
+nearest `.dart_tool/package_config.json`, so run `pub get` first. This is a
+conservative build-dependency exemption, not proof that every plugin is needed
+on every target platform. Ordinary Dart dependencies remain checked.
 
 ## Suppression
 
