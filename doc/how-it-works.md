@@ -78,5 +78,5 @@ regenerate sources and run the project's analysis, tests, and relevant builds.
 CI runs analysis and tests against every supported Dart minor version and the
 latest stable SDK patch.
 
-For the safety principles behind the analysis, see
+For a step-by-step example and code that is harder to analyze, see
 [analysis internals](analysis-internals.md).
