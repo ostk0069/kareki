@@ -12,9 +12,9 @@ String _fixture(String name) =>
 
 void main() {
   group('Baseline', () {
-    test('write + load round-trips the same findings', () {
+    test('write + load round-trips the same findings', () async {
       final root = _fixture('single_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
       expect(result.findings, isNotEmpty);
@@ -36,9 +36,9 @@ void main() {
       expect(Baseline.load('/no/such/file.json'), isNull);
     });
 
-    test('filter suppresses baselined findings and keeps the rest', () {
+    test('filter suppresses baselined findings and keeps the rest', () async {
       final root = _fixture('single_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
       final unused = result.findings
@@ -56,25 +56,28 @@ void main() {
       expect(remaining.length, result.findings.length - unused.length);
     });
 
-    test('serialized file is portable: paths use <root>/ placeholder', () {
+    test(
+      'serialized file is portable: paths use <root>/ placeholder',
+      () async {
+        final root = _fixture('single_package');
+        final result = await KarekiRunner().run(
+          RunRequest(rootPath: root, config: KarekiConfig.load(root)),
+        );
+
+        final tmp = Directory.systemTemp.createTempSync('kareki_baseline_');
+        addTearDown(() => tmp.deleteSync(recursive: true));
+        final path = p.join(tmp.path, '.kareki-baseline.json');
+        Baseline.write(path, result.findings, rootPath: root);
+        final raw = File(path).readAsStringSync();
+
+        expect(raw, contains('<root>/'));
+        expect(raw, isNot(contains(root)));
+      },
+    );
+
+    test('staleKeys reports entries no longer present in findings', () async {
       final root = _fixture('single_package');
-      final result = KarekiRunner().run(
-        RunRequest(rootPath: root, config: KarekiConfig.load(root)),
-      );
-
-      final tmp = Directory.systemTemp.createTempSync('kareki_baseline_');
-      addTearDown(() => tmp.deleteSync(recursive: true));
-      final path = p.join(tmp.path, '.kareki-baseline.json');
-      Baseline.write(path, result.findings, rootPath: root);
-      final raw = File(path).readAsStringSync();
-
-      expect(raw, contains('<root>/'));
-      expect(raw, isNot(contains(root)));
-    });
-
-    test('staleKeys reports entries no longer present in findings', () {
-      final root = _fixture('single_package');
-      final result = KarekiRunner().run(
+      final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
       expect(result.findings.length, greaterThan(1));

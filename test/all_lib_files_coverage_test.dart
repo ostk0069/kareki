@@ -8,6 +8,12 @@ import 'package:kareki/src/baseline/baseline.dart' deferred as coverage01;
 import 'package:kareki/src/cli/cli.dart' deferred as coverage02;
 import 'package:kareki/src/cli/doctor_cli.dart' deferred as coverage03;
 import 'package:kareki/src/config/kareki_config.dart' deferred as coverage04;
+import 'package:kareki/src/dependency/analysis_options_dependencies.dart'
+    deferred as coverage27;
+import 'package:kareki/src/dependency/flutter_asset_dependencies.dart'
+    deferred as coverage28;
+import 'package:kareki/src/dependency/native_plugin_dependencies.dart'
+    deferred as coverage25;
 import 'package:kareki/src/dependency/pub_dependency_checker.dart'
     deferred as coverage05;
 import 'package:kareki/src/doctor/doctor_finding.dart' deferred as coverage06;
@@ -15,6 +21,8 @@ import 'package:kareki/src/doctor/doctor_reporter.dart' deferred as coverage07;
 import 'package:kareki/src/doctor/doctor_runner.dart' deferred as coverage08;
 import 'package:kareki/src/entry_points/entry_point_resolver.dart'
     deferred as coverage09;
+import 'package:kareki/src/generated/flutter_localizations.dart'
+    deferred as coverage26;
 import 'package:kareki/src/model/declaration.dart' deferred as coverage10;
 import 'package:kareki/src/model/finding.dart' deferred as coverage11;
 import 'package:kareki/src/model/package_info.dart' deferred as coverage12;
@@ -23,12 +31,18 @@ import 'package:kareki/src/parser/declaration_collector.dart'
 import 'package:kareki/src/preset/builtin_presets.dart' deferred as coverage14;
 import 'package:kareki/src/preset/preset.dart' deferred as coverage15;
 import 'package:kareki/src/preset/preset_registry.dart' deferred as coverage16;
-import 'package:kareki/src/reachability/reachability_graph.dart'
-    deferred as coverage17;
+import 'package:kareki/src/reachability/external_decoder_models.dart'
+    deferred as coverage24;
+import 'package:kareki/src/reachability/json_value_origins.dart'
+    deferred as coverage23;
+import 'package:kareki/src/reachability/resolved_reachability.dart'
+    deferred as coverage22;
 import 'package:kareki/src/reachability/unused_file_detector.dart'
     deferred as coverage18;
 import 'package:kareki/src/reporter/reporter.dart' deferred as coverage19;
 import 'package:kareki/src/runner.dart' deferred as coverage20;
+import 'package:kareki/src/workspace/dart_source_files.dart'
+    deferred as coverage29;
 import 'package:kareki/src/workspace/workspace_loader.dart'
     deferred as coverage21;
 import 'package:path/path.dart' as p;
@@ -66,6 +80,9 @@ void main() {
     );
 
     await Future.wait([
+      coverage29.loadLibrary(),
+      coverage27.loadLibrary(),
+      coverage28.loadLibrary(),
       coverage00.loadLibrary(),
       coverage01.loadLibrary(),
       coverage02.loadLibrary(),
@@ -83,11 +100,15 @@ void main() {
       coverage14.loadLibrary(),
       coverage15.loadLibrary(),
       coverage16.loadLibrary(),
-      coverage17.loadLibrary(),
       coverage18.loadLibrary(),
       coverage19.loadLibrary(),
       coverage20.loadLibrary(),
       coverage21.loadLibrary(),
+      coverage22.loadLibrary(),
+      coverage23.loadLibrary(),
+      coverage24.loadLibrary(),
+      coverage25.loadLibrary(),
+      coverage26.loadLibrary(),
     ]);
   });
 }

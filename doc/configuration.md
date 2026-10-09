@@ -3,14 +3,14 @@ title: Configuration
 weight: 3
 ---
 
-`kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional — defaults work out of the box.
+`kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional.
 
-## Top-level schema
+## Settings
 
 | Key | Type | Purpose |
 |---|---|---|
 | `packages` | map | Override workspace package globs (defaults to melos.yaml / pub workspace auto-detection). |
-| `exclude` | map | Files, declaration names, or parameter names to skip from analysis. |
+| `exclude` | map | Files, declaration names, or parameter names to exclude from findings. |
 | `entry_points` | map | Additional entry-point files / declaration names. |
 | `keep_alive_annotations` | map | Enabled built-in presets + ad-hoc keep-alive annotation names. |
 | `custom_presets` | map | Project-defined presets, or overrides of built-ins. |
@@ -24,12 +24,36 @@ weight: 3
 
 | Setting | Built-in value |
 |---|---|
-| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
+| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.drift.dart`, `.steps.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
 | `entry_points.files` | `**/*.story.dart`, `**/widgetbook/**/*.dart` |
 | `keep_alive_annotations.presets` | `freezed`, `json_serializable`, `riverpod`, `auto_route`, `go_router`, `drift`, `hive`, `meta` |
 | `sdk_packages` | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine` |
-| Implicit entry-point conventions | `main.dart` / `main_*.dart`, `flutter_test_config.dart`, `*_test.dart` (in `test/`), any file in `bin/`, `integration_test/`, `lib/l10n/`, or any `void main()` declared under `test/` |
+| Implicit entry-point conventions | `main.dart` / `main_*.dart`, `flutter_test_config.dart`, `*_test.dart` (in `test/`), any file in `bin/`, `integration_test/`, `lib/l10n/`, or any collected file with a top-level `main` |
 | Generated-file detection (content) | First lines contain `GENERATED CODE - DO NOT MODIFY BY HAND` or `AUTO-GENERATED FILE. DO NOT EDIT` |
+
+## Source collection and generated files
+
+Source collection includes Dart files directly in each package root and under
+`lib/`, `bin/`, `test/`, `integration_test/`, `example/`, `tool/`, and `tools/`.
+`build/`, `.dart_tool/`, and `.git/` directories are pruned; discovered nested packages own their
+files without duplicate collection under the parent. Any collected file
+with a top-level `main` is an executable entry point. Other script helpers are
+not automatically kept alive. Nonstandard source directories are not discovered
+merely by listing them in `entry_points.files`.
+
+For packages with `flutter: {generate: true}`, Flutter gen-l10n outputs are
+recognized using `l10n.yaml` (`arb-dir`, `output-dir`, `output-localization-file`)
+and locales in ARB inputs. Defaults are `lib/l10n` and `app_localizations.dart`.
+Only matching output paths are exempted from findings; their outgoing references
+still count. An entire generated directory or every `app_localizations*.dart`
+file is not blindly excluded. Legacy `synthetic-package: true` output is not
+classified by this source-output rule. Run generation before analysis; this
+recognition does not create missing output files.
+
+Files matched by `exclude.files` remain reference sources; they are excluded
+from findings, not from collection. Drift schema snapshots and
+`flutter_rust_bridge` outputs are also recognized by generator-specific headers.
+Their imports, references, and supplied arguments still count.
 
 ## Built-in presets
 
@@ -44,7 +68,27 @@ weight: 3
 | `hive` | `@HiveType`, `@HiveField` | `hive` |
 | `meta` *(always on)* | `@visibleForTesting`, `@visibleForOverriding`, `@protected`, `@internal`, `@immutable`, `@experimental`, `@mustCallSuper`, `@sealed`, `@factory`, `@useResult`, `@nonVirtual`, `@pragma` | `meta` |
 
-Definitions live in [`lib/src/preset/builtin_presets.dart`](../lib/src/preset/builtin_presets.dart) with a `last_verified` framework version on each entry.
+Definitions live in [`lib/src/preset/builtin_presets.dart`](https://github.com/ostk0069/kareki/blob/main/lib/src/preset/builtin_presets.dart) with a `last_verified` framework version on each entry.
+
+### Schema generation inputs
+
+The built-in `drift` preset retains columns of reachable `package:drift`
+`Table` subtypes, including inherited and mixin columns. They remain generation
+inputs even when generated getters override them. Unused tables and unrelated
+same-name types are not retained by this rule.
+
+The built-in `freezed` preset retains redirecting factories on types annotated
+with the resolved `Freezed` type from `package:freezed_annotation`, including
+`@freezed`. These factories define generated variants even when callers use
+the generated classes directly.
+
+It also retains expression-bodied `fromJson` factories as JSON generation
+switches when a `.g.dart` part exists and either JSON direction is unspecified
+in the annotation. Explicit settings for both directions, block bodies, other
+factory names, and unrelated same-name annotations do not trigger this extra
+rule. Build-level overrides may make the switch redundant; it is still retained.
+
+Disabling or replacing either preset removes its additional schema protections.
 
 ## Defining or overriding a preset
 
@@ -66,6 +110,26 @@ custom_presets:
 ```
 
 When `custom_presets.<name>` matches a built-in name, the built-in is **replaced entirely** — useful for pinning to a framework version whose annotation names have diverged from kareki's defaults.
+
+## Dependency usage beyond imports
+
+Some dependencies are needed without a Dart import:
+
+- Native Flutter plugins whose resolved `pubspec.yaml` declares
+  `ffiPlugin: true` or a nonempty `pluginClass`. Flutter can register or bundle
+  them automatically. Kareki reads the nearest `.dart_tool/package_config.json`,
+  so run `pub get` first. This exemption does not prove that a plugin is needed
+  on every target platform.
+- Packages referenced by the nearest `analysis_options.yaml` for each source,
+  including relative and package includes followed transitively.
+- Font packages referenced by resolved Flutter `IconData` constants or literal
+  constructor `fontPackage` arguments. Usage is attributed to the referencing
+  package.
+
+Flutter dependency-only checks therefore also require successful resolution.
+Dynamic asset paths and arbitrary build scripts are not inferred.
+Before deleting code used by build variants, follow the checks in
+[how it works](how-it-works.md).
 
 ## Suppression
 
@@ -107,16 +171,15 @@ class MyClass {}
 ignore:
   dependencies:
     my_app:
-      # Flutter native plugins are auto-registered, never imported.
-      - geolocator_android
-      - google_sign_in_ios
+      # A dependency used by a custom build script that kareki cannot inspect.
+      - custom_build_support
 ```
 
 ### Global
 
 ```yaml
 ignore:
-  packages: [dartx, wt_cli]    # skip these workspace packages
+  packages: [legacy_tools]    # suppress reports; keep references
   rules: [unused_pub_dependency]
 ```
 
@@ -163,7 +226,7 @@ custom_presets:
 ignore:
   packages: [my_lib_package]
   dependencies:
-    my_app: [geolocator_android, google_sign_in_ios]
+    my_app: [custom_build_support]
 
 output:
   format: text

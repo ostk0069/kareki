@@ -6,6 +6,8 @@ import 'package:kareki/src/doctor/doctor_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../support/test_workspace.dart';
+
 /// Build a minimal workspace under [root] containing one or more
 /// packages. Each [packages] entry is a map from package name to a
 /// map of relative file path → file content. A `pubspec.yaml` is
@@ -61,8 +63,10 @@ void _writeKarekiConfig(String root, String contents) {
   File(p.join(root, 'kareki-config.yaml')).writeAsStringSync(contents);
 }
 
-DoctorRequest _request(String root) =>
-    DoctorRequest(rootPath: root, config: KarekiConfig.load(root));
+DoctorRequest _request(String root) {
+  configureTestPackages(root);
+  return DoctorRequest(rootPath: root, config: KarekiConfig.load(root));
+}
 
 void main() {
   late Directory tempRoot;
@@ -76,59 +80,130 @@ void main() {
   });
 
   group('DoctorRunner', () {
-    test('flags `exclude.files` globs that match no file in the workspace', () {
+    test('recognizes excludes for root and tooling scripts', () async {
       _scaffold(
         tempRoot.path,
         packages: {
-          'app': {'lib/main.dart': 'class A {}\n'},
+          'app': {
+            'script.dart': 'void main() {}',
+            'tool/helper.dart': 'void main() {}',
+            'tools/helper.dart': 'void main() {}',
+          },
         },
       );
       _writeKarekiConfig(tempRoot.path, '''
 version: 1
 exclude:
   files:
-    - "**/*.legacy.dart"
-    - "**/*.dart"
+    - app/script.dart
+    - app/tool/helper.dart
+    - app/tools/helper.dart
+    - app/missing.dart
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
-      final dead = result.findings
-          .where((f) => f.kind == DoctorIssueKind.unusedExclude)
-          .map((f) => f.subject)
-          .toList();
-      expect(dead, contains('**/*.legacy.dart'));
+      final result = await DoctorRunner().run(_request(tempRoot.path));
+      expect(result.analysisWarnings, isEmpty);
       expect(
-        dead,
-        isNot(contains('**/*.dart')),
-        reason: '**/*.dart should match main.dart in the workspace',
+        result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedExclude)
+            .map((f) => f.subject),
+        ['app/missing.dart'],
       );
     });
 
-    test('flags `ignore.packages` entries pointing at unknown packages', () {
+    test('checks live and stale ignores in root and tooling scripts', () async {
+      const paths = ['script.dart', 'tool/helper.dart', 'tools/helper.dart'];
       _scaffold(
         tempRoot.path,
         packages: {
-          'app': {'lib/main.dart': 'class A {}\n'},
+          'app': {
+            for (final path in paths)
+              path: '''
+// kareki: ignore_for_file=unused_parameter,test_only_used
+void main() {}
+void helper(int unused) {}
+// kareki: ignore=removedSymbol
+void another() {}
+''',
+          },
         },
       );
-      _writeKarekiConfig(tempRoot.path, '''
+      final result = await DoctorRunner().run(_request(tempRoot.path));
+      expect(result.analysisWarnings, isEmpty);
+      final ignores = result.findings
+          .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDirective)
+          .toList();
+      expect(ignores, hasLength(paths.length * 2));
+      for (final path in paths) {
+        expect(
+          ignores.where((f) => f.subject == 'app/$path').map((f) => f.detail),
+          ['test_only_used'],
+        );
+        expect(
+          ignores.where((f) => f.subject == 'app/$path:5').map((f) => f.detail),
+          ['removedSymbol'],
+        );
+      }
+    });
+
+    test(
+      'flags `exclude.files` globs that match no file in the workspace',
+      () async {
+        _scaffold(
+          tempRoot.path,
+          packages: {
+            'app': {'lib/main.dart': 'class A {}\n'},
+          },
+        );
+        _writeKarekiConfig(tempRoot.path, '''
+version: 1
+exclude:
+  files:
+    - "**/*.legacy.dart"
+    - "**/*.dart"
+''');
+        final result = await DoctorRunner().run(_request(tempRoot.path));
+        final dead = result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedExclude)
+            .map((f) => f.subject)
+            .toList();
+        expect(dead, contains('**/*.legacy.dart'));
+        expect(
+          dead,
+          isNot(contains('**/*.dart')),
+          reason: '**/*.dart should match main.dart in the workspace',
+        );
+      },
+    );
+
+    test(
+      'flags `ignore.packages` entries pointing at unknown packages',
+      () async {
+        _scaffold(
+          tempRoot.path,
+          packages: {
+            'app': {'lib/main.dart': 'class A {}\n'},
+          },
+        );
+        _writeKarekiConfig(tempRoot.path, '''
 version: 1
 ignore:
   packages:
     - app
     - wt_legacy_removed
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
-      final dead = result.findings
-          .where((f) => f.kind == DoctorIssueKind.unusedIgnorePackage)
-          .map((f) => f.subject)
-          .toList();
-      expect(dead, contains('wt_legacy_removed'));
-      expect(dead, isNot(contains('app')));
-    });
+        final result = await DoctorRunner().run(_request(tempRoot.path));
+        final dead = result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedIgnorePackage)
+            .map((f) => f.subject)
+            .toList();
+        expect(dead, contains('wt_legacy_removed'));
+        expect(dead, isNot(contains('app')));
+      },
+    );
 
     test(
       'flags `exclude.parameter_names` entries that suppress no finding',
-      () {
+      () async {
         _scaffold(
           tempRoot.path,
           packages: {
@@ -154,7 +229,7 @@ exclude:
     - removedParameter
 ''');
 
-        final result = DoctorRunner().run(_request(tempRoot.path));
+        final result = await DoctorRunner().run(_request(tempRoot.path));
         final dead = result.findings
             .where(
               (finding) =>
@@ -170,7 +245,7 @@ exclude:
 
     test(
       'flags `ignore.dependencies` parent keys when the package is unknown',
-      () {
+      () async {
         _scaffold(
           tempRoot.path,
           packages: {
@@ -194,7 +269,7 @@ ignore:
     removed_pkg:
       - something
 ''');
-        final result = DoctorRunner().run(_request(tempRoot.path));
+        final result = await DoctorRunner().run(_request(tempRoot.path));
         final dead = result.findings
             .where(
               (f) => f.kind == DoctorIssueKind.unusedIgnoreDependenciesPackage,
@@ -205,24 +280,26 @@ ignore:
       },
     );
 
-    test('flags `ignore.dependencies` entries whose dep is not declared', () {
-      _scaffold(
-        tempRoot.path,
-        packages: {
-          'app': {
-            'pubspec.yaml':
-                'name: app\n'
-                'publish_to: none\n'
-                'environment:\n'
-                '  sdk: ">=3.6.0 <4.0.0"\n'
-                'resolution: workspace\n'
-                'dependencies:\n'
-                '  meta: ^1.10.0\n',
-            'lib/main.dart': 'class A {}\n',
+    test(
+      'flags `ignore.dependencies` entries whose dep is not declared',
+      () async {
+        _scaffold(
+          tempRoot.path,
+          packages: {
+            'app': {
+              'pubspec.yaml':
+                  'name: app\n'
+                  'publish_to: none\n'
+                  'environment:\n'
+                  '  sdk: ">=3.6.0 <4.0.0"\n'
+                  'resolution: workspace\n'
+                  'dependencies:\n'
+                  '  meta: ^1.10.0\n',
+              'lib/main.dart': 'class A {}\n',
+            },
           },
-        },
-      );
-      _writeKarekiConfig(tempRoot.path, '''
+        );
+        _writeKarekiConfig(tempRoot.path, '''
 version: 1
 ignore:
   dependencies:
@@ -230,55 +307,59 @@ ignore:
       - meta
       - removed_dep
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
-      final findings = result.findings
-          .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDependency)
-          .map((f) => f.subject)
-          .toList();
-      expect(findings, contains('app -> removed_dep'));
-      expect(findings, isNot(contains('app -> meta')));
-    });
+        final result = await DoctorRunner().run(_request(tempRoot.path));
+        final findings = result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDependency)
+            .map((f) => f.subject)
+            .toList();
+        expect(findings, contains('app -> removed_dep'));
+        expect(findings, isNot(contains('app -> meta')));
+      },
+    );
 
-    test('flags `ignore_for_file` directives that match no real finding', () {
-      // The file ignores `test_only_used`, but nothing in the file would
-      // ever trigger that rule (the only declaration is a private member,
-      // and there are no test files referencing it). The ignore directive
-      // is therefore dead.
-      _scaffold(
-        tempRoot.path,
-        packages: {
-          'app': {
-            'pubspec.yaml':
-                'name: app\n'
-                'publish_to: none\n'
-                'environment:\n'
-                '  sdk: ">=3.6.0 <4.0.0"\n'
-                'resolution: workspace\n',
-            'bin/main.dart':
-                "import 'package:app/used.dart';\n"
-                'void main() => use();\n',
-            'lib/used.dart':
-                '// kareki: ignore_for_file=test_only_used\n'
-                '// nothing in this file is actually test-only.\n'
-                '\n'
-                'void use() {}\n',
+    test(
+      'flags `ignore_for_file` directives that match no real finding',
+      () async {
+        // The file ignores `test_only_used`, but nothing in the file would
+        // ever trigger that rule (the only declaration is a private member,
+        // and there are no test files referencing it). The ignore directive
+        // is therefore dead.
+        _scaffold(
+          tempRoot.path,
+          packages: {
+            'app': {
+              'pubspec.yaml':
+                  'name: app\n'
+                  'publish_to: none\n'
+                  'environment:\n'
+                  '  sdk: ">=3.6.0 <4.0.0"\n'
+                  'resolution: workspace\n',
+              'bin/main.dart':
+                  "import 'package:app/used.dart';\n"
+                  'void main() => use();\n',
+              'lib/used.dart':
+                  '// kareki: ignore_for_file=test_only_used\n'
+                  '// nothing in this file is actually test-only.\n'
+                  '\n'
+                  'void use() {}\n',
+            },
           },
-        },
-      );
-      _writeKarekiConfig(tempRoot.path, '''
+        );
+        _writeKarekiConfig(tempRoot.path, '''
 version: 1
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
-      final dead = result.findings
-          .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDirective)
-          .toList();
-      expect(dead, hasLength(1));
-      expect(dead.first.detail, 'test_only_used');
-      expect(dead.first.subject, endsWith('used.dart'));
-    });
+        final result = await DoctorRunner().run(_request(tempRoot.path));
+        final dead = result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDirective)
+            .toList();
+        expect(dead, hasLength(1));
+        expect(dead.first.detail, 'test_only_used');
+        expect(dead.first.subject, endsWith('used.dart'));
+      },
+    );
 
     test('flags per-line `// kareki: ignore=...` directives that match no '
-        'real finding', () {
+        'real finding', () async {
       // The directive sits above a class that is actually reachable from
       // `main`, so unused_element never fires on that line — the
       // directive is dead.
@@ -306,7 +387,7 @@ version: 1
       _writeKarekiConfig(tempRoot.path, '''
 version: 1
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
+      final result = await DoctorRunner().run(_request(tempRoot.path));
       final dead = result.findings
           .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDirective)
           .toList();
@@ -320,7 +401,7 @@ version: 1
     });
 
     test('flags baseline entries whose stableId is no longer produced by '
-        'any current finding', () {
+        'any current finding', () async {
       _scaffold(
         tempRoot.path,
         packages: {
@@ -364,7 +445,7 @@ baseline: .kareki-baseline.json
   ]
 }
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
+      final result = await DoctorRunner().run(_request(tempRoot.path));
       final stale = result.findings
           .where((f) => f.kind == DoctorIssueKind.unusedBaselineEntry)
           .toList();
@@ -373,7 +454,7 @@ baseline: .kareki-baseline.json
       expect(stale.single.detail, 'baseline');
     });
 
-    test('healthy config reports no findings', () {
+    test('healthy config reports no findings', () async {
       _scaffold(
         tempRoot.path,
         packages: {
@@ -402,7 +483,7 @@ ignore:
     app:
       - meta
 ''');
-      final result = DoctorRunner().run(_request(tempRoot.path));
+      final result = await DoctorRunner().run(_request(tempRoot.path));
       expect(result.findings, isEmpty);
     });
   });

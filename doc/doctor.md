@@ -3,22 +3,52 @@ title: Doctor
 weight: 5
 ---
 
-`kareki doctor` validates `kareki-config.yaml` against the actual state of your workspace. It surfaces configuration that no longer matches reality — globs and parameter-name excludes that suppress nothing, `ignore.*` entries pointing at packages or dependencies that have been removed, and ineffective inline `// kareki: ignore_for_file=...` / `// kareki: ignore=...` directives.
+`kareki doctor` finds configuration that no longer applies: unmatched file
+patterns, missing packages, ineffective suppression comments, and stale baseline
+entries. It reports issues without modifying files.
 
 ```sh
 dart run kareki doctor
 ```
 
+## Checks
+
 | Issue kind | Meaning |
 |---|---|
-| `unused-exclude` | An entry in `exclude.files` matched no `.dart` file in the workspace. |
-| `unused-exclude-parameter-name` | A name in `exclude.parameter_names` suppresses no current `unused_parameter` or `unused_parameter_optional` finding. |
-| `unused-ignore-package` | A name in `ignore.packages` is not a package in the workspace. |
-| `unused-ignore-dependencies-package` | A key in `ignore.dependencies` is not a package in the workspace. |
-| `unused-ignore-dependency` | A value listed under `ignore.dependencies.<pkg>` is not declared in that package's `pubspec.yaml`. |
-| `unused-ignore-directive` | A `// kareki: ignore_for_file=<rule>` or `// kareki: ignore=<rule>` directive suppresses no actual finding. Per-line directives report the targeted line as `<path>:<line>`. |
-| `unused-baseline-entry` | An entry in the baseline file no longer matches any current finding — the suppressed dead code has been removed or relocated. |
+| `unused-exclude` | An `exclude.files` entry matches no workspace `.dart` file. |
+| `unused-exclude-parameter-name` | An `exclude.parameter_names` entry suppresses no current `unused_parameter` or `unused_parameter_optional` finding. |
+| `unused-ignore-package` | An `ignore.packages` entry names no workspace package. |
+| `unused-ignore-dependencies-package` | An `ignore.dependencies` key names no workspace package. |
+| `unused-ignore-dependency` | An ignored dependency is not declared in that package's `pubspec.yaml`. |
+| `unused-ignore-directive` | A file-level or per-line suppression comment suppresses no finding. Per-line comments report the targeted line as `<path>:<line>`. |
+| `unused-baseline-entry` | A baseline entry no longer matches a current finding. The code may have been removed, moved, or become used. |
 
-Only **user-supplied** entries are checked. Built-in defaults (e.g. the bundled `**/*.g.dart` exclude) are never flagged.
+Only user-supplied entries are checked. Built-in defaults, such as the
+`**/*.g.dart` exclusion, are not flagged.
 
-Exits `0` when the configuration is clean, `1` when at least one issue is reported.
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | All checks completed with no issues. |
+| `1` | All checks completed with at least one issue. |
+| `2` | Analysis failed or warnings prevented safe completion. Takes precedence over `1`. |
+| `64` | Invalid CLI options or kareki configuration. |
+
+## When checks cannot complete
+
+Doctor uses resolved references to check parameter-name exclusions, suppression
+comments, and baseline entries. It shares one source snapshot across these checks.
+
+If source resolution or gen-l10n input loading fails, doctor returns `2` without
+a report. If analysis warnings leave usage uncertain, it skips these
+usage-dependent checks, explains why on stderr, and returns `2`.
+Structural checks, such as unmatched file patterns,
+can still produce issues.
+
+An empty JSON array with exit code `2` does **not** mean the configuration is
+clean. Do not remove suppressions or baseline entries based on that empty result.
+See [analysis internals](analysis-internals.md) for how to review warning evidence.
+
+Library users must await `DoctorRunner().analyze(request)` or `run(request)`.
+See the [API example and notes](https://github.com/ostk0069/kareki/blob/main/example/example.md#programmatic-api).

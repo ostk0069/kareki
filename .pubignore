@@ -4,6 +4,9 @@
 # declares.
 test/fixtures/
 
+# Local implementation investigation notes are not package documentation.
+doc/design/
+
 # pub.dev recomputes pubspec.lock per consumer, so omit ours.
 pubspec.lock
 

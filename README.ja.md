@@ -20,10 +20,10 @@
 |---|---|
 | 🌲 | **ワークスペースを横断して解析** — Melos / pub workspace 内のすべてのパッケージについて、相互の参照関係を解析 |
 | 🔓 | **public API も検出** — `dart analyze` では見つからない、未使用の public なクラス、メソッド、フィールドも対象に |
-| 🧬 | **コード生成ライブラリに対応** — freezed / json_serializable / riverpod / auto_route / go_router / drift / hive 向けのプリセットを完備 |
+| 🧬 | **コード生成ライブラリに対応** — freezed / json_serializable / riverpod / auto_route / go_router / drift / hive 向けのプリセットを用意 |
 | 🧪 | **テストからしか使われていないコードを検出** — `lib/` 配下にあり、同じパッケージのテストからしか参照されていないコードを検出 |
 | 📉 | **段階的に導入可能** — ベースラインを作成すれば、既存の検出結果を残したまま、新たに増えたデッドコードだけを CI で検出可能に |
-| 🩺 | **不要になった設定を確認** — `kareki doctor` で、対象がなくなった `ignore` 設定や suppression コメントを確認 |
+| 🩺 | **不要になった設定を確認** — `kareki doctor` で、対象がなくなった `ignore` 設定や 抑制コメントを確認 |
 | ⚙️ | **CI で使いやすい設計** — JSON 形式の出力、結果に応じた終了コード、環境に依存しないベースラインに対応 |
 
 ## What it finds
@@ -32,7 +32,7 @@
 |---|---|
 | `unused_element` | ワークスペース内のどこからも使われていない public なクラス、関数、メソッド、getter、setter、フィールド、トップレベル変数、extension、extension type、typedef |
 | `unused_file` | ほかのファイルから `import`、`part`、`export` されていない `.dart` ファイル |
-| `unused_pub_dependency` | `pubspec.yaml` に記載されているものの、ソースコードから一度も import されていない依存パッケージ |
+| `unused_pub_dependency` | `pubspec.yaml` に記載されているものの、ソース、解析設定、ネイティブプラグイン、フォントアセットのいずれでも使用が確認できない依存パッケージ |
 | `test_only_used` | `lib/` 配下にあり、テストコード（`*_test.dart`、`test/`、`integration_test/` 配下）からしか参照されていない public 宣言 |
 | `unused_parameter` | 関数、メソッド、名前付きコンストラクタの本体や初期化処理で一度も参照されていない引数。Dart 標準の `unused_element_parameter` では検出できない必須引数や public API も対象です。 |
 | `unused_parameter_optional` | ワークスペース内のどの呼び出し元からも値を渡されていない省略可能な引数（名前付き引数またはオプショナル位置引数）。単一ライブラリ内の private な省略可能引数だけを調べる Dart 標準の `unused_element_parameter` と異なり、public API やパッケージをまたぐ呼び出しも対象です。 |
@@ -51,23 +51,24 @@ dart pub get
 
 ## Usage
 
-ワークスペースのルートで、次のコマンドを実行します。
+プロジェクトの依存パッケージを取得し、コード生成を実行してから、
+ワークスペースのルートで次のコマンドを実行します。
 
 ```sh
 dart run kareki
 ```
 
-オプションについては、[CLI reference](doc/cli.ja.md) を参照してください。
+事前準備、オプション、解析警告については、[CLI リファレンス](doc/cli.ja.md)を参照してください。
 
 ## Adopting on an existing codebase
 
-最初からすべてのデッドコードを修正する必要はありません。現在の検出結果をベースラインとして保存しておけば、それ以降に増えたデッドコードだけを CI で検出できます。
+最初からすべてのデッドコードを修正する必要はありません。現在の検出結果を確認してからベースラインとして保存しておけば、それ以降に増えたデッドコードだけを CI で検出できます。
 
 ```sh
 dart run kareki --baseline .kareki-baseline.json --write-baseline
 ```
 
-詳しくは、[Baseline](doc/baseline.ja.md) を参照してください。
+詳しくは、[ベースライン](doc/baseline.ja.md) を参照してください。
 
 ## Keeping the config honest
 
@@ -83,12 +84,12 @@ dart run kareki doctor
 
 [ドキュメントサイト](https://ostk0069.github.io/kareki/ja/)から読むことも、Markdown の原文を直接読むこともできます。
 
-- [CLI reference](doc/cli.ja.md) — コマンドの使い方、オプション、終了コード
-- [Configuration](doc/configuration.ja.md) — `kareki-config.yaml` の書き方、プリセットや除外・抑制の設定方法
-- [Baseline](doc/baseline.ja.md) — 現在の検出結果を保存し、新しく増えたデッドコードだけを検出する方法
+- [CLI リファレンス](doc/cli.ja.md) — コマンドの使い方、オプション、終了コード
+- [設定](doc/configuration.ja.md) — `kareki-config.yaml` の書き方、プリセットや除外・抑制の設定方法
+- [ベースライン](doc/baseline.ja.md) — 現在の検出結果を保存し、新しく増えたデッドコードだけを検出する方法
 - [Doctor](doc/doctor.ja.md) — 不要になった除外設定や抑制コメントを見つける方法
-- [解析の仕組み](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、エントリポイントの扱い、対応バージョン
-- [運用のベストプラクティス](doc/operations.ja.md) — cronとAIエージェントで定期的にクリーンアップPRを作る方法
+- [解析の仕組み](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、解析の起点、保証できないこと、対応バージョン
+- [運用のベストプラクティス](doc/operations.ja.md) — cron と AI エージェントで定期的にクリーンアップ PR を作る方法
 
 ## License
 

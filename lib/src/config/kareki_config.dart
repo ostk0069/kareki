@@ -40,6 +40,8 @@ class KarekiConfig {
       '**/*.freezed.dart',
       '**/*.gr.dart',
       '**/*.generated.dart',
+      '**/*.drift.dart',
+      '**/*.steps.dart',
       '**/*.pb.dart',
       '**/*.pbenum.dart',
       '**/*.pbjson.dart',
@@ -111,6 +113,12 @@ class KarekiConfig {
     final keepAlive = yaml['keep_alive_annotations'] as YamlMap?;
     final ignore = yaml['ignore'] as YamlMap?;
     final output = yaml['output'] as YamlMap?;
+    if (yaml.containsKey('analysis_mode')) {
+      throw const FormatException(
+        'analysis_mode has been removed; delete this option. '
+        'Kareki now always uses resolved analysis.',
+      );
+    }
 
     return KarekiConfig(
       includePackages: _stringList(packages?['include']),

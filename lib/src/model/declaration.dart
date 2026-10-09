@@ -67,8 +67,22 @@ class OptionalParameterRecord {
   final int? positionalIndex;
 }
 
-/// Argument usage observed at all call sites of a single simple name,
-/// aggregated across the workspace. Used to drive the
+/// Optional-argument knowledge within the analysis scope.
+enum OptionalArgumentState {
+  /// A scanned call supplies this parameter, directly or through a conservative
+  /// callback-flow path. This retains potential uses, not runtime execution proof.
+  used,
+
+  /// No scanned call supplies it and no unknown call path remains, within the
+  /// analysis scope. This is not a guarantee about external API consumers.
+  unused,
+
+  /// An unmodelled call path could supply this parameter.
+  unknown,
+}
+
+/// Argument usage for one resolved callable, aggregated across the workspace.
+/// Drives the
 /// `unused_parameter_optional` rule.
 class CallSiteUsage {
   CallSiteUsage();
@@ -97,8 +111,7 @@ class CallSiteUsage {
 ///
 /// Holds the metadata needed to:
 /// - identify the declaration in reports (name, kind, location),
-/// - participate in reachability graph BFS (`outgoingNames`,
-///   `enclosingTypeName`),
+/// - map to analyzer declaration identities for reachability,
 /// - decide whether the declaration should be kept alive
 ///   (`annotations`, `isPublic`).
 class DeclarationRecord {
@@ -112,7 +125,6 @@ class DeclarationRecord {
     required this.line,
     required this.column,
     required this.isPublic,
-    required this.outgoingNames,
     required this.annotations,
     this.enclosingTypeName,
     this.unusedParameters = const [],
@@ -137,10 +149,6 @@ class DeclarationRecord {
 
   /// `true` if the name does not start with `_`.
   final bool isPublic;
-
-  /// Simple names referenced inside the declaration body. Used as outgoing
-  /// edges in the reachability graph.
-  final Set<String> outgoingNames;
 
   /// Annotation simple names attached to the declaration
   /// (e.g. `visibleForTesting`, `internal`, `RoutePage`).

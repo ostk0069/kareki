@@ -125,48 +125,4 @@ class Service {
       expect(ctor.unusedParameters, isEmpty);
     });
   });
-
-  group('DeclarationCollector.callSiteUsage', () {
-    test('records named arguments passed at MethodInvocation call sites', () {
-      final parsed = _parse('''
-void main() {
-  doWork(host: 'x', port: 1);
-  doWork(host: 'y');
-}
-''');
-      final usage = parsed.callSiteUsage['doWork'];
-      expect(usage, isNotNull);
-      expect(usage!.namedArgsPassed, {'host', 'port'});
-      expect(usage.maxPositionalArgs, 0);
-    });
-
-    test('records max positional arg count across calls', () {
-      final parsed = _parse('''
-void main() {
-  fmt(1);
-  fmt(1, 2);
-  fmt(1, 2, 3);
-}
-''');
-      final usage = parsed.callSiteUsage['fmt'];
-      expect(usage, isNotNull);
-      expect(usage!.maxPositionalArgs, 3);
-    });
-
-    test('records constructor calls under the constructor simple name', () {
-      final parsed = _parse('''
-void main() {
-  Service.create(tag: 'a');
-  HttpClient(endpoint: 'b');
-}
-''');
-      final ctor = parsed.callSiteUsage['create'];
-      expect(ctor, isNotNull);
-      expect(ctor!.namedArgsPassed, {'tag'});
-
-      final unnamed = parsed.callSiteUsage['HttpClient'];
-      expect(unnamed, isNotNull);
-      expect(unnamed!.namedArgsPassed, {'endpoint'});
-    });
-  });
 }

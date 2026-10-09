@@ -21,6 +21,8 @@ import 'package:kareki/src/runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import 'support/test_workspace.dart';
+
 void main() {
   late Directory tempRoot;
 
@@ -32,6 +34,7 @@ publish_to: none
 environment:
   sdk: ">=3.10.0 <4.0.0"
 ''');
+    configureTestPackages(tempRoot.path);
     Directory(p.join(tempRoot.path, 'lib')).createSync();
     File(
       p.join(tempRoot.path, 'lib', 'main.dart'),
@@ -43,74 +46,92 @@ environment:
   });
 
   group('CLI branches', () {
-    test('main CLI handles help and malformed arguments', () {
-      expect(runCli(['--help'], workingDirectory: tempRoot.path), 0);
-      expect(runCli(['--not-an-option'], workingDirectory: tempRoot.path), 64);
-    });
-
-    test('main CLI handles formats, rules, packages, and strict mode', () {
+    test('main CLI handles help and malformed arguments', () async {
+      expect(await runCli(['--help'], workingDirectory: tempRoot.path), 0);
       expect(
-        runCli([
-          '--format',
-          'json',
-          '--packages',
-          'coverage_app',
-          '--rule',
-          RuleId.unusedElement,
-          '--strict',
-        ], workingDirectory: tempRoot.path),
-        anyOf(0, 1),
-      );
-      expect(
-        runCli(['--rule', 'not_a_rule'], workingDirectory: tempRoot.path),
+        await runCli(['--not-an-option'], workingDirectory: tempRoot.path),
         64,
       );
     });
 
-    test('main CLI reports a malformed baseline', () {
+    test(
+      'main CLI handles formats, rules, packages, and strict mode',
+      () async {
+        expect(
+          await runCli([
+            '--format',
+            'json',
+            '--packages',
+            'coverage_app',
+            '--rule',
+            RuleId.unusedElement,
+            '--strict',
+          ], workingDirectory: tempRoot.path),
+          anyOf(0, 1),
+        );
+        expect(
+          await runCli([
+            '--rule',
+            'not_a_rule',
+          ], workingDirectory: tempRoot.path),
+          64,
+        );
+      },
+    );
+
+    test('main CLI reports a malformed baseline', () async {
       final baseline = p.join(tempRoot.path, 'baseline.json');
       File(baseline).writeAsStringSync('[]');
       expect(
-        runCli(['--baseline', baseline], workingDirectory: tempRoot.path),
+        await runCli(['--baseline', baseline], workingDirectory: tempRoot.path),
         64,
       );
     });
 
-    test('main CLI keeps findings absent from a partial baseline', () {
+    test('main CLI keeps findings absent from a partial baseline', () async {
       File(
         p.join(tempRoot.path, 'lib', 'dead.dart'),
       ).writeAsStringSync('class Dead {}\nclass AlsoDead {}\n');
       final config = KarekiConfig.load(tempRoot.path);
-      final findings = KarekiRunner()
-          .run(RunRequest(rootPath: tempRoot.path, config: config))
-          .findings;
+      final findings = (await KarekiRunner().run(
+        RunRequest(rootPath: tempRoot.path, config: config),
+      )).findings;
       final baseline = p.join(tempRoot.path, 'baseline.json');
       Baseline.write(baseline, [findings.first], rootPath: tempRoot.path);
 
       expect(
-        runCli(['--baseline', baseline], workingDirectory: tempRoot.path),
+        await runCli(['--baseline', baseline], workingDirectory: tempRoot.path),
         1,
       );
     });
 
-    test('doctor dispatch handles help, malformed options, text, and json', () {
-      expect(runCli(['doctor', '--help'], workingDirectory: tempRoot.path), 0);
-      expect(
-        runDoctor(['--not-an-option'], workingDirectory: tempRoot.path),
-        64,
-      );
-      expect(runDoctor([], workingDirectory: tempRoot.path), 0);
+    test(
+      'doctor dispatch handles help, malformed options, text, and json',
+      () async {
+        expect(
+          await runCli(['doctor', '--help'], workingDirectory: tempRoot.path),
+          0,
+        );
+        expect(
+          await runDoctor(['--not-an-option'], workingDirectory: tempRoot.path),
+          64,
+        );
+        expect(await runDoctor([], workingDirectory: tempRoot.path), 0);
 
-      File(p.join(tempRoot.path, 'kareki-config.yaml')).writeAsStringSync('''
+        File(p.join(tempRoot.path, 'kareki-config.yaml')).writeAsStringSync('''
 version: 1
 ignore:
   packages: [missing]
 ''');
-      expect(
-        runDoctor(['--format', 'json'], workingDirectory: tempRoot.path),
-        1,
-      );
-    });
+        expect(
+          await runDoctor([
+            '--format',
+            'json',
+          ], workingDirectory: tempRoot.path),
+          1,
+        );
+      },
+    );
   });
 
   test('reporters render empty, detailed, relative, and JSON output', () {
@@ -164,7 +185,7 @@ ignore:
     expect(JsonReporter().render(findings), contains(tempRoot.path));
   });
 
-  test('config parses custom values and supporting value objects', () {
+  test('config parses custom values and supporting value objects', () async {
     File(p.join(tempRoot.path, 'kareki-config.yaml')).writeAsStringSync('''
 version: 1
 packages:
@@ -233,17 +254,19 @@ dependencies:
   one: any
   two: any
 ''');
-    File(
-      p.join(tempRoot.path, 'lib', 'main.dart'),
-    ).writeAsStringSync('@Keep() class Kept {}\n');
-    final dependencyFindings = KarekiRunner()
-        .run(RunRequest(rootPath: tempRoot.path, config: config))
-        .findings
-        .where((finding) => finding.ruleId == RuleId.unusedPubDependency);
+    File(p.join(tempRoot.path, 'lib', 'main.dart')).writeAsStringSync(
+      'class Keep { const Keep(); }\n@Keep() class Kept {}\n',
+    );
+    final dependencyFindings =
+        (await KarekiRunner().run(
+          RunRequest(rootPath: tempRoot.path, config: config),
+        )).findings.where(
+          (finding) => finding.ruleId == RuleId.unusedPubDependency,
+        );
     expect(dependencyFindings, isEmpty);
   });
 
-  test('baseline and doctor tolerate malformed baseline shapes', () {
+  test('baseline and doctor tolerate malformed baseline shapes', () async {
     final baselinePath = p.join(tempRoot.path, 'baseline.json');
     File(baselinePath).writeAsStringSync('[]');
     expect(() => Baseline.load(baselinePath), throwsFormatException);
@@ -252,7 +275,7 @@ dependencies:
 version: 1
 baseline: baseline.json
 ''');
-    final result = DoctorRunner().run(
+    final result = await DoctorRunner().run(
       DoctorRequest(
         rootPath: tempRoot.path,
         config: KarekiConfig.load(tempRoot.path),
@@ -261,45 +284,46 @@ baseline: baseline.json
     expect(result.findings, isEmpty);
   });
 
-  test('doctor sorts multiple findings and matches effective directives', () {
-    File(p.join(tempRoot.path, 'kareki-config.yaml')).writeAsStringSync('''
+  test(
+    'doctor sorts multiple findings and matches effective directives',
+    () async {
+      File(p.join(tempRoot.path, 'kareki-config.yaml')).writeAsStringSync('''
 version: 1
 ignore:
   packages: [z_missing]
 ''');
-    File(p.join(tempRoot.path, 'lib', 'dead.dart')).writeAsStringSync('''
+      File(p.join(tempRoot.path, 'lib', 'dead.dart')).writeAsStringSync('''
 // kareki: ignore_for_file=unused_element
 class Dead {}
 ''');
-    File(p.join(tempRoot.path, 'lib', 'stale.dart')).writeAsStringSync('''
+      File(p.join(tempRoot.path, 'lib', 'stale.dart')).writeAsStringSync('''
 // kareki: ignore_for_file=zzz, aaa
 void used() {}
 ''');
-    File(p.join(tempRoot.path, 'bin', 'main.dart'))
-      ..createSync(recursive: true)
-      ..writeAsStringSync('''
+      File(p.join(tempRoot.path, 'bin', 'main.dart'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('''
 import 'package:coverage_app/stale.dart';
 void main() => used();
 ''');
 
-    final findings = DoctorRunner()
-        .run(
-          DoctorRequest(
-            rootPath: tempRoot.path,
-            config: KarekiConfig.load(tempRoot.path),
-          ),
-        )
-        .findings;
+      final findings = (await DoctorRunner().run(
+        DoctorRequest(
+          rootPath: tempRoot.path,
+          config: KarekiConfig.load(tempRoot.path),
+        ),
+      )).findings;
 
-    expect(
-      findings.map((finding) => finding.detail),
-      containsAll(['aaa', 'zzz']),
-    );
-    expect(
-      findings.map((finding) => finding.kind),
-      contains(DoctorIssueKind.unusedIgnorePackage),
-    );
-  });
+      expect(
+        findings.map((finding) => finding.detail),
+        containsAll(['aaa', 'zzz']),
+      );
+      expect(
+        findings.map((finding) => finding.kind),
+        contains(DoctorIssueKind.unusedIgnorePackage),
+      );
+    },
+  );
 
   test('entry points include integration tests and annotated declarations', () {
     File(p.join(tempRoot.path, 'kareki-config.yaml')).writeAsStringSync('''
@@ -333,9 +357,8 @@ keep_alive_annotations:
           rootPath: tempRoot.path,
           packageRoots: {'coverage_app': tempRoot.path},
         );
-
-    expect(resolved.testRootNames, contains('IntegrationScenario'));
-    expect(resolved.productionRootNames, contains('Kept'));
+    expect(resolved.entryPointPaths, contains(integration.path));
+    expect(resolved.keepAliveAnnotations, contains('Keep'));
   });
 
   test('dependency checker recognizes annotations and protobuf output', () {
@@ -421,6 +444,5 @@ void stub(int value) => throw new UnimplementedError();
         DeclarationKind.typedefDecl,
       ]),
     );
-    expect(parsed.callSiteUsage, isNotEmpty);
   });
 }

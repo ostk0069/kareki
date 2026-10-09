@@ -3,16 +3,35 @@ title: Baseline
 weight: 4
 ---
 
-A baseline lets you adopt kareki on a large codebase without first deleting every existing finding: snapshot the current state, commit the snapshot, and the CI only fails on **new** findings going forward.
+A baseline records existing findings so you can adopt kareki without fixing them
+all first. Later runs report only findings that are not in the baseline.
 
-Generate the baseline from a clean working tree:
+## Create a baseline
+
+From a clean working tree, install dependencies, generate sources, and review
+kareki's findings and analysis warnings. Then save the findings:
 
 ```sh
 dart run kareki --baseline .kareki-baseline.json --write-baseline
 ```
 
-This writes every current finding to `.kareki-baseline.json`. Commit the file. Subsequent runs that point at the same baseline (either via `--baseline` or `baseline: .kareki-baseline.json` in `kareki-config.yaml`) suppress matching findings from the output and the exit code, while any new finding still fails the run.
+Commit `.kareki-baseline.json`. To use it on later runs, pass
+`--baseline .kareki-baseline.json` or set this in `kareki-config.yaml`:
 
-The file is sorted by `(ruleId, stableId)` so it produces clean diffs, and absolute workspace paths embedded in `stableId` are replaced with `<root>/` so the baseline is portable across machines and CI checkouts.
+```yaml
+baseline: .kareki-baseline.json
+```
 
-To shrink the baseline as findings get fixed, just regenerate it: `dart run kareki --write-baseline`.
+Matching findings are omitted from output and do not cause exit code `1`.
+New findings still do. Saving a baseline returns `0`; analysis warnings can
+still be present on stderr. See [CLI exit codes](cli.md).
+
+## Update a baseline
+
+After reviewing fixes and new findings, run the same save command again.
+Always supply the path, either through `--baseline` or configuration.
+Use [doctor](doctor.md) to check for stale entries before removing them.
+
+Entries are sorted by `(ruleId, stableId)` for readable diffs. Absolute workspace
+paths in `stableId` are replaced with `<root>/`, so the file can be shared across
+machines and CI checkouts.

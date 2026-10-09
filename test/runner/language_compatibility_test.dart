@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/runner.dart';
@@ -25,11 +27,31 @@ environment:
   sdk: ">=3.10.0 <4.0.0"
 resolution: workspace
 ''');
+    workspace.write('analysis_options.yaml', '''
+analyzer:
+  enable-experiment:
+    - private-named-parameters
+''');
+    if (int.parse(Platform.version.split('.')[1]) >= 12) {
+      workspace.write('app/pubspec.yaml', '''
+name: app
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+resolution: workspace
+''');
+      final config = File('${workspace.path}/.dart_tool/package_config.json');
+      config.writeAsStringSync(
+        config.readAsStringSync().replaceAll(
+          '"languageVersion":"3.10"',
+          '"languageVersion":"3.12"',
+        ),
+      );
+    }
   });
 
   tearDown(() => workspace.dispose());
 
-  test('Dart 3.10-3.12 syntax keeps used APIs reachable', () {
+  test('Dart 3.10-3.12 syntax keeps used APIs reachable', () async {
     workspace.write('app/lib/api.dart', '''
 class Client {
   final String? endpoint;
@@ -67,7 +89,20 @@ void main() {
 }
 ''');
 
-    final result = KarekiRunner().run(
+    // Private named formals are a Dart 3.12 language feature. Earlier runtimes
+    // still exercise dot shorthand and extension types with the equivalent
+    // explicit public argument spelling, not an invalid future-language call.
+    if (int.parse(Platform.version.split('.')[1]) < 12) {
+      final file = File('${workspace.path}/app/lib/api.dart');
+      file.writeAsStringSync(
+        file.readAsStringSync().replaceAll(
+          'Point({required this._x});',
+          'Point({required int x}) : _x = x;',
+        ),
+      );
+    }
+
+    final result = await KarekiRunner().run(
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),

@@ -7,9 +7,10 @@ import 'package:kareki/src/preset/preset.dart';
 /// `custom_presets` section of `kareki_config.yaml` when a project uses
 /// a different version whose annotation names diverge.
 
-/// freezed — last_verified: freezed 3.x.
+/// freezed — last_verified: freezed 3.x / 4.0.2 (JSON factory switch).
 const Preset freezedPreset = Preset(
   name: 'freezed',
+  keepFreezedFactories: true,
   keepAliveAnnotations: {'freezed', 'Freezed', 'Default', 'Assert'},
   annotationImpliedPackages: {
     'freezed': {'freezed_annotation', 'built_collection'},
@@ -93,6 +94,7 @@ const Preset goRouterPreset = Preset(
 /// drift — last_verified: drift 2.x.
 const Preset driftPreset = Preset(
   name: 'drift',
+  keepDriftColumns: true,
   keepAliveAnnotations: {'DriftDatabase', 'DriftAccessor', 'UseRowClass'},
   annotationImpliedPackages: {
     'DriftDatabase': {'drift'},

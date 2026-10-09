@@ -5,10 +5,12 @@
 
 import 'package:kareki/kareki.dart';
 
-void main() {
+Future<void> main() async {
   const root = '.';
   final config = KarekiConfig.load(root);
-  final result = KarekiRunner().run(RunRequest(rootPath: root, config: config));
+  final result = await KarekiRunner().run(
+    RunRequest(rootPath: root, config: config),
+  );
 
   final reporter = TextReporter();
   // ignore: avoid_print

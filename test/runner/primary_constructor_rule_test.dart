@@ -1,5 +1,6 @@
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/runner.dart';
 import 'package:test/test.dart';
 
@@ -29,7 +30,7 @@ resolution: workspace
 
   tearDown(() => workspace.dispose());
 
-  test('primary constructors participate in all applicable rules', () {
+  test('primary constructors participate in all applicable rules', () async {
     workspace.write('app/lib/api.dart', '''
 class Point.named(final int usedField, final int unusedField, int unusedInput) {
   int read() => usedField;
@@ -51,12 +52,18 @@ void main() {
 }
 ''');
 
-    final result = KarekiRunner().run(
+    configureTestPackages(workspace.path, languageVersion: testLanguageVersion);
+    final analysis = KarekiRunner().run(
       RunRequest(
         rootPath: workspace.path,
         config: KarekiConfig.load(workspace.path),
       ),
     );
+    if (!supportsPrimaryConstructors) {
+      await expectLater(analysis, throwsA(isA<ResolvedAnalysisException>()));
+      return;
+    }
+    final result = await analysis;
 
     expect(
       result.findings.any(
@@ -73,6 +80,7 @@ void main() {
             finding.message.contains("'Point.unusedField'"),
       ),
       isTrue,
+      reason: result.analysisWarnings.join('\n'),
     );
     expect(
       result.findings.any(

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- **Breaking:** replaced name-based analysis with declaration-aware analysis;
+  removed `analysis_mode` / `--analysis-mode`. Install dependencies and generate
+  sources before analysis.
+- **Breaking:** runner and CLI APIs now require `await`.
+  See the [API example and notes](example/example.md#programmatic-api).
+- Reduced repeated resolution and graph-building work.
+
+### Fixed
+
+- Reduced false positives in callback, optional-argument, generated-code,
+  dependency, and workspace analysis.
+- Fixed analysis crashes on deferred imports.
+- Doctor returns exit code 2 when incomplete or uncertain analysis prevents
+  safe suppression and baseline checks.
+
 ## 0.7.0
 
 ### Added

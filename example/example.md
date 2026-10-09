@@ -82,15 +82,24 @@ $ dart run example.dart
 ```dart
 import 'package:kareki/kareki.dart';
 
-void main() {
+Future<void> main() async {
   const root = '.';
   final config = KarekiConfig.load(root);
-  final result = KarekiRunner().run(
+  final result = await KarekiRunner().run(
     RunRequest(rootPath: root, config: config),
   );
   print(TextReporter().render(result.findings, rootPath: root));
 }
 ```
+
+`KarekiRunner.run` and `analyze` return Futures, as do `DoctorRunner.run`,
+`DoctorRunner.analyze`, `runCli`, and `runDoctor`. Await them from an `async`
+caller. Analysis warnings are available separately in `result.analysisWarnings`.
+
+The preview APIs `runCliAsync` / `runDoctorAsync`, `AnalysisMode` and its
+arguments, and legacy name-reference metadata on `ParsedFile`,
+`DeclarationRecord`, and `EntryPointSet` have been removed. These API changes
+do not change the `dart run kareki` command.
 
 ## Configuration
 

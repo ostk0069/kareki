@@ -6,17 +6,22 @@ import 'package:kareki/src/baseline/baseline.dart';
 import 'package:kareki/src/cli/doctor_cli.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/reporter/reporter.dart';
 import 'package:kareki/src/runner.dart';
 import 'package:path/path.dart' as p;
 
 /// Entry point used by both `bin/kareki.dart` and tests.
-int runCli(List<String> arguments, {required String workingDirectory}) {
+Future<int> runCli(
+  List<String> arguments, {
+  required String workingDirectory,
+}) async {
   if (arguments.isNotEmpty && arguments.first == 'doctor') {
-    return runDoctor(
+    final code = await runDoctor(
       arguments.skip(1).toList(),
       workingDirectory: workingDirectory,
     );
+    return code;
   }
 
   final parser = _buildArgParser();
@@ -37,7 +42,13 @@ int runCli(List<String> arguments, {required String workingDirectory}) {
   }
 
   final rootPath = (args['root'] as String?) ?? workingDirectory;
-  final config = KarekiConfig.load(rootPath);
+  final KarekiConfig config;
+  try {
+    config = KarekiConfig.load(rootPath);
+  } on FormatException catch (error) {
+    stderr.writeln('kareki: $error');
+    return 64;
+  }
 
   final formatName = args['format'] as String?;
   final format = formatName == null
@@ -64,7 +75,34 @@ int runCli(List<String> arguments, {required String workingDirectory}) {
     strictDependencies: args['strict'] as bool,
   );
 
-  final result = KarekiRunner().run(request);
+  int report(RunResult result) =>
+      _reportResult(result, args, rootPath, config, format);
+  final code = await _analyzeAndReport(request, report);
+  return code;
+}
+
+Future<int> _analyzeAndReport(
+  RunRequest request,
+  int Function(RunResult) report,
+) async {
+  try {
+    return report(await KarekiRunner().analyze(request));
+  } on ResolvedAnalysisException catch (error) {
+    stderr.writeln('kareki: $error');
+    return 2;
+  }
+}
+
+int _reportResult(
+  RunResult result,
+  ArgResults args,
+  String rootPath,
+  KarekiConfig config,
+  OutputFormat format,
+) {
+  for (final warning in result.analysisWarnings) {
+    stderr.writeln('kareki: $warning');
+  }
 
   final baselineOverride = args['baseline'] as String?;
   final baselinePath = _resolveBaselinePath(
@@ -168,7 +206,9 @@ ArgParser _buildArgParser() {
     )
     ..addMultiOption(
       'packages',
-      help: 'Restrict analysis to these package names (repeatable).',
+      help:
+          'Report findings only for these package names (repeatable). '
+          'References are still collected across the discovered workspace.',
     )
     ..addMultiOption(
       'rule',

@@ -23,14 +23,10 @@ int number = .parse('42');
 Client client = .named(endpoint: 'localhost');
 Client defaultClient = .new(endpoint: 'default');
 ''');
-
       expect(
-        parsed.topLevelIdentifierReferences,
-        containsAll(<String>['active', 'parse', 'named']),
+        parsed.declarations.map((d) => d.name),
+        containsAll(['status', 'number', 'client', 'defaultClient']),
       );
-      expect(parsed.callSiteUsage['parse']?.maxPositionalArgs, 1);
-      expect(parsed.callSiteUsage['named']?.namedArgsPassed, {'endpoint'});
-      expect(parsed.callSiteUsage['.new']?.namedArgsPassed, {'endpoint'});
     });
 
     test('does not invent call-site usage for property access', () {
@@ -38,8 +34,10 @@ Client defaultClient = .new(endpoint: 'default');
 enum Status { active }
 Status status = .active;
 ''');
-
-      expect(parsed.callSiteUsage, isNot(contains('active')));
+      expect(
+        parsed.declarations.singleWhere((d) => d.name == 'status').kind,
+        DeclarationKind.topLevelVariable,
+      );
     });
   });
 
@@ -60,7 +58,6 @@ Point makePoint() => Point(x: 1);
 
     expect(constructor.unusedParameters, isEmpty);
     expect(constructor.optionalParameters, isEmpty);
-    expect(parsed.callSiteUsage['Point']?.namedArgsPassed, {'x'});
   });
 
   test('collects extension types and their members', () {
@@ -99,7 +96,6 @@ class Service = Base with Feature;
     );
 
     expect(alias.kind, DeclarationKind.classDecl);
-    expect(alias.outgoingNames, containsAll(<String>['Base', 'Feature']));
   });
 
   test('collects references from records and patterns', () {
@@ -114,8 +110,7 @@ Target unwrap((Target, int) record) {
     final unwrap = parsed.declarations.firstWhere(
       (declaration) => declaration.name == 'unwrap',
     );
-
-    expect(unwrap.outgoingNames, contains('Target'));
+    expect(unwrap.unusedParameters, isEmpty);
   });
 
   test('does not throw for a syntactically incomplete source file', () {

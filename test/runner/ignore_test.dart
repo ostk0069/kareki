@@ -32,7 +32,7 @@ void _scaffold(TestWorkspace workspace, {required Map<String, String> files}) {
   }
 }
 
-RunResult _run(String root) => KarekiRunner().run(
+Future<RunResult> _run(String root) => KarekiRunner().run(
   RunRequest(rootPath: root, config: KarekiConfig.load(root)),
 );
 
@@ -46,54 +46,61 @@ void main() {
   tearDown(() => workspace.dispose());
 
   group('per-line `// kareki: ignore=...` suppression', () {
-    test('standalone directive above a class suppresses unused_element', () {
-      _scaffold(
-        workspace,
-        files: {
-          'bin/main.dart': 'void main() {}\n',
-          'lib/dead.dart':
-              '// kareki: ignore=unused_element\n'
-              'class Dead {}\n'
-              '\n'
-              'class StillDead {}\n',
-        },
-      );
-      final findings = _run(workspace.path).findings;
-      final dead = findings
-          .where((f) => f.ruleId == RuleId.unusedElement)
-          .map((f) => f.message)
-          .toList();
-      expect(
-        dead.any((m) => m.contains("'Dead'")),
-        isFalse,
-        reason: 'Dead should be suppressed by the per-line directive',
-      );
-      expect(
-        dead.any((m) => m.contains("'StillDead'")),
-        isTrue,
-        reason: 'StillDead is on a different line — must still be flagged',
-      );
-    });
+    test(
+      'standalone directive above a class suppresses unused_element',
+      () async {
+        _scaffold(
+          workspace,
+          files: {
+            'bin/main.dart': 'void main() {}\n',
+            'lib/dead.dart':
+                '// kareki: ignore=unused_element\n'
+                'class Dead {}\n'
+                '\n'
+                'class StillDead {}\n',
+          },
+        );
+        final findings = (await _run(workspace.path)).findings;
+        final dead = findings
+            .where((f) => f.ruleId == RuleId.unusedElement)
+            .map((f) => f.message)
+            .toList();
+        expect(
+          dead.any((m) => m.contains("'Dead'")),
+          isFalse,
+          reason: 'Dead should be suppressed by the per-line directive',
+        );
+        expect(
+          dead.any((m) => m.contains("'StillDead'")),
+          isTrue,
+          reason: 'StillDead is on a different line — must still be flagged',
+        );
+      },
+    );
 
-    test('trailing directive on the same line suppresses unused_element', () {
-      _scaffold(
-        workspace,
-        files: {
-          'bin/main.dart': 'void main() {}\n',
-          'lib/dead.dart': 'class Dead {} // kareki: ignore=unused_element\n',
-        },
-      );
-      final findings = _run(workspace.path).findings;
-      expect(
-        findings.any(
-          (f) =>
-              f.ruleId == RuleId.unusedElement && f.message.contains("'Dead'"),
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'trailing directive on the same line suppresses unused_element',
+      () async {
+        _scaffold(
+          workspace,
+          files: {
+            'bin/main.dart': 'void main() {}\n',
+            'lib/dead.dart': 'class Dead {} // kareki: ignore=unused_element\n',
+          },
+        );
+        final findings = (await _run(workspace.path)).findings;
+        expect(
+          findings.any(
+            (f) =>
+                f.ruleId == RuleId.unusedElement &&
+                f.message.contains("'Dead'"),
+          ),
+          isFalse,
+        );
+      },
+    );
 
-    test('directive by symbol name suppresses only that symbol', () {
+    test('directive by symbol name suppresses only that symbol', () async {
       _scaffold(
         workspace,
         files: {
@@ -105,7 +112,7 @@ void main() {
               'class Other {}\n',
         },
       );
-      final dead = _run(workspace.path).findings
+      final dead = (await _run(workspace.path)).findings
           .where((f) => f.ruleId == RuleId.unusedElement)
           .map((f) => f.message)
           .toList();
@@ -113,7 +120,7 @@ void main() {
       expect(dead.any((m) => m.contains("'Other'")), isTrue);
     });
 
-    test('per-line directive suppresses unused_parameter', () {
+    test('per-line directive suppresses unused_parameter', () async {
       _scaffold(
         workspace,
         files: {
@@ -133,7 +140,7 @@ void main() {
               '}\n',
         },
       );
-      final findings = _run(workspace.path).findings;
+      final findings = (await _run(workspace.path)).findings;
       expect(
         findings.any(
           (f) =>

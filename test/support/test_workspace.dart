@@ -1,18 +1,97 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:path/path.dart' as p;
+import 'package:pub_semver/pub_semver.dart';
 
-String fixturePath(String name) =>
-    p.join(Directory.current.path, 'test', 'fixtures', name);
+final String testLanguageVersion = Platform.version
+    .split('.')
+    .take(2)
+    .join('.');
+final bool supportsPrimaryConstructors =
+    FeatureSet.fromEnableFlags2(
+          sdkLanguageVersion: Version.parse('$testLanguageVersion.0'),
+          // The public AnalysisContextCollection uses the SDK's released
+          // features; parser-only experiment flags are not a resolved contract.
+          flags: [],
+        )
+        .restrictToVersion(Version.parse('$testLanguageVersion.0'))
+        .isEnabled(Feature.primary_constructors);
+
+String fixturePath(String name) {
+  final root = p.join(Directory.current.path, 'test', 'fixtures', name);
+  configureTestPackages(root);
+  return root;
+}
+
+/// Bootstrap synthetic test packages without fetching their deliberately fake
+/// dependency declarations. Imports resolve to real installed test dependencies
+/// or to the explicitly scaffolded local packages, never to production stubs.
+void configureTestPackages(String root, {String languageVersion = '3.10'}) {
+  final ownConfig = File(
+    p.join(Directory.current.path, '.dart_tool', 'package_config.json'),
+  );
+  final entries = <String, Map<String, Object?>>{};
+  final installed =
+      jsonDecode(ownConfig.readAsStringSync()) as Map<String, dynamic>;
+  for (final entry
+      in (installed['packages'] as List).cast<Map<String, dynamic>>()) {
+    entries[entry['name'] as String] = {
+      ...entry,
+      'rootUri': ownConfig.uri.resolve(entry['rootUri'] as String).toString(),
+    };
+  }
+  for (final file in Directory(
+    root,
+  ).listSync(recursive: true).whereType<File>()) {
+    if (p.basename(file.path) != 'pubspec.yaml') continue;
+    final name = RegExp(
+      r'^name:\s*(\S+)',
+      multiLine: true,
+    ).firstMatch(file.readAsStringSync())?.group(1);
+    if (name == null) continue;
+    entries[name] = {
+      'name': name,
+      'rootUri': Uri.directory(
+        p.dirname(file.resolveSymbolicLinksSync()),
+      ).toString(),
+      'packageUri': 'lib/',
+      'languageVersion': languageVersion,
+    };
+  }
+  final target = File(p.join(root, '.dart_tool', 'package_config.json'));
+  final contents = jsonEncode({
+    'configVersion': 2,
+    'packages': entries.values.toList(),
+  });
+  if (target.existsSync() && target.readAsStringSync() == contents) return;
+  target.parent.createSync(recursive: true);
+  final temporary = target.parent.createTempSync('kareki_package_config_');
+  try {
+    File(p.join(temporary.path, 'package_config.json'))
+      ..writeAsStringSync(contents)
+      ..renameSync(target.path);
+  } finally {
+    temporary.deleteSync(recursive: true);
+  }
+}
 
 /// Disposable on-disk workspace for runner integration tests.
 class TestWorkspace {
   TestWorkspace._(this.directory);
 
-  factory TestWorkspace.create(String prefix) =>
-      TestWorkspace._(Directory.systemTemp.createTempSync(prefix));
+  factory TestWorkspace.create(String prefix, {bool bootstrap = true}) =>
+      TestWorkspace._(
+        Directory(
+          Directory.systemTemp
+              .createTempSync(prefix)
+              .resolveSymbolicLinksSync(),
+        ),
+      )..bootstrap = bootstrap;
 
   final Directory directory;
+  bool bootstrap = true;
 
   String get path => directory.path;
 
@@ -20,6 +99,9 @@ class TestWorkspace {
     final file = File(p.join(path, relativePath));
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(contents);
+    if (bootstrap && p.basename(relativePath) == 'pubspec.yaml') {
+      configureTestPackages(path);
+    }
   }
 
   void writePubspec({

@@ -51,6 +51,12 @@ class PresetRegistry {
     for (final preset in _resolved) ...preset.keepAliveAnnotations,
   };
 
+  /// Whether an active preset models drift's schema-generation inputs.
+  bool get keepDriftColumns => _resolved.any((p) => p.keepDriftColumns);
+
+  /// Whether an active preset models Freezed's factory-generation inputs.
+  bool get keepFreezedFactories => _resolved.any((p) => p.keepFreezedFactories);
+
   /// Union of annotation → implied pub packages across active presets.
   Map<String, Set<String>> get annotationImpliedPackages {
     final result = <String, Set<String>>{};

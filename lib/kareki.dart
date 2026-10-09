@@ -10,10 +10,10 @@
 /// ```dart
 /// import 'package:kareki/kareki.dart';
 ///
-/// void main() {
+/// Future<void> main() async {
 ///   const root = '.';
 ///   final config = KarekiConfig.load(root);
-///   final result = KarekiRunner().run(
+///   final result = await KarekiRunner().run(
 ///     RunRequest(rootPath: root, config: config),
 ///   );
 ///   stdout.writeln(
@@ -49,5 +49,7 @@ export 'src/model/declaration.dart';
 export 'src/model/finding.dart';
 export 'src/model/package_info.dart';
 export 'src/parser/declaration_collector.dart';
+export 'src/reachability/resolved_reachability.dart'
+    show ResolvedAnalysisException;
 export 'src/reporter/reporter.dart';
 export 'src/runner.dart';
