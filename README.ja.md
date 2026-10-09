@@ -89,6 +89,7 @@ dart run kareki doctor
 - [ベースライン](doc/baseline.ja.md) — 現在の検出結果を保存し、新しく増えたデッドコードだけを検出する方法
 - [Doctor](doc/doctor.ja.md) — 不要になった除外設定や抑制コメントを見つける方法
 - [解析の仕組み](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、解析の起点、保証できないこと、対応バージョン
+- [類似ツールとの比較](doc/comparison.ja.md) — kareki、ciach などの Dart 向けツールの使い分け
 - [運用のベストプラクティス](doc/operations.ja.md) — cron と AI エージェントで定期的にクリーンアップ PR を作る方法
 
 ## License

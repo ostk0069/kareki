@@ -43,6 +43,7 @@ dart run kareki
 - [ベースライン](baseline/) — 既存コードベースへ段階的に導入する方法
 - [Doctor](doctor/) — 不要になった除外設定や抑制を検出する方法
 - [解析の仕組み](how-it-works/) — 解析の流れと制約
+- [類似ツールとの比較](comparison/) — kareki、ciach などの Dart 向けツールの使い分け
 - [運用のベストプラクティス](operations/) — cron と AI エージェントによる定期的なクリーンアップ
 
 ## リンク

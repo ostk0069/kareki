@@ -43,6 +43,7 @@ dart run kareki
 - [Baseline](baseline/) — adopt kareki incrementally in an existing codebase
 - [Doctor](doctor/) — detect stale exclusions and suppressions
 - [How it works](how-it-works/) — understand the analysis pipeline and its boundaries
+- [Comparing similar tools](comparison/) — choose between kareki, ciach, and other Dart tools
 - [Best practices](operations/) — schedule cleanup pull requests with an AI agent
 
 ## Links
