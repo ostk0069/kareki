@@ -6,6 +6,24 @@ weight: 9
 This reference describes implementation constraints for contributors and warning
 reviews. Start with [how it works](how-it-works.md) for the user-facing overview.
 
+## Library API
+
+Runner APIs are asynchronous. Use an `async` caller and await the result:
+
+```dart
+final result = await KarekiRunner().run(request);
+// analyze(request) is also asynchronous.
+```
+
+`DoctorRunner.run`, `DoctorRunner.analyze`, `runCli`, and `runDoctor` also return
+Futures. The [runnable example](https://github.com/ostk0069/kareki/blob/main/example/example.dart)
+shows request construction and result reporting.
+
+The preview names `runCliAsync` / `runDoctorAsync`, `AnalysisMode` and its
+arguments, and legacy name-reference metadata on `ParsedFile`,
+`DeclarationRecord`, and `EntryPointSet` have been removed.
+These API changes do not change the `dart run kareki` command.
+
 ## Declaration identity and graph construction
 
 The analysis engine uses `AnalysisContextCollection` to resolve
@@ -140,3 +158,7 @@ classification and inherited-method lookups are cached within the run.
 
 There is no persistent analysis cache. These optimizations do not narrow the
 source scope or relax the safety conditions above.
+
+To compare performance, run `dart tool/resolved_analysis/benchmark.dart ROOT [doctor]`
+with the same SDK, sources, configuration, and rules. Measure multiple fresh
+processes and peak memory (RSS); keep source changes separate from engine changes.

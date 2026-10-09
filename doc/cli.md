@@ -15,6 +15,10 @@ Use the project's SDK to install dependencies (`dart pub get`, `flutter pub get`
 or workspace bootstrap), then run code generation. Generated and excluded files
 still contribute references and must resolve.
 
+The SDK and analyzer must support the project's language features; parsing
+experimental syntax alone is not enough. Rules that do not require resolution
+can run without dependency setup.
+
 ## Options
 
 | Option | Description |
@@ -56,5 +60,7 @@ a normal run can return `0` with warnings. They also do not prevent
 `kareki doctor` is stricter: warnings prevent safe suppression and baseline
 cleanup checks, so it returns `2`. See [doctor](doctor.md).
 
-When upgrading from name-based analysis, review newly exposed findings before
-updating your baseline. See the [migration guide](migration.md).
+After upgrading, continue using `dart run kareki`; no migration command or
+baseline conversion is needed. Review newly exposed findings before updating
+your baseline. If you previously set `analysis_mode` or `--analysis-mode`, remove
+them: these obsolete options return exit code `64`.

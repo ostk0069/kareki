@@ -50,4 +50,4 @@ clean. Do not remove suppressions or baseline entries based on that empty result
 See [analysis internals](analysis-internals.md) for how to review warning evidence.
 
 Library users must await `DoctorRunner().analyze(request)` or `run(request)`.
-See the [migration guide](migration.md).
+See the [API notes](analysis-internals.md#library-api).

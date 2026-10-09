@@ -5,6 +5,19 @@ weight: 9
 
 開発者や解析警告を調査する人に向けて、実装上の判定条件と制約をまとめます。利用者向けの概要は[解析の仕組み](how-it-works.ja.md)を参照してください。
 
+## ライブラリ API
+
+ランナー API は非同期です。呼び出し元を `async` にし、結果を `await` します。
+
+```dart
+final result = await KarekiRunner().run(request);
+// analyze(request) も非同期です。
+```
+
+`DoctorRunner.run`、`DoctorRunner.analyze`、`runCli`、`runDoctor` も Future を返します。リクエストの作成と結果の表示は[実行可能なサンプル](https://github.com/ostk0069/kareki/blob/main/example/example.dart)を参照してください。
+
+プレビュー時の `runCliAsync` / `runDoctorAsync`、`AnalysisMode` とそれを受け取る引数、`ParsedFile`・`DeclarationRecord`・`EntryPointSet` の旧方式の名前参照メタデータは削除されています。これらは API の変更であり、`dart run kareki` のコマンドは変わりません。
+
 ## 宣言の識別と参照グラフ
 
 `AnalysisContextCollection` で参照先を解決し、宣言元ライブラリ・実ファイル・ 宣言位置・種別をキーに参照グラフを作ります。この内部 ID はベースラインの ID とは別です。起点ファイル、生成コード、アノテーションも宣言単位で扱いますが、明示的な `entry_points.names` は名前で照合します。実ファイルは一度だけ収集し、入れ子のパッケージでは最も内側のパッケージに所属させます。
@@ -83,3 +96,5 @@ tear-off（関数を値として取り出す操作）、暗黙の呼び出し可
 doctor は、使用状況に依存する検査で 1 回の解析結果を共有します。参照グラフの構築には宣言と参照の索引を使います。同じ解析コンテキストでは、解決済みのライブラリを part 間で再利用し、テスト用ソースの分類と継承メソッドの検索結果も実行内でキャッシュします。
 
 実行間で残る解析キャッシュはありません。これらの最適化によって、ソースの収集範囲や上記の判定条件を変更することはありません。
+
+性能を比較する場合は、`dart tool/resolved_analysis/benchmark.dart ROOT [doctor]` を使い、SDK・ソース・設定・ルールを揃えてください。毎回新しいプロセスで複数回測定し、所要時間とメモリ使用量のピーク（RSS）を確認します。ソースの変更による差と解析方式による差は分けて測定してください。

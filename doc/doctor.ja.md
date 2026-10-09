@@ -40,4 +40,4 @@ dart run kareki doctor
 
 終了コード `2` で JSON の一覧が空でも、**問題なしという意味ではありません**。その結果だけを根拠に、抑制設定やベースライン項目を削除しないでください。警告の根拠の読み方は[解析の内部仕様](analysis-internals.ja.md)を参照してください。
 
-ライブラリから利用する場合は、`DoctorRunner().analyze(request)` または `run(request)` を `await` します。[移行ガイド](migration.ja.md)も参照してください。
+ライブラリから利用する場合は、`DoctorRunner().analyze(request)` または `run(request)` を `await` します。[API の注意点](analysis-internals.ja.md#ライブラリ-api)も参照してください。

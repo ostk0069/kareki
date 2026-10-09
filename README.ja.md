@@ -14,7 +14,7 @@
 
 `dart analyze` が検出する未使用宣言は、基本的に単一パッケージ内の private なものに限られます。`kareki` は Melos / pub workspace 内のパッケージを横断して参照関係を解析し、使われていない public API、どこからも import されていないファイル、`pubspec.yaml` に残ったままの不要な依存パッケージなどを検出します。
 
-## kareki の特徴
+## Why kareki?
 
 |  | 特徴 |
 |---|---|
@@ -26,7 +26,7 @@
 | 🩺 | **不要になった設定を確認** — `kareki doctor` で、対象がなくなった `ignore` 設定や 抑制コメントを確認 |
 | ⚙️ | **CI で使いやすい設計** — JSON 形式の出力、結果に応じた終了コード、環境に依存しないベースラインに対応 |
 
-## 検出するもの
+## What it finds
 
 | ルール | 検出対象 |
 |---|---|
@@ -37,7 +37,7 @@
 | `unused_parameter` | 関数、メソッド、名前付きコンストラクタの本体や初期化処理で一度も参照されていない引数。Dart 標準の `unused_element_parameter` では検出できない必須引数や public API も対象です。 |
 | `unused_parameter_optional` | ワークスペース内のどの呼び出し元からも値を渡されていない省略可能な引数（名前付き引数またはオプショナル位置引数）。単一ライブラリ内の private な省略可能引数だけを調べる Dart 標準の `unused_element_parameter` と異なり、public API やパッケージをまたぐ呼び出しも対象です。 |
 
-## インストール
+## Install
 
 ```yaml
 # pubspec.yaml
@@ -49,7 +49,7 @@ dev_dependencies:
 dart pub get
 ```
 
-## 使い方
+## Usage
 
 プロジェクトの依存パッケージを取得し、コード生成を実行してから、
 ワークスペースのルートで次のコマンドを実行します。
@@ -60,7 +60,7 @@ dart run kareki
 
 事前準備、オプション、解析警告については、[CLI リファレンス](doc/cli.ja.md)を参照してください。
 
-## 既存プロジェクトへの導入
+## Adopting on an existing codebase
 
 最初からすべてのデッドコードを修正する必要はありません。現在の検出結果を確認してからベースラインとして保存しておけば、それ以降に増えたデッドコードだけを CI で検出できます。
 
@@ -70,7 +70,7 @@ dart run kareki --baseline .kareki-baseline.json --write-baseline
 
 詳しくは、[ベースライン](doc/baseline.ja.md) を参照してください。
 
-## 不要になった設定の確認
+## Keeping the config honest
 
 ファイルの移動や名前の変更、パッケージの削除を重ねると、除外設定や依存パッケージの許可リストに不要な項目が残ることがあります。`kareki doctor` を実行すると、現在のコードと一致しなくなった設定を確認できます。
 
@@ -80,7 +80,7 @@ dart run kareki doctor
 
 詳しくは、[Doctor](doc/doctor.ja.md) を参照してください。
 
-## ドキュメント
+## Documentation
 
 [ドキュメントサイト](https://ostk0069.github.io/kareki/ja/)から読むことも、Markdown の原文を直接読むこともできます。
 
@@ -90,9 +90,8 @@ dart run kareki doctor
 - [Doctor](doc/doctor.ja.md) — 不要になった除外設定や抑制コメントを見つける方法
 - [解析の仕組み](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、解析の起点、保証できないこと、対応バージョン
 - [運用のベストプラクティス](doc/operations.ja.md) — cron と AI エージェントで定期的にクリーンアップ PR を作る方法
-- [移行ガイド](doc/migration.ja.md) — 宣言単位の解析へ更新するときの変更点
 - [解析の内部仕様](doc/analysis-internals.ja.md) — 実装上の判定条件と警告の根拠
 
-## ライセンス
+## License
 
 MIT License です。詳しくは [LICENSE](LICENSE) を参照してください。

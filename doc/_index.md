@@ -44,7 +44,6 @@ dart run kareki
 - [Doctor](doctor/) — detect stale exclusions and suppressions
 - [How it works](how-it-works/) — understand the analysis pipeline and its boundaries
 - [Best practices](operations/) — schedule cleanup pull requests with an AI agent
-- [Migration guide](migration/) — upgrade to declaration-identity analysis
 - [Analysis internals](analysis-internals/) — implementation constraints and warning evidence
 
 ## Links

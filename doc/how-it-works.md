@@ -79,5 +79,4 @@ CI runs analysis and tests against every supported Dart minor version and the
 latest stable SDK patch.
 
 For implementation details and safety boundaries, see
-[analysis internals](analysis-internals.md). Existing users should also read the
-[migration guide](migration.md).
+[analysis internals](analysis-internals.md).
