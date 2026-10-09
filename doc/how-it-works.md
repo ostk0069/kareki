@@ -88,7 +88,7 @@ can skip graph construction; each rule uses different evidence:
 
 | Rule | Evidence it uses |
 |---|---|
-| `unused_element` | Whether an eligible public declaration is reachable from any entry point. |
+| `unused_element` | Whether an eligible public declaration is reachable from any entry point. Enum values are checked individually; a reachable `Enum.values` retains all values. |
 | `test_only_used` | Whether it is reachable from test entry points but not production entry points. |
 | `unused_parameter` | Whether a parameter is referenced inside its function body. |
 | `unused_parameter_optional` | Whether callers supply an optional parameter; all scanned calls count, including generated and unreachable code. Unknown call paths prevent an unused verdict. |

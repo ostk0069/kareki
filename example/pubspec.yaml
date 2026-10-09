@@ -10,7 +10,7 @@ environment:
 
 dependencies:
   # Used by lib/api.dart — must NOT be flagged.
-  meta: 1.18.2
+  meta: ^1.18.2
   # Declared but never imported — triggers `unused_pub_dependency`.
   collection: 1.19.1
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Detect unused public enum values with `unused_element` and test-only values
+  with `test_only_used`. Reachable `Enum.values` conservatively retains all values.
+
 ### Changed
 
 - **Breaking:** replaced name-based analysis with declaration-aware analysis;

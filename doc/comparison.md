@@ -13,7 +13,7 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 |---|:---:|:---:|:---:|:---:|:---:|
 | [Detect unused public declarations and members](how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
 | Detect unused private declarations and members | — | ✅ | ✅ | — | ✅ |
-| Detect unused values of public enums | — | ✅ | ✅ | — | — |
+| Detect unused values of public enums | ✅ | ✅ | ✅ | — | — |
 | [Detect cycles of public declarations unreachable from entry points](#analysis-differences) | ✅ | — | — | — | — |
 | [Detect unused Dart files](how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
 | [Detect unused pub dependencies](configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
