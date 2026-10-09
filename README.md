@@ -104,7 +104,7 @@ Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the 
 - [Baseline](doc/baseline.md) — incremental adoption
 - [Doctor](doc/doctor.md) — obsolete exclusions and suppressions
 - [How it works](doc/how-it-works.md) — analysis flow, entry points, limits, and supported versions
-- [Comparing similar tools](doc/comparison.md) — kareki, ciach, and other Dart tools
+- [Comparing similar tools](doc/comparison.md) — ciach, Dart Code Linter, and other Dart tools
 - [Best practices](doc/operations.md) — scheduled cleanup pull requests with an AI agent
 
 ## License
