@@ -88,20 +88,12 @@ can skip graph construction; each rule uses different evidence:
 
 | Rule | Evidence it uses |
 |---|---|
-| `unused_element` | Whether an eligible public declaration is reachable from any entry point. |
+| `unused_element` | Whether an eligible public declaration is reachable from any entry point. Enum values are checked individually; a reachable `Enum.values` retains all values. |
 | `test_only_used` | Whether it is reachable from test entry points but not production entry points. |
 | `unused_parameter` | Whether a parameter is referenced inside its function body. |
 | `unused_parameter_optional` | Whether callers supply an optional parameter; all scanned calls count, including generated and unreachable code. Unknown call paths prevent an unused verdict. |
 | `unused_file` | Whether another scanned file imports, exports, or parts the file, or it is an entry point. This is not declaration reachability. |
 | `unused_pub_dependency` | Imports and recognized annotation, build-configuration, native-plugin, and asset usage. |
-
-Public enum values are tracked separately from their enum type. A reference to
-`Status.active` keeps that value; a type annotation using `Status` does not keep
-all values. A reachable `Status.values` keeps every value, including through
-iteration, indexing, `byName`, or `asNameMap`. These accesses are conservative:
-`Status.values[0]` keeps all values, without narrowing by the index. Values used
-only by tests can be reported by `test_only_used`. Private enums and private
-values are not reported. Keep-alive annotations on an enum protect its values.
 
 ### Optional-argument usage
 

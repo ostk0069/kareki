@@ -61,19 +61,12 @@ void main() => LocalStore().save();
 
 | ルール | 判定に使う根拠 |
 |---|---|
-| `unused_element` | 指摘対象の公開宣言に、いずれかの起点から到達できるか。 |
+| `unused_element` | 指摘対象の公開宣言に、いずれかの起点から到達できるか。enum の値も個別に判定するが、`Enum.values` に到達すると全値を保持する。 |
 | `test_only_used` | テストの起点からは到達できるが、本番コードの起点からは到達できないか。 |
 | `unused_parameter` | 関数の本体で引数を参照しているか。 |
 | `unused_parameter_optional` | 呼び出し側が省略可能な引数を指定しているか。生成コードや未到達コードを含む全呼び出しを集計し、不明な呼び出し経路が残れば未使用とは断定しない。 |
 | `unused_file` | 別の対象ファイルから import / export / part されているか、起点ファイルか。宣言への到達可能性とは別の判定。 |
 | `unused_pub_dependency` | import と、対応するアノテーション、ビルド設定、ネイティブプラグイン、アセットからの利用。 |
-
-public enum の値は enum 本体と別に追跡します。`Status.active` の参照はその値を保持しますが、
-型注釈で `Status` を使うだけでは全値を保持しません。到達可能な `Status.values` は、
-反復・添字・`byName`・`asNameMap` を含め、全値を保持します。添字や文字列で値を
-絞り込まないため、`Status.values[0]` でも全値を保持します。テストからだけ使う値は
-`test_only_used` の対象です。private enum と private な値は報告しません。
-enum に付けた keep-alive アノテーションは、その enum の全値を保護します。
 
 ### 省略可能な引数の使用状況
 
