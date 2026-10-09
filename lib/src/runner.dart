@@ -686,7 +686,10 @@ class KarekiRunner {
     final qualifier = declaration.enclosingTypeName != null
         ? '${declaration.enclosingTypeName}.${declaration.name}'
         : declaration.name;
-    return "Unused public ${declaration.kind.name} '$qualifier'.";
+    final kind = declaration.kind == DeclarationKind.enumConstant
+        ? 'enum value'
+        : declaration.kind.name;
+    return "Unused public $kind '$qualifier'.";
   }
 
   String _unusedParameterMessageFor(
@@ -721,7 +724,10 @@ class KarekiRunner {
     final qualifier = declaration.enclosingTypeName != null
         ? '${declaration.enclosingTypeName}.${declaration.name}'
         : declaration.name;
-    return "Public ${declaration.kind.name} '$qualifier' is only "
+    final kind = declaration.kind == DeclarationKind.enumConstant
+        ? 'enum value'
+        : declaration.kind.name;
+    return "Public $kind '$qualifier' is only "
         'referenced from test code.';
   }
 }

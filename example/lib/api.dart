@@ -9,6 +9,5 @@ class Greeting {
 
 String greet(String name) => 'hello, ${Greeting(name).name}';
 
-/// Public, declared in an imported file, but nobody references it —
-/// kareki flags it as `unused_element`.
-class UnusedPublicApi {}
+/// Only active is referenced; inactive demonstrates unused enum values.
+enum Status { active, inactive }

@@ -30,7 +30,7 @@
 
 | ルール | 検出対象 |
 |---|---|
-| `unused_element` | ワークスペース内のどこからも使われていない public なクラス、関数、メソッド、getter、setter、フィールド、トップレベル変数、extension、extension type、typedef |
+| `unused_element` | ワークスペース内のどこからも使われていない public なクラス、関数、メソッド、getter、setter、フィールド、enum とその値、トップレベル変数、extension、extension type、typedef |
 | `unused_file` | ほかのファイルから `import`、`part`、`export` されていない `.dart` ファイル |
 | `unused_pub_dependency` | `pubspec.yaml` に記載されているものの、ソース、解析設定、ネイティブプラグイン、フォントアセットのいずれでも使用が確認できない依存パッケージ |
 | `test_only_used` | `lib/` 配下にあり、テストコード（`*_test.dart`、`test/`、`integration_test/` 配下）からしか参照されていない public 宣言 |

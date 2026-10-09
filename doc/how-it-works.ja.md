@@ -68,6 +68,13 @@ void main() => LocalStore().save();
 | `unused_file` | 別の対象ファイルから import / export / part されているか、起点ファイルか。宣言への到達可能性とは別の判定。 |
 | `unused_pub_dependency` | import と、対応するアノテーション、ビルド設定、ネイティブプラグイン、アセットからの利用。 |
 
+public enum の値は enum 本体と別に追跡します。`Status.active` の参照はその値を保持しますが、
+型注釈で `Status` を使うだけでは全値を保持しません。到達可能な `Status.values` は、
+反復・添字・`byName`・`asNameMap` を含め、全値を保持します。添字や文字列で値を
+絞り込まないため、`Status.values[0]` でも全値を保持します。テストからだけ使う値は
+`test_only_used` の対象です。private enum と private な値は報告しません。
+enum に付けた keep-alive アノテーションは、その enum の全値を保護します。
+
 ### 省略可能な引数の使用状況
 
 省略可能な引数は、生成コードや到達できないコードも含む、収集した全ソースの呼び出しから使用状況を調べます。実際のオーバーライドやリダイレクトファクトリの関係も考慮し、引数ごとに次の状態を区別します。

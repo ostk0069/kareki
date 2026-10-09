@@ -330,7 +330,12 @@ class _ResolvedGraph {
     if (input == null || input is PrefixElement) return null;
     var element = input.baseElement;
     if (element is PropertyAccessorElement) {
-      element = element.nonSynthetic.baseElement;
+      final variable = element.variable;
+      // nonSynthetic maps an enum's synthetic values getter to the enum
+      // itself. Preserve the field identity so only values exposes constants.
+      element = variable is FieldElement && variable.isOriginEnumValues
+          ? variable.baseElement
+          : element.nonSynthetic.baseElement;
       if (element is FieldFormalParameterElement && element.field != null) {
         // A primary field's induced accessor points back to its declaring
         // formal, whereas ordinary accessors point back to their field.
@@ -360,6 +365,18 @@ class _ResolvedGraph {
     edges.putIfAbsent(id, () => {});
     final host = element.enclosingElement;
     if (host is InstanceElement) edge(id, ensure(host));
+    // The synthetic values field exposes every constant, including through
+    // indexing, iteration, byName and asNameMap. Keep these edges conditional
+    // on reaching values; merely reaching the enum type must not retain them.
+    if (element is FieldElement &&
+        element.isOriginEnumValues &&
+        host is EnumElement) {
+      for (final constant in host.fields.where(
+        (field) => field.isEnumConstant,
+      )) {
+        edge(id, ensure(constant));
+      }
+    }
     if (element is ConstructorElement) {
       edge(id, ensure(element.superConstructor));
       edge(id, ensure(element.redirectedConstructor));
@@ -1597,6 +1614,8 @@ class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
       DeclarationKind.classDecl => element is ClassElement,
       DeclarationKind.mixinDecl => element is MixinElement,
       DeclarationKind.enumDecl => element is EnumElement,
+      DeclarationKind.enumConstant =>
+        element is FieldElement && element.isEnumConstant,
       DeclarationKind.extensionDecl =>
         element is ExtensionElement || element is ExtensionTypeElement,
       DeclarationKind.typedefDecl => element is TypeAliasElement,

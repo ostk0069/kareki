@@ -3,6 +3,7 @@ import 'package:kareki_example/parameters.dart';
 
 void main() {
   greet('world');
+  print(Status.active);
 
   // `port` is never passed at any call site in the workspace —
   // kareki flags it as `unused_parameter_optional`.

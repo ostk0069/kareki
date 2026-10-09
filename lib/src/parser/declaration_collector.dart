@@ -262,6 +262,24 @@ class DeclarationCollector {
           annotations: _annotationNames(member.metadata),
         ),
       );
+      for (final constant in _enumConstants(member)) {
+        outDeclarations.add(
+          _record(
+            name: constant.name.lexeme,
+            kind: DeclarationKind.enumConstant,
+            token: constant.name,
+            node: constant,
+            lineInfo: lineInfo,
+            packageName: packageName,
+            path: path,
+            enclosingTypeName: name,
+            annotations: {
+              ..._annotationNames(member.metadata),
+              ..._annotationNames(constant.metadata),
+            },
+          ),
+        );
+      }
       _visitPrimaryConstructor(
         enclosingTypeName: name,
         declaration: _primaryConstructor(member),
@@ -945,6 +963,25 @@ Iterable<ClassMember> _typeDeclarationMembers(AstNode declaration) {
   final visitor = _DirectClassMemberVisitor();
   declaration.visitChildren(visitor);
   return visitor.members;
+}
+
+Iterable<EnumConstantDeclaration> _enumConstants(EnumDeclaration declaration) {
+  final visitor = _DirectEnumConstantVisitor();
+  declaration.visitChildren(visitor);
+  return visitor.constants;
+}
+
+class _DirectEnumConstantVisitor extends GeneralizingAstVisitor<void> {
+  final List<EnumConstantDeclaration> constants = [];
+
+  @override
+  void visitNode(AstNode node) {
+    if (node is EnumConstantDeclaration) {
+      constants.add(node);
+      return;
+    }
+    if (node is! ClassMember) node.visitChildren(this);
+  }
 }
 
 Token _constructorTypeToken(ConstructorDeclaration declaration) {

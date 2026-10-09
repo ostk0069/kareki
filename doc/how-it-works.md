@@ -95,6 +95,14 @@ can skip graph construction; each rule uses different evidence:
 | `unused_file` | Whether another scanned file imports, exports, or parts the file, or it is an entry point. This is not declaration reachability. |
 | `unused_pub_dependency` | Imports and recognized annotation, build-configuration, native-plugin, and asset usage. |
 
+Public enum values are tracked separately from their enum type. A reference to
+`Status.active` keeps that value; a type annotation using `Status` does not keep
+all values. A reachable `Status.values` keeps every value, including through
+iteration, indexing, `byName`, or `asNameMap`. These accesses are conservative:
+`Status.values[0]` keeps all values, without narrowing by the index. Values used
+only by tests can be reported by `test_only_used`. Private enums and private
+values are not reported. Keep-alive annotations on an enum protect its values.
+
 ### Optional-argument usage
 
 Optional-argument checks collect calls from all scanned sources, including

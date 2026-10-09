@@ -3,6 +3,7 @@ enum DeclarationKind {
   classDecl,
   mixinDecl,
   enumDecl,
+  enumConstant,
   extensionDecl,
   typedefDecl,
   function,
