@@ -35,7 +35,7 @@ class Preset {
   /// Preserve schema columns of reachable, resolved drift Table subtypes.
   final bool keepDriftColumns;
 
-  /// Preserve redirecting factories used as resolved Freezed generation inputs.
+  /// Preserve redirecting factories and JSON switches used as Freezed inputs.
   final bool keepFreezedFactories;
 
   /// Annotation simple names that mark a declaration as keep-alive.

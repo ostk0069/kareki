@@ -8,6 +8,7 @@ import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:kareki/src/config/kareki_config.dart';
+import 'package:kareki/src/dependency/flutter_asset_dependencies.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/model/declaration.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
@@ -36,6 +37,7 @@ class ResolvedReachability {
     this.argumentUsage,
     this.uncertainCallables,
     this.optionalArgumentStates,
+    this.assetDependencies,
   );
 
   final Set<DeclarationRecord> reachable;
@@ -45,6 +47,7 @@ class ResolvedReachability {
   final Set<DeclarationRecord> uncertainCallables;
   final Map<OptionalParameterRecord, OptionalArgumentState>
   optionalArgumentStates;
+  final Map<String, Set<String>> assetDependencies;
 
   static Future<ResolvedReachability> build({
     required List<ParsedFile> files,
@@ -53,8 +56,12 @@ class ResolvedReachability {
     required KarekiConfig config,
     required Map<String, String> packageRoots,
     bool trackArguments = false,
+    bool trackAssets = false,
   }) async {
-    if (files.isEmpty) return ResolvedReachability._({}, {}, [], {}, {}, {});
+    if (files.isEmpty) {
+      return ResolvedReachability._({}, {}, [], {}, {}, {}, {});
+    }
+    final assetDependencies = <String, Set<String>>{};
     final presets = PresetRegistry(
       enabledPresetNames: config.enabledPresetNames,
       customPresets: config.customPresets,
@@ -142,6 +149,13 @@ class ResolvedReachability {
             problems.add('${file.path}:$line: ${diagnostic.message}');
           }
           unit.unit.accept(_ResolvedVisitor(graph, path, file));
+          if (trackAssets) {
+            unit.unit.accept(
+              FlutterAssetDependencies(
+                assetDependencies.putIfAbsent(file.packageName, () => {}),
+              ),
+            );
+          }
           graph.collectConditionalFacade(path, unit.unit);
         }
       }
@@ -180,6 +194,7 @@ class ResolvedReachability {
             for (final parameter in entry.key.optionalParameters)
               parameter: graph.argumentState(entry.value, parameter),
         },
+        assetDependencies,
       );
     } on ResolvedAnalysisException {
       rethrow;
@@ -441,19 +456,51 @@ class _ResolvedGraph {
   // Direct uses of the generated class need not call the original factory.
   // Resolve the annotation's actual type so homonyms cannot activate this rule.
   void connectFreezedFactories(InterfaceElement type, _Id id) {
-    final isFreezed = type.metadata.annotations.any((annotation) {
-      final annotationType = annotation.computeConstantValue()?.type;
-      if (annotationType is! InterfaceType) return false;
-      final declaration = annotationType.element;
-      return declaration.name == 'Freezed' &&
-          declaration.library.uri.scheme == 'package' &&
-          declaration.library.uri.pathSegments.first == 'freezed_annotation';
-    });
+    final isFreezed = type.metadata.annotations.any(isFreezedAnnotation);
     if (!isFreezed) return;
     for (final constructor in type.constructors) {
       if (constructor.isFactory && constructor.redirectedConstructor != null) {
         edge(id, ensure(constructor));
       }
+    }
+  }
+
+  bool isFreezedAnnotation(ElementAnnotation annotation) {
+    final type = annotation.computeConstantValue()?.type;
+    return type is InterfaceType &&
+        type.element.name == 'Freezed' &&
+        type.element.library.uri.scheme == 'package' &&
+        type.element.library.uri.pathSegments.first == 'freezed_annotation';
+  }
+
+  // Freezed also reads an expression-bodied fromJson factory as a JSON
+  // generation switch. Keep the input attached to its model, not globally.
+  // When both directions are explicit, its presence no longer controls JSON.
+  void connectFreezedJson(
+    ConstructorDeclaration node,
+    ConstructorElement element,
+  ) {
+    if (!keepFreezedFactories ||
+        !element.isFactory ||
+        element.name != 'fromJson' ||
+        node.body is! ExpressionFunctionBody) {
+      return;
+    }
+    final type = element.enclosingElement;
+    if (!type.library.fragments.any(
+      (f) => f.source.uri.path.endsWith('.g.dart'),
+    )) {
+      return;
+    }
+    for (final annotation in type.metadata.annotations.where(
+      isFreezedAnnotation,
+    )) {
+      final value = annotation.computeConstantValue()!;
+      if (value.getField('fromJson')?.toBoolValue() != null &&
+          value.getField('toJson')?.toBoolValue() != null) {
+        continue;
+      }
+      edge(ensure(type)!, ensure(element));
     }
   }
 
@@ -1467,6 +1514,32 @@ class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
         }
       }
       if (element is InterfaceElement) graph.expandType(element);
+      if (node is ConstructorDeclaration && element is ConstructorElement) {
+        graph.connectFreezedJson(node, element);
+      }
+      // The VM/Flutter runner supplies positional arguments to top-level main.
+      // Check the entry signature too; member/local homonyms are deliberately
+      // excluded. A second positional argument is the isolate
+      // message supported by the Dart runtime entry-point contract.
+      if (graph.trackArguments &&
+          element is TopLevelFunctionElement &&
+          element.isEntryPoint &&
+          element.typeParameters.isEmpty &&
+          element.formalParameters.length <= 2 &&
+          element.formalParameters.every((p) => p.isPositional) &&
+          (element.formalParameters.isEmpty ||
+              element.library.typeSystem.isAssignableTo(
+                element.library.typeProvider.listType(
+                  element.library.typeProvider.stringType,
+                ),
+                element.formalParameters.first.type,
+              ))) {
+        graph.argumentUsage
+            .putIfAbsent(id, CallSiteUsage.new)
+            .mergePositional(
+              element.formalParameters.where((p) => p.isPositional).length,
+            );
+      }
       // Primary constructor fields have no VariableDeclaration; their field
       // fragment offset can be the class name. The declaring parameter provides
       // both the precise source position and the actual associated field.

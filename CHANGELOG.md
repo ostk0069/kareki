@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Runtime-supplied positional arguments of valid top-level `main` functions
+  are no longer reported as never passed. Member homonyms remain independent.
+- Dependency checks follow `analysis_options.yaml` includes (including relative
+  and transitive package includes) and resolved Flutter `IconData.fontPackage`
+  constants. No application or font-package allowlist is used.
+- The Freezed preset preserves expression-bodied `fromJson` factories that
+  enable JSON generation, as well as redirecting schema factories. Explicit
+  annotation settings for both JSON directions disable the inferred switch.
+
 - Analyzer-resolved declaration identities for `unused_element`, `test_only_used`,
   and `unused_parameter_optional`. Same-name declarations in unrelated classes
   and packages no longer share reachability.

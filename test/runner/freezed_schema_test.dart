@@ -85,4 +85,78 @@ void main() { print(const GeneratedModel(token: 'provided')); print(const Manual
       );
     }
   });
+
+  test(
+    'JSON generation switches follow annotation identity, shape and options',
+    () async {
+      workspace.write(
+        'vendor/freezed_annotation/lib/freezed_annotation.dart',
+        '''
+class Freezed {
+  const Freezed({this.fromJson, this.toJson});
+  final bool? fromJson;
+  final bool? toJson;
+}
+const freezed = Freezed();
+''',
+      );
+      workspace.write('lib/json.g.dart', "part of 'json.dart';\n");
+      workspace.write('lib/json.dart', '''
+import 'package:freezed_annotation/freezed_annotation.dart' as actual;
+part 'json.g.dart';
+@actual.freezed
+class JsonModel {
+  JsonModel();
+  factory JsonModel.fromJson(Map<String, dynamic> json) => JsonModel();
+}
+@actual.Freezed(fromJson: false, toJson: false)
+class Disabled {
+  Disabled();
+  factory Disabled.fromJson(Map<String, dynamic> json) => Disabled();
+}
+@actual.Freezed(fromJson: false)
+class Encoder {
+  Encoder();
+  factory Encoder.fromJson(Map<String, dynamic> json) => Encoder();
+}
+@actual.Freezed(fromJson: true, toJson: true)
+class Explicit {
+  Explicit();
+  factory Explicit.fromJson(Map<String, dynamic> json) => Explicit();
+}
+@actual.freezed
+class Block {
+  Block();
+  factory Block.fromJson(Map<String, dynamic> json) { return Block(); }
+}
+class Freezed { const Freezed(); }
+@Freezed()
+class HomonymJson {
+  HomonymJson();
+  factory HomonymJson.fromJson(Map<String, dynamic> json) => HomonymJson();
+}
+''');
+      workspace.write('bin/main.dart', '''
+import 'package:app/json.dart';
+void main() { print([JsonModel(), Disabled(), Encoder(), Explicit(), Block(), HomonymJson()]); }
+''');
+      final result = await analyze();
+      expect(result.analysisWarnings, isEmpty);
+      final messages = result.findings.map((f) => f.message);
+      for (final name in ['JsonModel', 'Encoder']) {
+        expect(messages, isNot(contains(contains("'$name.fromJson'"))));
+      }
+      for (final name in ['Disabled', 'Explicit', 'Block', 'HomonymJson']) {
+        expect(messages, contains(contains("'$name.fromJson'")));
+      }
+      workspace.write(
+        'kareki-config.yaml',
+        'keep_alive_annotations:\n  presets: [meta]\n',
+      );
+      expect(
+        (await analyze()).findings.map((f) => f.message),
+        contains(contains("'JsonModel.fromJson'")),
+      );
+    },
+  );
 }

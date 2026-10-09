@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:glob/glob.dart';
 import 'package:kareki/src/config/kareki_config.dart';
+import 'package:kareki/src/dependency/analysis_options_dependencies.dart';
 import 'package:kareki/src/dependency/native_plugin_dependencies.dart';
 import 'package:kareki/src/dependency/pub_dependency_checker.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
@@ -143,19 +144,30 @@ class KarekiRunner {
     }
     final stopwatch = Stopwatch()..start();
     final input = _prepare(request);
+    final trackAssets = requests.any(
+      (variant) => _ruleEnabled(RuleId.unusedPubDependency, variant),
+    );
     final needsGraph = requests.any(
       (variant) =>
           _ruleEnabled(RuleId.unusedElement, variant) ||
           _ruleEnabled(RuleId.testOnlyUsed, variant) ||
           _ruleEnabled(RuleId.unusedParameterOptional, variant),
     );
-    final resolved = needsGraph
+    // Flutter font assets require resolved SDK constants even in a dependency-
+    // only run. Pure Dart dependency checks retain their syntax-only fast path.
+    final needsAssets =
+        trackAssets &&
+        input.packages.any(
+          (package) => package.dependencies.contains('flutter'),
+        );
+    final resolved = needsGraph || needsAssets
         ? await ResolvedReachability.build(
             files: input.parsedFiles,
             generatedPaths: input.generatedPaths,
             entryPoints: input.entryPoints,
             config: request.config,
             packageRoots: input.packageRoots,
+            trackAssets: trackAssets,
             trackArguments: requests.any(
               (variant) =>
                   _ruleEnabled(RuleId.unusedParameterOptional, variant),
@@ -613,6 +625,12 @@ class KarekiRunner {
               pkg,
               strict: request.strictDependencies,
             ),
+            configurationDependencies: AnalysisOptionsDependencies().forPackage(
+              pkg,
+              filesByPackage[pkg.name] ?? const [],
+            ),
+            assetDependencies:
+                resolved?.assetDependencies[pkg.name] ?? const {},
           ),
         );
       }

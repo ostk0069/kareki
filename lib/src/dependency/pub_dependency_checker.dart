@@ -10,6 +10,7 @@ import 'package:kareki/src/parser/declaration_collector.dart';
 ///   preset registry passed as `annotationImpliedPackages`),
 /// - packages explicitly suppressed via `ignoredDeps`,
 /// - resolved native Flutter plugins used by the build/registration pipeline,
+/// - analyzer configuration includes and resolved Flutter font asset uses,
 /// - `sdkPackages` (Flutter / Dart SDK packages).
 class PubDependencyChecker {
   List<Finding> check({
@@ -19,6 +20,8 @@ class PubDependencyChecker {
     required Set<String> sdkPackages,
     Set<String> ignoredDeps = const {},
     Set<String> nativePluginDependencies = const {},
+    Set<String> configurationDependencies = const {},
+    Set<String> assetDependencies = const {},
     bool strict = false,
   }) {
     final imported = <String>{};
@@ -59,6 +62,8 @@ class PubDependencyChecker {
         .difference(imported)
         .difference(implicitlyNeeded)
         .difference(nativePluginDependencies)
+        .difference(configurationDependencies)
+        .difference(assetDependencies)
         .difference(ignoredDeps)
         .difference(sdkPackages);
     return [

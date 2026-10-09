@@ -57,6 +57,41 @@ void main() {
   Iterable<String> messages(RunResult result) =>
       result.findings.map((f) => f.message);
 
+  test('empty resolved inputs have no inferred asset dependencies', () async {
+    final result = await ResolvedReachability.build(
+      files: [],
+      generatedPaths: {},
+      entryPoints: EntryPointSet(entryPointPaths: {}, keepAliveAnnotations: {}),
+      config: KarekiConfig.defaults(),
+      packageRoots: {},
+      trackAssets: true,
+    );
+    expect(result.assetDependencies, isEmpty);
+  });
+
+  test(
+    'runtime entry arguments are supplied but member homonyms are not',
+    () async {
+      workspace.write('bin/main.dart', '''
+void main([List<String> arguments = const []]) {
+  print(arguments);
+  Member().main();
+}
+class Member { void main([List<String> unused = const []]) {} }
+''');
+      final result = await analyze();
+      expect(result.analysisWarnings, isEmpty);
+      expect(messages(result), isNot(contains(contains("'arguments'"))));
+      expect(messages(result), contains(contains("'unused'")));
+      expect(result.findings, hasLength(1));
+    },
+  );
+
+  test('named main parameters are not treated as runtime arguments', () async {
+    workspace.write('bin/main.dart', 'void main({String? argument}) {}');
+    expect(messages(await analyze()), contains(contains("'argument'")));
+  });
+
   test(
     'optional argument states distinguish usage, scoped non-use and unknown',
     () async {

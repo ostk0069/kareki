@@ -95,8 +95,13 @@ rule. Replacing the `drift` preset also replaces this built-in behavior.
 The built-in `freezed` preset preserves redirecting factories on types annotated
 with the resolved `Freezed` type from `package:freezed_annotation` (including
 `@freezed`). They define generated variants even when all callers instantiate
-the generated class directly. Ordinary factory bodies and same-named annotations
-from other libraries do not activate this rule. Disabling or replacing the
+the generated class directly. Expression-bodied `fromJson` factories also act
+as JSON generation switches when the library has a `.g.dart` part and either
+JSON direction is unspecified in the annotation. Explicit settings for both
+directions, block bodies, other factory names, and same-named annotations from
+other libraries do not activate this additional rule. Build-level overrides may
+make the switch redundant; it is retained conservatively in that case.
+Disabling or replacing the
 `freezed` preset disables these additional edges.
 
 Drift schema snapshots and `flutter_rust_bridge` files are recognized by their
@@ -109,6 +114,24 @@ Flutter can register or bundle these without a Dart import. The check reads the
 nearest `.dart_tool/package_config.json`, so run `pub get` first. This is a
 conservative build-dependency exemption, not proof that every plugin is needed
 on every target platform. Ordinary Dart dependencies remain checked.
+
+Dependency checks also follow the nearest `analysis_options.yaml` for each
+collected source, including relative/package includes and their transitive
+includes. Resolved Flutter `IconData` constants and literal constructor
+`fontPackage` arguments count as font-package usage, scoped to the referencing
+package. Flutter dependency-only runs therefore require successful resolution
+too. Dynamic asset paths and arbitrary build scripts are not inferred.
+
+Valid top-level `main` positional parameters can be supplied by the Dart/Flutter
+runtime, so they are not reported as never passed. This does not suppress the
+separate check for parameters unused inside the function body.
+
+Findings describe the analyzed source configuration, not every possible build.
+For scripts that replace source files (for example a FOSS flavor), analyze each
+prepared variant or explicitly retain its entry files before considering a
+deletion. Kareki never executes such scripts automatically. Regenerate code and
+run the project's checks after deletions; a clean analysis alone does not prove
+runtime, platform, or downstream API compatibility.
 
 ## Suppression
 
