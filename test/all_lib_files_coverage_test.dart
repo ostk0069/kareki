@@ -17,6 +17,8 @@ import 'package:kareki/src/doctor/doctor_reporter.dart' deferred as coverage07;
 import 'package:kareki/src/doctor/doctor_runner.dart' deferred as coverage08;
 import 'package:kareki/src/entry_points/entry_point_resolver.dart'
     deferred as coverage09;
+import 'package:kareki/src/generated/flutter_localizations.dart'
+    deferred as coverage26;
 import 'package:kareki/src/model/declaration.dart' deferred as coverage10;
 import 'package:kareki/src/model/finding.dart' deferred as coverage11;
 import 'package:kareki/src/model/package_info.dart' deferred as coverage12;
@@ -97,6 +99,7 @@ void main() {
       coverage23.loadLibrary(),
       coverage24.loadLibrary(),
       coverage25.loadLibrary(),
+      coverage26.loadLibrary(),
     ]);
   });
 }

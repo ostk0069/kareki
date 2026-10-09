@@ -75,6 +75,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Deferred imports' synthetic `loadLibrary` functions no longer crash resolved
+  analysis. Real declarations and argument usage keep their exact identities.
+- Root-level Dart scripts and `tool/` / `tools/` sources now contribute imports
+  and references. Collected top-level `main` functions are executable roots;
+  nested packages retain ownership and build/cache directories are pruned.
+- Built-in `dynamic` types no longer produce unresolved-reference warnings or
+  retain unrelated same-named constructors on newer analyzer versions.
+- The built-in Freezed preset preserves resolved redirecting factories as
+  generation inputs, even when callers instantiate generated classes directly.
+  Same-named annotations from other libraries do not activate this behavior.
+- Flutter gen-l10n outputs are recognized from `flutter.generate`, `l10n.yaml`
+  and ARB locales, including custom output paths. Generated sources still
+  contribute references and supplied arguments; unrelated neighboring files
+  remain checked.
 - Primary-constructor declaring fields map to their actual analyzer field IDs.
 - Closed SDK JSON reads no longer retain unrelated workspace `[]` operators.
   Resolved mode verifies the `dart:convert` declaration, the standard codec

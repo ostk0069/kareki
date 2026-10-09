@@ -5,6 +5,7 @@ import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/dependency/native_plugin_dependencies.dart';
 import 'package:kareki/src/dependency/pub_dependency_checker.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
+import 'package:kareki/src/generated/flutter_localizations.dart';
 import 'package:kareki/src/model/declaration.dart';
 import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/model/package_info.dart';
@@ -201,6 +202,7 @@ class KarekiRunner {
     );
     final collectedPaths = <String>{};
     for (final pkg in sourcePackages) {
+      final localizationOutputs = flutterLocalizationOutputs(pkg.rootPath);
       for (final file in _dartFilesIn(pkg)) {
         final relForGlob = p.relative(file.path, from: request.rootPath);
         final excluded = excludeGlobs.any(
@@ -222,7 +224,9 @@ class KarekiRunner {
           ]);
         }
         parsedFiles.add(parsed);
-        if (excluded || parsed.isGeneratedByHeader) {
+        if (excluded ||
+            parsed.isGeneratedByHeader ||
+            localizationOutputs.contains(p.normalize(file.path))) {
           generatedPaths.add(file.path);
         }
       }
@@ -691,20 +695,36 @@ class KarekiRunner {
   }
 
   Iterable<File> _dartFilesIn(PackageInfo pkg) sync* {
-    for (final sub in ['lib', 'bin', 'test', 'integration_test', 'example']) {
+    // Dart scripts need not live in bin/. In particular, independent tooling
+    // packages commonly put their executables directly beside pubspec.yaml.
+    yield* Directory(pkg.rootPath)
+        .listSync(followLinks: false)
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.dart'));
+    for (final sub in [
+      'lib',
+      'bin',
+      'test',
+      'integration_test',
+      'example',
+      'tool',
+      'tools',
+    ]) {
       final dir = Directory(p.join(pkg.rootPath, sub));
       if (!dir.existsSync()) continue;
-      for (final entity in dir.listSync(recursive: true, followLinks: false)) {
-        if (entity is! File) continue;
-        if (!entity.path.endsWith('.dart')) continue;
-        // Skip pub workspace build / tool outputs.
-        if (entity.path.contains('${p.separator}.dart_tool${p.separator}')) {
-          continue;
-        }
-        if (entity.path.contains('${p.separator}build${p.separator}')) {
-          continue;
-        }
+      yield* _dartFilesBelow(dir);
+    }
+  }
+
+  Iterable<File> _dartFilesBelow(Directory directory) sync* {
+    for (final entity in directory.listSync(followLinks: false)) {
+      if (entity is File && entity.path.endsWith('.dart')) {
         yield entity;
+      } else if (entity is Directory) {
+        final name = p.basename(entity.path);
+        // Prune before descending, including large build/cache directories.
+        if ({'.dart_tool', '.git', 'build'}.contains(name)) continue;
+        yield* _dartFilesBelow(entity);
       }
     }
   }

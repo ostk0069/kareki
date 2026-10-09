@@ -55,15 +55,17 @@ class ResolvedReachability {
     bool trackArguments = false,
   }) async {
     if (files.isEmpty) return ResolvedReachability._({}, {}, [], {}, {}, {});
+    final presets = PresetRegistry(
+      enabledPresetNames: config.enabledPresetNames,
+      customPresets: config.customPresets,
+    );
     final graph = _ResolvedGraph(
       files,
       generatedPaths,
       packageRoots,
       trackArguments: trackArguments,
-      keepDriftColumns: PresetRegistry(
-        enabledPresetNames: config.enabledPresetNames,
-        customPresets: config.customPresets,
-      ).keepDriftColumns,
+      keepDriftColumns: presets.keepDriftColumns,
+      keepFreezedFactories: presets.keepFreezedFactories,
     );
     final problems = <String>[];
     for (final root in packageRoots.values.toSet()) {
@@ -241,6 +243,7 @@ class _ResolvedGraph {
     this.packageRoots, {
     required this.trackArguments,
     required this.keepDriftColumns,
+    required this.keepFreezedFactories,
   }) {
     files.addEntries(sourceFiles.map((f) => MapEntry(canonical(f.path), f)));
     generated.addAll(generatedPaths.map(canonical));
@@ -258,6 +261,7 @@ class _ResolvedGraph {
   final Map<String, String> packageRoots;
   final bool trackArguments;
   final bool keepDriftColumns;
+  final bool keepFreezedFactories;
   late final decoderModels = ExternalDecoderModels(
     isWorkspaceSource: (path) => files.containsKey(canonical(path)),
   );
@@ -326,7 +330,12 @@ class _ResolvedGraph {
     final id = (
       library: canonical(library.firstFragment.source.fullName),
       unit: canonical(source.fullName),
-      offset: fragment.offset,
+      // A deferred library's synthetic loadLibrary has no source offset.
+      // Keep a library-scoped identity without conflating it with a real
+      // same-named function or rooting every declaration in that library.
+      offset: element is TopLevelFunctionElement && element.isOriginLoadLibrary
+          ? -2
+          : fragment.offset,
       kind: element.kind.name,
       name: element.lookupName,
     );
@@ -354,6 +363,7 @@ class _ResolvedGraph {
     final id = ensure(type)!;
     if (!expandedTypes.add(id)) return;
     if (keepDriftColumns) connectDriftColumns(type, id);
+    if (keepFreezedFactories) connectFreezedFactories(type, id);
     // Preserve implicit runtime hooks and actual inherited contracts. This is
     // deliberately conservative within a type hierarchy, never across homonyms.
     for (final name in ['call', 'toJson']) {
@@ -423,6 +433,26 @@ class _ResolvedGraph {
           id,
           ensure(type.lookUpGetter(name: field.name!, library: owner.library)),
         );
+      }
+    }
+  }
+
+  // Freezed generates concrete classes from redirecting factory declarations.
+  // Direct uses of the generated class need not call the original factory.
+  // Resolve the annotation's actual type so homonyms cannot activate this rule.
+  void connectFreezedFactories(InterfaceElement type, _Id id) {
+    final isFreezed = type.metadata.annotations.any((annotation) {
+      final annotationType = annotation.computeConstantValue()?.type;
+      if (annotationType is! InterfaceType) return false;
+      final declaration = annotationType.element;
+      return declaration.name == 'Freezed' &&
+          declaration.library.uri.scheme == 'package' &&
+          declaration.library.uri.pathSegments.first == 'freezed_annotation';
+    });
+    if (!isFreezed) return;
+    for (final constructor in type.constructors) {
+      if (constructor.isFactory && constructor.redirectedConstructor != null) {
+        edge(id, ensure(constructor));
       }
     }
   }
@@ -1508,7 +1538,11 @@ class _ResolvedVisitor extends GeneralizingAstVisitor<void> {
   }
 
   void reference(Element? element, String spelling, AstNode node) {
-    if (element is PrefixElement) return;
+    // Newer analyzer versions expose a DynamicElement with no library, both
+    // in type annotations and type literals. It is never an unknown target.
+    if (element is PrefixElement || element?.kind == ElementKind.DYNAMIC) {
+      return;
+    }
     final id = graph.ensure(element);
     if (id == null) {
       graph.unknown.add((owner, spelling));

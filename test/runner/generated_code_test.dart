@@ -15,6 +15,74 @@ void main() {
 
   tearDown(() => workspace.dispose());
 
+  test(
+    'gen-l10n outputs are identified by configuration and ARB locales',
+    () async {
+      workspace.write('pubspec.yaml', '''
+name: runner_fixture
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+flutter:
+  generate: true
+''');
+      workspace.write('l10n.yaml', '''
+arb-dir: assets/translations
+output-dir: lib/generated/translations
+output-localization-file: messages.dart
+''');
+      workspace.write('assets/translations/app_en.arb', '{"@@locale": "en"}');
+      workspace.write('lib/api.dart', '''
+class UsedByLocalization {}
+class TrulyUnused {}
+void configure({String? token}) => print(token);
+''');
+      workspace.write('lib/generated/translations/messages.dart', '''
+import '../../api.dart';
+UsedByLocalization create({String? unused}) => UsedByLocalization();
+void setup() => configure(token: 'generated');
+''');
+      workspace.write(
+        'lib/generated/translations/messages_en.dart',
+        'class GeneratedEnglish {}',
+      );
+      workspace.write(
+        'lib/generated/translations/messages_manual.dart',
+        'class ManualHelper {}',
+      );
+      workspace.write('lib/other/messages.dart', 'class SameNameElsewhere {}');
+      workspace.write('bin/main.dart', 'void main() {}');
+      final result = await KarekiRunner().run(
+        RunRequest(
+          rootPath: workspace.path,
+          config: KarekiConfig.load(workspace.path),
+        ),
+      );
+      final messages = result.findings.map((f) => f.message);
+      expect(
+        messages,
+        containsAll([
+          contains("'TrulyUnused'"),
+          contains("'ManualHelper'"),
+          contains("'SameNameElsewhere'"),
+        ]),
+      );
+      expect(messages, isNot(contains(contains("'UsedByLocalization'"))));
+      expect(messages, isNot(contains(contains("'GeneratedEnglish'"))));
+      expect(
+        result.findings.where(
+          (f) => f.ruleId == RuleId.unusedParameterOptional,
+        ),
+        isEmpty,
+      );
+      expect(
+        result.findings.where(
+          (f) => f.filePath.endsWith('/translations/messages.dart'),
+        ),
+        isEmpty,
+      );
+    },
+  );
+
   for (final sample in <(String, String)>[
     ('model.drift.dart', ''),
     ('database.steps.dart', ''),

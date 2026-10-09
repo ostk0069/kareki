@@ -10,6 +10,7 @@ import 'package:kareki/src/preset/preset.dart';
 /// freezed — last_verified: freezed 3.x.
 const Preset freezedPreset = Preset(
   name: 'freezed',
+  keepFreezedFactories: true,
   keepAliveAnnotations: {'freezed', 'Freezed', 'Default', 'Assert'},
   annotationImpliedPackages: {
     'freezed': {'freezed_annotation', 'built_collection'},

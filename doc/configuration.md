@@ -28,8 +28,27 @@ weight: 3
 | `entry_points.files` | `**/*.story.dart`, `**/widgetbook/**/*.dart` |
 | `keep_alive_annotations.presets` | `freezed`, `json_serializable`, `riverpod`, `auto_route`, `go_router`, `drift`, `hive`, `meta` |
 | `sdk_packages` | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine` |
-| Implicit entry-point conventions | `main.dart` / `main_*.dart`, `flutter_test_config.dart`, `*_test.dart` (in `test/`), any file in `bin/`, `integration_test/`, `lib/l10n/`, or any `void main()` declared under `test/` |
+| Implicit entry-point conventions | `main.dart` / `main_*.dart`, `flutter_test_config.dart`, `*_test.dart` (in `test/`), any file in `bin/`, `integration_test/`, `lib/l10n/`, or any collected file with a top-level `main` |
 | Generated-file detection (content) | First lines contain `GENERATED CODE - DO NOT MODIFY BY HAND` or `AUTO-GENERATED FILE. DO NOT EDIT` |
+
+## Source collection and generated files
+
+Source collection includes Dart files directly in each package root and under
+`lib/`, `bin/`, `test/`, `integration_test/`, `example/`, `tool/`, and `tools/`.
+`build/`, `.dart_tool/`, and `.git/` directories are pruned; discovered nested packages own their
+files without duplicate collection under the parent. Any collected file
+with a top-level `main` is an executable entry point. Other script helpers are
+not automatically kept alive. Nonstandard source directories are not discovered
+merely by listing them in `entry_points.files`.
+
+For packages with `flutter: {generate: true}`, Flutter gen-l10n outputs are
+recognized using `l10n.yaml` (`arb-dir`, `output-dir`, `output-localization-file`)
+and locales in ARB inputs. Defaults are `lib/l10n` and `app_localizations.dart`.
+Only matching output paths are exempted from findings; their outgoing references
+still count. An entire generated directory or every `app_localizations*.dart`
+file is not blindly excluded. Legacy `synthetic-package: true` output is not
+classified by this source-output rule. Run generation before analysis; this
+recognition does not create missing output files.
 
 ## Built-in presets
 
@@ -72,6 +91,13 @@ The built-in `drift` preset also preserves column declarations of reachable
 inputs to schema generation even when generated code overrides the original
 getters. Unrelated same-named types and unused tables are not kept alive by this
 rule. Replacing the `drift` preset also replaces this built-in behavior.
+
+The built-in `freezed` preset preserves redirecting factories on types annotated
+with the resolved `Freezed` type from `package:freezed_annotation` (including
+`@freezed`). They define generated variants even when all callers instantiate
+the generated class directly. Ordinary factory bodies and same-named annotations
+from other libraries do not activate this rule. Disabling or replacing the
+`freezed` preset disables these additional edges.
 
 Drift schema snapshots and `flutter_rust_bridge` files are recognized by their
 generator-specific headers. Generated files are excluded from findings, but

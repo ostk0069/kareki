@@ -39,11 +39,6 @@ bool _containsSegment(String path, String segment) {
       path.endsWith('/$segment');
 }
 
-bool _isInTestDir(String path) {
-  final normalized = path.replaceAll(r'\', '/');
-  return _containsSegment(normalized, 'test');
-}
-
 /// Whether [path] belongs to test sources (test/, integration_test/, or
 /// any `*_test.dart` / `flutter_test_config.dart` file). Used to split
 /// entry points into "production" and "test" buckets so the
@@ -114,10 +109,9 @@ class EntryPointResolver {
       final relPath = p.relative(file.path, from: rootPath);
       final isEntry =
           _isImplicitEntryPath(file.path) ||
-          // Any file in test/ that defines `main` is executable by
-          // `flutter test`, even if its name doesn't end in `_test.dart`
-          // (e.g. hand-rolled fixtures under `dartx/test/`).
-          (file.hasTopLevelMain && _isInTestDir(file.path)) ||
+          // Any collected top-level main can be invoked with dart run,
+          // including root/tool scripts and custom-named test executables.
+          file.hasTopLevelMain ||
           extraGlobs.any(
             (g) => g.matches(relPath) || g.matches(p.basename(file.path)),
           );

@@ -62,6 +62,63 @@ void deadHelper() {}
   });
   tearDown(() => workspace.dispose());
 
+  test('dynamic types do not retain same-named constructors', () async {
+    workspace.write('lib/api.dart', '''
+class Model { Model.dynamic(); }
+void parse(Map<String, dynamic> values) => print(values);
+''');
+    workspace.write('bin/main.dart', '''
+import 'package:app/api.dart';
+void main() { parse({'key': 1}); print(dynamic); }
+''');
+    final result = await analyze();
+    expect(result.analysisWarnings, isEmpty);
+    expect(unused(result), contains(contains("'Model.dynamic'")));
+    workspace.write('bin/main.dart', '''
+import 'package:app/api.dart';
+void main() { parse({'key': Model.dynamic()}); }
+''');
+    final used = await analyze();
+    expect(used.analysisWarnings, isEmpty);
+    expect(unused(used), isEmpty);
+  });
+
+  test(
+    'deferred loaders preserve exact references and argument usage',
+    () async {
+      workspace.write('lib/api.dart', '''
+void used({String? token}) => print(token);
+void unused() {}
+void loadLibrary() {}
+''');
+      workspace.write('lib/other.dart', '''
+void used({String? token}) => print(token);
+void unused() {}
+''');
+      workspace.write('bin/main.dart', '''
+import 'package:app/api.dart' deferred as first;
+import 'package:app/other.dart' deferred as second;
+Future<void> main() async {
+  await first.loadLibrary();
+  final load = second.loadLibrary;
+  await load();
+  first.used(token: 'provided');
+  second.used();
+}
+''');
+      final result = await KarekiRunner().analyze(request(rules: RuleId.all));
+      expect(result.analysisWarnings, isEmpty);
+      expect(unused(result).where((m) => m.contains("'used'")), isEmpty);
+      expect(unused(result).where((m) => m.contains("'unused'")), hasLength(2));
+      expect(unused(result), contains(contains("'loadLibrary'")));
+      final optional = result.findings.where(
+        (f) => f.ruleId == RuleId.unusedParameterOptional,
+      );
+      expect(optional, hasLength(1));
+      expect(optional.single.filePath, endsWith('/lib/other.dart'));
+    },
+  );
+
   test(
     'null assertions retain exact fields and getters without homonym edges',
     () async {

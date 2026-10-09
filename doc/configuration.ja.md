@@ -28,8 +28,26 @@ weight: 3
 | `entry_points.files` | `**/*.story.dart`, `**/widgetbook/**/*.dart` |
 | `keep_alive_annotations.presets` | `freezed`, `json_serializable`, `riverpod`, `auto_route`, `go_router`, `drift`, `hive`, `meta` |
 | `sdk_packages` | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine` |
-| 暗黙のエントリポイント規約 | `main.dart` / `main_*.dart`、`flutter_test_config.dart`、`*_test.dart`（`test/` 配下）、`bin/`・`integration_test/`・`lib/l10n/` 配下の全ファイル、`test/` 配下で `void main()` を宣言しているファイル |
+| 暗黙のエントリポイント規約 | `main.dart` / `main_*.dart`、`flutter_test_config.dart`、`*_test.dart`（`test/` 配下）、`bin/`・`integration_test/`・`lib/l10n/` 配下の全ファイル、収集対象のうちトップレベル `main` を持つファイル |
 | 生成ファイル判定（中身） | 先頭行に `GENERATED CODE - DO NOT MODIFY BY HAND` または `AUTO-GENERATED FILE. DO NOT EDIT` を含む |
+
+## ソース収集と生成ファイル
+
+各パッケージ直下の Dart ファイルと、`lib/`・`bin/`・`test/`・
+`integration_test/`・`example/`・`tool/`・`tools/` 配下を収集します。
+`build/`・`.dart_tool/`・`.git/` は探索せず、独立した探索対象として見つかった
+入れ子のパッケージは、親と重複させずそのパッケージ自身のソースとして収集します。
+収集されたトップレベル `main` を持つファイルは実行入口になりますが、
+その他のスクリプト用ヘルパーは一律に保持しません。
+`entry_points.files` の指定だけでは、上記以外のディレクトリは収集されません。
+
+`flutter: {generate: true}` のパッケージでは、`l10n.yaml` の `arb-dir`・
+`output-dir`・`output-localization-file` と ARB 入力のロケールから
+Flutter gen-l10n の出力を認識します。既定値は `lib/l10n` と
+`app_localizations.dart` です。該当する出力だけを指摘対象外とし、
+そこからの参照・引数使用は引き続き解析します。ディレクトリ全体や
+同名に似たファイルを一律には除外しません。旧方式の `synthetic-package: true`
+はこの判定の対象外です。生成処理自体は事前に実行してください。
 
 ## Built-in presets
 
@@ -45,6 +63,12 @@ weight: 3
 | `meta` *(常に有効)* | `@visibleForTesting`, `@visibleForOverriding`, `@protected`, `@internal`, `@immutable`, `@experimental`, `@mustCallSuper`, `@sealed`, `@factory`, `@useResult`, `@nonVirtual`, `@pragma` | `meta` |
 
 定義は [`lib/src/preset/builtin_presets.dart`](../lib/src/preset/builtin_presets.dart) にあり、各エントリには検証済みフレームワークバージョン（`last_verified`）が記録されています。
+
+ビルトインの `freezed` プリセットは、実際の `package:freezed_annotation` の
+`Freezed` 型のアノテーション（`@freezed` を含む）を確認し、その型の
+リダイレクトファクトリを生成入力として保持します。生成クラスを直接使う場合も
+元のファクトリは生成に必要です。通常のファクトリ本体や別ライブラリの同名
+アノテーションは対象外です。プリセットを無効化・上書きするとこの保護も外れます。
 
 ## Defining or overriding a preset
 

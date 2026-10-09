@@ -23,6 +23,7 @@ class Preset {
     this.keepAliveAnnotations = const {},
     this.annotationImpliedPackages = const {},
     this.keepDriftColumns = false,
+    this.keepFreezedFactories = false,
   });
 
   /// Stable identifier used to opt-in/out and to override built-ins.
@@ -33,6 +34,9 @@ class Preset {
 
   /// Preserve schema columns of reachable, resolved drift Table subtypes.
   final bool keepDriftColumns;
+
+  /// Preserve redirecting factories used as resolved Freezed generation inputs.
+  final bool keepFreezedFactories;
 
   /// Annotation simple names that mark a declaration as keep-alive.
   final Set<String> keepAliveAnnotations;
