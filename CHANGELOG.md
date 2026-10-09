@@ -9,50 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** removed the legacy name-based engine and
-  `analysis_mode` / `--analysis-mode`. Install dependencies and generate sources
-  before running rules that require resolution. Resolution failures return exit
-  code 2 without partial findings or baseline writes.
-- **Breaking:** runner and CLI APIs are asynchronous. Await `run()`,
-  `analyze()`, `runCli()`, and `runDoctor()`. Preview API names,
-  `AnalysisMode`, and legacy parser reference metadata are removed.
-  See the [migration guide](doc/migration.md).
-- Reachability and optional-argument checks distinguish individual declarations.
-  Unrelated same-name declarations no longer share usage. Package filters limit
-  reports while references are collected across the discovered workspace.
-- Doctor shares one resolved source snapshot across its checks. Indexed graph
-  construction, reused library units, and per-run lookup caches reduce repeated
-  work without changing analysis scope. No persistent cache is used.
-
-### Added
-
-- Per-parameter usage states and callback analysis reduce false positives while
-  retaining parameters with unknown call paths. Warnings include locations,
-  candidate declarations, and other evidence for review.
-- Narrow checks for compatible conditional imports and read-only JSON/YAML
-  decoding reduce unnecessary retention. External decoder models require
-  reviewed source fingerprints. See [analysis internals](doc/analysis-internals.md)
-  and [decoder models](doc/decoder-models.md) for their limits.
-- Dependency checks recognize transitive `analysis_options.yaml` includes,
-  native Flutter plugins, and Flutter `IconData.fontPackage` usage.
-- Generated-file recognition covers Flutter gen-l10n output paths, Drift schema
-  snapshots, and `flutter_rust_bridge` headers. Generated and analyzer-excluded
-  sources still contribute references and argument usage.
+- **Breaking:** replaced name-based analysis with declaration-aware analysis;
+  removed `analysis_mode` / `--analysis-mode`. Install dependencies and generate
+  sources before analysis.
+- **Breaking:** runner and CLI APIs now require `await`.
+  See the [migration guide](doc/migration.md) for all API and CLI changes.
+- Reduced repeated resolution and graph-building work.
 
 ### Fixed
 
-- Prevented analysis failures on deferred `loadLibrary` calls and incorrect
-  unresolved-reference warnings for built-in `dynamic`.
-- Corrected reference and argument tracking for Record fields, null assertions,
-  built-in function `call`, import/export `show` and `hide`, primary-constructor
-  fields, super formals, and runtime-supplied `main` arguments.
-- Root-level scripts and `tool/` / `tools/` sources now contribute references.
-  Nested packages own their sources without duplicate findings.
-- Preserved Drift schema columns and Freezed redirecting / JSON factories needed
-  for code generation, including when generated implementations are used directly.
-- Doctor recognizes simple-name suppressions on qualified member findings and
-  returns exit code 2 when failed resolution or analysis warnings prevent safe
-  cleanup checks.
+- Reduced false positives in callback, optional-argument, generated-code,
+  dependency, and workspace analysis.
+- Fixed analysis crashes on deferred imports.
+- Doctor returns exit code 2 when incomplete or uncertain analysis prevents
+  safe suppression and baseline checks.
 
 ## 0.7.0
 
