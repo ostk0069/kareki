@@ -36,6 +36,21 @@ dart run kareki
 | `unused_parameter` | Parameters never read by their declaration |
 | `unused_parameter_optional` | Optional parameters never passed at any call site |
 
+## Tool comparison
+
+Six key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
+
+| Feature | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart standard analysis |
+|---|:---:|:---:|:---:|:---:|:---:|
+| [Unused public declarations and members](how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
+| Unused private declarations and members | — | ✅ | ✅ | — | ✅ |
+| [Public declaration cycles unreachable from entry points](comparison.md#analysis-differences) | ✅ | — | — | — | — |
+| [Unused Dart files](how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
+| [Unused pub dependencies](configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
+| [Report only new findings using a baseline](baseline.md) | ✅ | — | — | — | — |
+
+See the [full comparison](comparison.md) for other features, required settings, limitations, and versions compared.
+
 ## Explore the documentation
 
 - [CLI reference](cli/) — commands, options, formats, and exit codes

@@ -37,6 +37,21 @@
 | `unused_parameter` | 関数、メソッド、名前付きコンストラクタの本体や初期化処理で一度も参照されていない引数。Dart 標準の `unused_element_parameter` では検出できない必須引数や public API も対象です。 |
 | `unused_parameter_optional` | ワークスペース内のどの呼び出し元からも値を渡されていない省略可能な引数（名前付き引数またはオプショナル位置引数）。単一ライブラリ内の private な省略可能引数だけを調べる Dart 標準の `unused_element_parameter` と異なり、public API やパッケージをまたぐ呼び出しも対象です。 |
 
+## Tool comparison
+
+主な6項目の比較です。✅ 対応（オプションでの有効化を含む）、— 該当機能なし。
+
+| 機能 | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart 標準解析 |
+|---|:---:|:---:|:---:|:---:|:---:|
+| [未使用 public 宣言・メンバー](doc/how-it-works.ja.md#解析の流れ) | ✅ | ✅ | ✅ | — | — |
+| 未使用 private 宣言・メンバー | — | ✅ | ✅ | — | ✅ |
+| [起点から到達できない public 宣言の循環参照](doc/comparison.ja.md#解析方式の違い) | ✅ | — | — | — | — |
+| [未使用 Dart ファイル](doc/how-it-works.ja.md#各ルールが使う根拠) | ✅ | — | ✅ | — | — |
+| [未使用の pub 依存パッケージ](doc/configuration.ja.md#import-以外で使われる依存パッケージ) | ✅ | — | — | ✅ | — |
+| [ベースラインで新規指摘だけを報告](doc/baseline.ja.md) | ✅ | — | — | — | — |
+
+ほかの機能、各ツールの設定条件・制限、比較した版は[詳しい比較](doc/comparison.ja.md)を参照してください。
+
 ## Install
 
 ```yaml
