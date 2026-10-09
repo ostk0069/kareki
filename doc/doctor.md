@@ -48,7 +48,7 @@ can still produce issues.
 
 An empty JSON array with exit code `2` does **not** mean the configuration is
 clean. Do not remove suppressions or baseline entries based on that empty result.
-See [analysis internals](analysis-internals.md) for how to review warning evidence.
+See [how it works](how-it-works.md#reviewing-the-results) for examples and guidance on reviewing the results.
 
 Library users must await `DoctorRunner().analyze(request)` or `run(request)`.
 See the [API example and notes](https://github.com/ostk0069/kareki/blob/main/example/example.md#programmatic-api).

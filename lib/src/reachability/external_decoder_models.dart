@@ -18,8 +18,19 @@ class ExternalDecoderModels {
   final _yamlLibraries = <LibraryElement>{};
 
   static const _contracts = {
-    // Trust boundary and review procedure:
-    // doc/analysis-internals.md#updating-external-decoder-models
+    // Models apply only to external dependencies, never scanned workspace code.
+    // Approval covers the non-SDK import/export/part closure, source contents,
+    // and effective language versions; names or versions alone are insufficient.
+    // Before registering a fingerprint:
+    // 1. Review the decoder and its transitive implementation. Confirm decoded
+    //    values cannot dispatch to arbitrary workspace operators.
+    // 2. Inspect the closure with:
+    //    dart tool/resolved_analysis/decoder_model_snapshot.dart SOURCE_FILE LIBRARY_URI
+    //    Generating a digest is not approval to trust it.
+    // 3. Extend test/runner/resolved_decoders_test.dart with supported cases and
+    //    counterexamples: changed sources, relocation, same-name impostors,
+    //    mutation, escape, and vendored implementations. Register only after
+    //    review and tests pass. Unrecognized sources retain conservative analysis.
     'package:jsonc/src/json.dart': {
       '490dbda2ab9504c89d54f7c7709c283eec8025454f8b7e130985f34d043213cf',
     },
