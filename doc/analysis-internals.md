@@ -34,8 +34,7 @@ Exact supported constructs and limits belong in the
 [implementation](https://github.com/ostk0069/kareki/blob/main/lib/src/reachability/resolved_reachability.dart)
 and [regression tests](https://github.com/ostk0069/kareki/tree/main/test/runner).
 When extending a model, test both the newly supported case and cases that must
-remain protected. External decoder model reviews are described in
-[decoder models](decoder-models.md).
+remain protected.
 
 ## Limits of warning evidence
 
@@ -47,3 +46,23 @@ Trace the reported values through their consumers, including dependencies.
 Manual review does not change the analyzer's decision or clear its warnings.
 [Doctor](doctor.md) skips usage-dependent cleanup checks while warnings remain;
 an empty result in that state is not a clean bill of health.
+
+## Updating external decoder models
+
+JSONC/YAML models apply only to external dependencies, never scanned workspace
+sources. They require reviewed fingerprints of the non-SDK import/export/part
+closure, including source contents and effective language versions. Names or
+version numbers alone are insufficient; unrecognized sources retain conservative
+analysis.
+
+Before updating the catalog in `external_decoder_models.dart`:
+
+1. Review the decoder and its transitive implementation sources. Confirm that
+   decoded values cannot dispatch to arbitrary workspace operators.
+2. Inspect the source closure with
+   `dart tool/resolved_analysis/decoder_model_snapshot.dart SOURCE_FILE LIBRARY_URI`.
+   Generating a fingerprint is not approval to trust it.
+3. Extend `test/runner/resolved_decoders_test.dart` with supported cases and
+   counterexamples, including changed sources, relocation, same-name impostors,
+   mutation, escaping values, and vendored implementations. Register a fingerprint
+   only after review and tests pass.

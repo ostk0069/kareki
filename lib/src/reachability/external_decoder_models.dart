@@ -18,7 +18,8 @@ class ExternalDecoderModels {
   final _yamlLibraries = <LibraryElement>{};
 
   static const _contracts = {
-    // See doc/decoder-models.md for the trust boundary and review procedure.
+    // Trust boundary and review procedure:
+    // doc/analysis-internals.md#updating-external-decoder-models
     'package:jsonc/src/json.dart': {
       '490dbda2ab9504c89d54f7c7709c283eec8025454f8b7e130985f34d043213cf',
     },
