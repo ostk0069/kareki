@@ -36,6 +36,21 @@ dart run kareki
 | `unused_parameter` | 宣言内で一度も読まれない引数 |
 | `unused_parameter_optional` | どの呼び出し元からも渡されない省略可能な引数 |
 
+## 類似ツールとの比較
+
+主な6項目の比較です。✅ 対応（オプションでの有効化を含む）、— 該当機能なし。
+
+| 機能 | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart 標準解析 |
+|---|:---:|:---:|:---:|:---:|:---:|
+| [未使用 public 宣言・メンバー](how-it-works.ja.md#解析の流れ) | ✅ | ✅ | ✅ | — | — |
+| 未使用 private 宣言・メンバー | — | ✅ | ✅ | — | ✅ |
+| [起点から到達できない public 宣言の循環参照](comparison.ja.md#解析方式の違い) | ✅ | — | — | — | — |
+| [未使用 Dart ファイル](how-it-works.ja.md#各ルールが使う根拠) | ✅ | — | ✅ | — | — |
+| [未使用の pub 依存パッケージ](configuration.ja.md#import-以外で使われる依存パッケージ) | ✅ | — | — | ✅ | — |
+| [ベースラインで新規指摘だけを報告](baseline.ja.md) | ✅ | — | — | — | — |
+
+ほかの機能、各ツールの設定条件・制限、比較した版は[詳しい比較](comparison.ja.md)を参照してください。
+
 ## ドキュメント
 
 - [CLI リファレンス](cli/) — コマンド、オプション、出力形式、終了コード
@@ -43,6 +58,7 @@ dart run kareki
 - [ベースライン](baseline/) — 既存コードベースへ段階的に導入する方法
 - [Doctor](doctor/) — 不要になった除外設定や抑制を検出する方法
 - [解析の仕組み](how-it-works/) — 解析の流れと制約
+- [類似ツールとの比較](comparison/) — ciach、Dart Code Linter などの Dart 向けツールとの違い
 - [運用のベストプラクティス](operations/) — cron と AI エージェントによる定期的なクリーンアップ
 
 ## リンク

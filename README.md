@@ -35,6 +35,21 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 | `unused_parameter` | Parameters of a function, method, or named constructor that are never referenced in the body or initializers. Covers required and public-API parameters that Dart's built-in `unused_element_parameter` doesn't reach. |
 | `unused_parameter_optional` | Optional parameters (named or positional optional) of a function, method, or constructor that are never passed at any call site in the workspace. The public / cross-package counterpart to Dart's built-in `unused_element_parameter`, which only inspects private optional parameters within a single library. |
 
+## Tool comparison
+
+Six key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
+
+| Feature | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart standard analysis |
+|---|:---:|:---:|:---:|:---:|:---:|
+| [Unused public declarations and members](doc/how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
+| Unused private declarations and members | — | ✅ | ✅ | — | ✅ |
+| [Public declaration cycles unreachable from entry points](doc/comparison.md#analysis-differences) | ✅ | — | — | — | — |
+| [Unused Dart files](doc/how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
+| [Unused pub dependencies](doc/configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
+| [Report only new findings using a baseline](doc/baseline.md) | ✅ | — | — | — | — |
+
+See the [full comparison](doc/comparison.md) for other features, required settings, limitations, and versions compared.
+
 ## Install
 
 ```yaml
@@ -89,6 +104,7 @@ Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the 
 - [Baseline](doc/baseline.md) — incremental adoption
 - [Doctor](doc/doctor.md) — obsolete exclusions and suppressions
 - [How it works](doc/how-it-works.md) — analysis flow, entry points, limits, and supported versions
+- [Comparing similar tools](doc/comparison.md) — ciach, Dart Code Linter, and other Dart tools
 - [Best practices](doc/operations.md) — scheduled cleanup pull requests with an AI agent
 
 ## License
