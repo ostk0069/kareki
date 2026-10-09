@@ -92,6 +92,15 @@ Future<void> main() async {
 }
 ```
 
+`KarekiRunner.run` and `analyze` return Futures, as do `DoctorRunner.run`,
+`DoctorRunner.analyze`, `runCli`, and `runDoctor`. Await them from an `async`
+caller. Analysis warnings are available separately in `result.analysisWarnings`.
+
+The preview APIs `runCliAsync` / `runDoctorAsync`, `AnalysisMode` and its
+arguments, and legacy name-reference metadata on `ParsedFile`,
+`DeclarationRecord`, and `EntryPointSet` have been removed. These API changes
+do not change the `dart run kareki` command.
+
 ## Configuration
 
 See [`kareki-config.yaml`](kareki-config.yaml) for the minimum config

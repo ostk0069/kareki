@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed `analysis_mode` / `--analysis-mode`. Install dependencies and generate
   sources before analysis.
 - **Breaking:** runner and CLI APIs now require `await`.
-  See the [API notes](doc/analysis-internals.md#library-api) for removed APIs.
+  See the [API example and notes](example/example.md#programmatic-api).
 - Reduced repeated resolution and graph-building work.
 
 ### Fixed

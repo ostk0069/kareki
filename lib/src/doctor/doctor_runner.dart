@@ -8,6 +8,7 @@ import 'package:kareki/src/model/finding.dart';
 import 'package:kareki/src/model/package_info.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/runner.dart';
+import 'package:kareki/src/workspace/dart_source_files.dart';
 import 'package:kareki/src/workspace/workspace_loader.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
@@ -232,7 +233,7 @@ class DoctorRunner {
     };
     final hits = <String, int>{for (final pattern in globs.keys) pattern: 0};
     for (final pkg in analyzedPackages) {
-      for (final file in _dartFilesIn(pkg)) {
+      for (final file in packageDartFiles(pkg.rootPath)) {
         final rel = p.relative(file.path, from: request.rootPath);
         final base = p.basename(file.path);
         for (final entry in globs.entries) {
@@ -344,7 +345,7 @@ class DoctorRunner {
     // remember which names are ignored on which line.
     final lineIgnoresByPath = <String, Map<int, Set<String>>>{};
     for (final pkg in analyzedPackages) {
-      for (final file in _dartFilesIn(pkg)) {
+      for (final file in packageDartFiles(pkg.rootPath)) {
         final rel = p.relative(file.path, from: request.rootPath);
         final base = p.basename(file.path);
         final excluded = excludeGlobs.any(
@@ -479,24 +480,6 @@ class DoctorRunner {
         subject: key,
         detail: 'baseline',
       );
-    }
-  }
-
-  Iterable<File> _dartFilesIn(PackageInfo pkg) sync* {
-    for (final sub in ['lib', 'bin', 'test', 'integration_test', 'example']) {
-      final dir = Directory(p.join(pkg.rootPath, sub));
-      if (!dir.existsSync()) continue;
-      for (final entity in dir.listSync(recursive: true, followLinks: false)) {
-        if (entity is! File) continue;
-        if (!entity.path.endsWith('.dart')) continue;
-        if (entity.path.contains('${p.separator}.dart_tool${p.separator}')) {
-          continue;
-        }
-        if (entity.path.contains('${p.separator}build${p.separator}')) {
-          continue;
-        }
-        yield entity;
-      }
     }
   }
 }

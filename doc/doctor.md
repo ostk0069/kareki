@@ -32,17 +32,18 @@ Only user-supplied entries are checked. Built-in defaults, such as the
 |---|---|
 | `0` | All checks completed with no issues. |
 | `1` | All checks completed with at least one issue. |
-| `2` | Resolution failed or analysis warnings prevented safe completion. Takes precedence over `1`. |
-| `64` | Invalid options or configuration. |
+| `2` | Analysis failed or warnings prevented safe completion. Takes precedence over `1`. |
+| `64` | Invalid CLI options or kareki configuration. |
 
 ## When checks cannot complete
 
 Doctor uses resolved references to check parameter-name exclusions, suppression
 comments, and baseline entries. It shares one source snapshot across these checks.
 
-If resolution fails, doctor returns `2` without a report. If analysis warnings
-leave usage uncertain, it skips these usage-dependent checks, explains why on
-stderr, and returns `2`. Structural checks, such as unmatched file patterns,
+If source resolution or gen-l10n input loading fails, doctor returns `2` without
+a report. If analysis warnings leave usage uncertain, it skips these
+usage-dependent checks, explains why on stderr, and returns `2`.
+Structural checks, such as unmatched file patterns,
 can still produce issues.
 
 An empty JSON array with exit code `2` does **not** mean the configuration is
@@ -50,4 +51,4 @@ clean. Do not remove suppressions or baseline entries based on that empty result
 See [analysis internals](analysis-internals.md) for how to review warning evidence.
 
 Library users must await `DoctorRunner().analyze(request)` or `run(request)`.
-See the [API notes](analysis-internals.md#library-api).
+See the [API example and notes](https://github.com/ostk0069/kareki/blob/main/example/example.md#programmatic-api).

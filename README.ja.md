@@ -90,7 +90,6 @@ dart run kareki doctor
 - [Doctor](doc/doctor.ja.md) — 不要になった除外設定や抑制コメントを見つける方法
 - [解析の仕組み](doc/how-it-works.ja.md) — デッドコードを検出する仕組み、解析の起点、保証できないこと、対応バージョン
 - [運用のベストプラクティス](doc/operations.ja.md) — cron と AI エージェントで定期的にクリーンアップ PR を作る方法
-- [解析の内部仕様](doc/analysis-internals.ja.md) — 実装上の判定条件と警告の根拠
 
 ## License
 

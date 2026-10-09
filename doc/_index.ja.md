@@ -44,7 +44,6 @@ dart run kareki
 - [Doctor](doctor/) — 不要になった除外設定や抑制を検出する方法
 - [解析の仕組み](how-it-works/) — 解析の流れと制約
 - [運用のベストプラクティス](operations/) — cron と AI エージェントによる定期的なクリーンアップ
-- [解析の内部仕様](analysis-internals/) — 実装上の判定条件と警告の根拠
 
 ## リンク
 

@@ -206,7 +206,9 @@ ArgParser _buildArgParser() {
     )
     ..addMultiOption(
       'packages',
-      help: 'Restrict analysis to these package names (repeatable).',
+      help:
+          'Report findings only for these package names (repeatable). '
+          'References are still collected across the discovered workspace.',
     )
     ..addMultiOption(
       'rule',

@@ -80,6 +80,71 @@ void main() {
   });
 
   group('DoctorRunner', () {
+    test('recognizes excludes for root and tooling scripts', () async {
+      _scaffold(
+        tempRoot.path,
+        packages: {
+          'app': {
+            'script.dart': 'void main() {}',
+            'tool/helper.dart': 'void main() {}',
+            'tools/helper.dart': 'void main() {}',
+          },
+        },
+      );
+      _writeKarekiConfig(tempRoot.path, '''
+version: 1
+exclude:
+  files:
+    - app/script.dart
+    - app/tool/helper.dart
+    - app/tools/helper.dart
+    - app/missing.dart
+''');
+      final result = await DoctorRunner().run(_request(tempRoot.path));
+      expect(result.analysisWarnings, isEmpty);
+      expect(
+        result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedExclude)
+            .map((f) => f.subject),
+        ['app/missing.dart'],
+      );
+    });
+
+    test('checks live and stale ignores in root and tooling scripts', () async {
+      const paths = ['script.dart', 'tool/helper.dart', 'tools/helper.dart'];
+      _scaffold(
+        tempRoot.path,
+        packages: {
+          'app': {
+            for (final path in paths)
+              path: '''
+// kareki: ignore_for_file=unused_parameter,test_only_used
+void main() {}
+void helper(int unused) {}
+// kareki: ignore=removedSymbol
+void another() {}
+''',
+          },
+        },
+      );
+      final result = await DoctorRunner().run(_request(tempRoot.path));
+      expect(result.analysisWarnings, isEmpty);
+      final ignores = result.findings
+          .where((f) => f.kind == DoctorIssueKind.unusedIgnoreDirective)
+          .toList();
+      expect(ignores, hasLength(paths.length * 2));
+      for (final path in paths) {
+        expect(
+          ignores.where((f) => f.subject == 'app/$path').map((f) => f.detail),
+          ['test_only_used'],
+        );
+        expect(
+          ignores.where((f) => f.subject == 'app/$path:5').map((f) => f.detail),
+          ['removedSymbol'],
+        );
+      }
+    });
+
     test(
       'flags `exclude.files` globs that match no file in the workspace',
       () async {

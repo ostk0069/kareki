@@ -48,8 +48,8 @@ See [configuration](configuration.md).
 |---|---|
 | `0` | No findings remain after filtering, or a baseline was successfully written. |
 | `1` | One or more findings remain after filtering. |
-| `2` | Resolution failed. No findings or baseline are published. |
-| `64` | Invalid options or configuration. |
+| `2` | Source resolution or gen-l10n input loading failed. No findings or baseline are published. |
+| `64` | Invalid CLI options or kareki configuration. |
 
 Analysis warnings describe uncertain usage, not confirmed unused code.
 They go to **stderr**, separately from text or JSON findings, and have no rule ID

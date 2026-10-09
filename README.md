@@ -90,7 +90,6 @@ Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the 
 - [Doctor](doc/doctor.md) — obsolete exclusions and suppressions
 - [How it works](doc/how-it-works.md) — analysis flow, entry points, limits, and supported versions
 - [Best practices](doc/operations.md) — scheduled cleanup pull requests with an AI agent
-- [Analysis internals](doc/analysis-internals.md) — implementation constraints and warning evidence
 
 ## License
 

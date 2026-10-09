@@ -7,16 +7,12 @@ import 'package:yaml/yaml.dart';
 /// Expected gen-l10n outputs, bounded by package configuration and ARB inputs.
 /// This is a reporting exemption only: callers must still collect references.
 Set<String> flutterLocalizationOutputs(String packageRoot) {
-  final pubspec = loadYaml(
-    File(p.join(packageRoot, 'pubspec.yaml')).readAsStringSync(),
-  );
+  final pubspec = _readYaml(File(p.join(packageRoot, 'pubspec.yaml')));
   if (pubspec is! YamlMap) return {};
   final flutter = pubspec['flutter'];
   if (flutter is! YamlMap || flutter['generate'] != true) return {};
   final configFile = File(p.join(packageRoot, 'l10n.yaml'));
-  final Object? config = configFile.existsSync()
-      ? loadYaml(configFile.readAsStringSync())
-      : null;
+  final config = configFile.existsSync() ? _readYaml(configFile) : null;
   if (config != null && config is! YamlMap) return {};
   final options = config as YamlMap?;
   if (options?['synthetic-package'] == true) return {};
@@ -76,3 +72,6 @@ Set<String> flutterLocalizationOutputs(String packageRoot) {
     for (final locale in locales) p.join(output, '${stem}_$locale$suffix'),
   };
 }
+
+Object? _readYaml(File file) =>
+    loadYaml(file.readAsStringSync(), sourceUrl: file.uri);

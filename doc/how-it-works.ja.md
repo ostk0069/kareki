@@ -59,4 +59,4 @@ kareki は Dart / Flutter のワークスペース内の参照をたどり、使
 
 CI では、対応するすべての Dart マイナーバージョンと、最新の安定版 SDK で解析とテストを実行します。
 
-実装の詳細と判定条件は[解析の内部仕様](analysis-internals.ja.md)にまとめています。
+解析を変更する開発者向けの安全上の注意点は、[解析の内部仕様](analysis-internals.ja.md)にまとめています。

@@ -14,8 +14,10 @@ import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
 import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:kareki/src/reachability/unused_file_detector.dart';
+import 'package:kareki/src/workspace/dart_source_files.dart';
 import 'package:kareki/src/workspace/workspace_loader.dart';
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
 class _AnalysisInput {
   _AnalysisInput(
@@ -56,9 +58,9 @@ class RunRequest {
   /// out-of-the-box behaviour.
   final KarekiConfig config;
 
-  /// Optional override; restrict analysis to these package names.
-  /// `null` means "all packages in the workspace".
-  /// This limits reports, not reference collection.
+  /// Report findings only for these package names. `null` reports all packages
+  /// not ignored by configuration. References are still collected across the
+  /// discovered workspace.
   final Set<String>? includePackages;
 
   /// Optional override; only run these rules. `null` means "all rules
@@ -97,7 +99,7 @@ class RunResult {
   /// suitable for direct rendering or baseline diffs.
   final List<Finding> findings;
 
-  /// Number of workspace packages that were analyzed (after applying
+  /// Number of workspace packages included in reports (after applying
   /// `ignore.packages` and `--packages` filters).
   final int packagesAnalyzed;
 
@@ -214,8 +216,19 @@ class KarekiRunner {
     );
     final collectedPaths = <String>{};
     for (final pkg in sourcePackages) {
-      final localizationOutputs = flutterLocalizationOutputs(pkg.rootPath);
-      for (final file in _dartFilesIn(pkg)) {
+      final Set<String> localizationOutputs;
+      try {
+        localizationOutputs = flutterLocalizationOutputs(pkg.rootPath);
+      } on YamlException catch (error) {
+        throw ResolvedAnalysisException([
+          'Cannot read Flutter localization configuration in ${pkg.rootPath}: $error',
+        ]);
+      } on FileSystemException catch (error) {
+        throw ResolvedAnalysisException([
+          'Cannot read Flutter localization inputs in ${pkg.rootPath}: $error',
+        ]);
+      }
+      for (final file in packageDartFiles(pkg.rootPath)) {
         final relForGlob = p.relative(file.path, from: request.rootPath);
         final excluded = excludeGlobs.any(
           (g) => g.matches(relForGlob) || g.matches(p.basename(file.path)),
@@ -710,40 +723,5 @@ class KarekiRunner {
         : declaration.name;
     return "Public ${declaration.kind.name} '$qualifier' is only "
         'referenced from test code.';
-  }
-
-  Iterable<File> _dartFilesIn(PackageInfo pkg) sync* {
-    // Dart scripts need not live in bin/. In particular, independent tooling
-    // packages commonly put their executables directly beside pubspec.yaml.
-    yield* Directory(pkg.rootPath)
-        .listSync(followLinks: false)
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.dart'));
-    for (final sub in [
-      'lib',
-      'bin',
-      'test',
-      'integration_test',
-      'example',
-      'tool',
-      'tools',
-    ]) {
-      final dir = Directory(p.join(pkg.rootPath, sub));
-      if (!dir.existsSync()) continue;
-      yield* _dartFilesBelow(dir);
-    }
-  }
-
-  Iterable<File> _dartFilesBelow(Directory directory) sync* {
-    for (final entity in directory.listSync(followLinks: false)) {
-      if (entity is File && entity.path.endsWith('.dart')) {
-        yield entity;
-      } else if (entity is Directory) {
-        final name = p.basename(entity.path);
-        // Prune before descending, including large build/cache directories.
-        if ({'.dart_tool', '.git', 'build'}.contains(name)) continue;
-        yield* _dartFilesBelow(entity);
-      }
-    }
   }
 }

@@ -41,6 +41,8 @@ import 'package:kareki/src/reachability/unused_file_detector.dart'
     deferred as coverage18;
 import 'package:kareki/src/reporter/reporter.dart' deferred as coverage19;
 import 'package:kareki/src/runner.dart' deferred as coverage20;
+import 'package:kareki/src/workspace/dart_source_files.dart'
+    deferred as coverage29;
 import 'package:kareki/src/workspace/workspace_loader.dart'
     deferred as coverage21;
 import 'package:path/path.dart' as p;
@@ -78,6 +80,7 @@ void main() {
     );
 
     await Future.wait([
+      coverage29.loadLibrary(),
       coverage27.loadLibrary(),
       coverage28.loadLibrary(),
       coverage00.loadLibrary(),
