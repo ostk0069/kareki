@@ -7,121 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Added
-
-- Runtime-supplied positional arguments of valid top-level `main` functions
-  are no longer reported as never passed. Member homonyms remain independent.
-- Dependency checks follow `analysis_options.yaml` includes (including relative
-  and transitive package includes) and resolved Flutter `IconData.fontPackage`
-  constants. No application or font-package allowlist is used.
-- The Freezed preset preserves expression-bodied `fromJson` factories that
-  enable JSON generation, as well as redirecting schema factories. Explicit
-  annotation settings for both JSON directions disable the inferred switch.
-
-- Analyzer-resolved declaration identities for `unused_element`, `test_only_used`,
-  and `unused_parameter_optional`. Same-name declarations in unrelated classes
-  and packages no longer share reachability.
-- Resolved analysis reports conservative approximations, fails with exit code 2
-  when resolution is incomplete, and never writes a baseline on that failure.
-  Package filters restrict findings while references are collected across the
-  discovered workspace.
-- Resolved optional-argument usage follows exact call targets and real
-  override/redirect relationships; uncertain callbacks and dynamic calls retain
-  their parameters with warnings.
-- Resolved mode joins all alternatives of compatible conditional facades by
-  declaration identity: parameterless functions/getters with identical explicit
-  return types and closed public namespaces. Unsupported targets retain their
-  conservative roots and warnings; this does not certify platform SDKs or runtime
-  compatibility, and does not require source overlays or platform assumptions.
-- Resolved warnings include review evidence: unproven parameter names, function
-  value locations (including propagated causes), unresolved receiver types and
-  candidate declarations, and conditional directive conditions/targets. Evidence
-  does not certify non-use or automatically dismiss conservative protections.
-- Virtual callback-consumer warnings identify the static consumer and receiver
-  declarations. These review aids are explicitly not runtime-origin proofs and
-  do not relax optional-argument protection.
-- Resolved optional arguments now have separate used, unused-within-scope, and
-  unknown states. A finding requires a per-parameter non-use result; known usage
-  remains established even when other call paths are unknown.
-- Limited direct-use callback analysis for resolved top-level, static,
-  and extension consumers, including selected non-SDK dependency bodies and
-  synchronous generators. Only synchronous bodies whose function parameter is
-  exclusively invoked directly (or not referenced) can establish argument usage.
-  Stored, yielded, returned, forwarded, reassigned, cast or captured function values,
-  virtual consumers, and unavailable/erroneous dependencies retain protection.
-- Positive-only usage evidence for callbacks forwarded through external
-  constructors, redirecting factories and final function fields. Actual field
-  calls can retain potentially supplied arguments as used; instance-insensitive
-  evidence never proves non-use or closes an escaped callback. Unknown arguments
-  remain protected, and warnings show the originating invocation sites.
-- Source-verified external decoder models for jsonc 0.0.3 and yaml 3.1.3 / 3.1.4
-  with audited dependency closures. Changes to defining/transitive sources or
-  language versions retain the existing dynamic fallback. Read-only final List
-  iteration is tracked without relaxing mutation, capture or escape protection.
-- `kareki doctor` and `DoctorRunner.analyze()` use the
-  resolved engine for suppression and baseline checks. Incomplete resolution or
-  conservative approximations exit with 2 instead of recommending unsafe cleanup.
-- Doctor now recognizes simple-name suppressions on qualified member findings.
-- Resolved analysis explicitly resolves analyzer-excluded generated libraries
-  and parts through their owning context without changing project exclusions.
-  Context selection and analyzer failures are reported as incomplete analysis
-  (exit code 2), preserving the existing baseline.
-
 ### Changed
 
-- **Breaking:** removed the legacy engine, simple-name reachability/call-site
-  indexes, and `analysis_mode` / `--analysis-mode` selection. Resolution errors
-  never fall back to name-based results. Bootstrap dependencies and generate
-  sources before running graph-based rules.
-- **Breaking:** runner `run()` and CLI APIs now return Futures. Use `await`;
-  see the migration guide. Removed legacy-only parser reference metadata.
-- Doctor resolves one source snapshot for all semantic checks. Graph assembly
-  uses indexed declarations and references instead of repeated full scans.
-- Reuse resolved library units across collected parts within the same analysis
-  context, cache test-source classification for each build, and avoid repeated
-  inherited-method lookups. Analysis scope and conservative safeguards remain
-  unchanged; no persistent cache is introduced.
+- **Breaking:** removed the legacy name-based engine and
+  `analysis_mode` / `--analysis-mode`. Install dependencies and generate sources
+  before running rules that require resolution. Resolution failures return exit
+  code 2 without partial findings or baseline writes.
+- **Breaking:** runner and CLI APIs are asynchronous. Await `run()`,
+  `analyze()`, `runCli()`, and `runDoctor()`. Preview API names,
+  `AnalysisMode`, and legacy parser reference metadata are removed.
+  See the [migration guide](doc/migration.md).
+- Reachability and optional-argument checks distinguish individual declarations.
+  Unrelated same-name declarations no longer share usage. Package filters limit
+  reports while references are collected across the discovered workspace.
+- Doctor shares one resolved source snapshot across its checks. Indexed graph
+  construction, reused library units, and per-run lookup caches reduce repeated
+  work without changing analysis scope. No persistent cache is used.
+
+### Added
+
+- Per-parameter usage states and callback analysis reduce false positives while
+  retaining parameters with unknown call paths. Warnings include locations,
+  candidate declarations, and other evidence for review.
+- Narrow checks for compatible conditional imports and read-only JSON/YAML
+  decoding reduce unnecessary retention. External decoder models require
+  reviewed source fingerprints. See [analysis internals](doc/analysis-internals.md)
+  and [decoder models](doc/decoder-models.md) for their limits.
+- Dependency checks recognize transitive `analysis_options.yaml` includes,
+  native Flutter plugins, and Flutter `IconData.fontPackage` usage.
+- Generated-file recognition covers Flutter gen-l10n output paths, Drift schema
+  snapshots, and `flutter_rust_bridge` headers. Generated and analyzer-excluded
+  sources still contribute references and argument usage.
 
 ### Fixed
 
-- Deferred imports' synthetic `loadLibrary` functions no longer crash resolved
-  analysis. Real declarations and argument usage keep their exact identities.
-- Root-level Dart scripts and `tool/` / `tools/` sources now contribute imports
-  and references. Collected top-level `main` functions are executable roots;
-  nested packages retain ownership and build/cache directories are pruned.
-- Built-in `dynamic` types no longer produce unresolved-reference warnings or
-  retain unrelated same-named constructors on newer analyzer versions.
-- The built-in Freezed preset preserves resolved redirecting factories as
-  generation inputs, even when callers instantiate generated classes directly.
-  Same-named annotations from other libraries do not activate this behavior.
-- Flutter gen-l10n outputs are recognized from `flutter.generate`, `l10n.yaml`
-  and ARB locales, including custom output paths. Generated sources still
-  contribute references and supplied arguments; unrelated neighboring files
-  remain checked.
-- Primary-constructor declaring fields map to their actual analyzer field IDs.
-- Closed SDK JSON reads no longer retain unrelated workspace `[]` operators.
-  Resolved mode verifies the `dart:convert` declaration, the standard codec
-  receiver and absence of a reviver, then checks all local aliases for escape
-  or mutation. Unsupported flows retain the existing conservative fallback.
-- Resolved mode collects each canonical source once, assigning nested workspace
-  example files to their owning child package instead of reporting duplicate
-  declarations as unused under the parent package.
-- Statically known Record field accesses no longer retain unrelated same-name
-  declarations or misclassify them as test-only. Dynamic fallback and resolved
-  extension-member references remain supported.
-- Resolved null assertions now retain their exact read targets instead of
-  being treated as postfix updates with unresolved names.
-- Built-in `call` on function types no longer retains unrelated callable
-  classes or makes their optional arguments uncertain. Actual callback escapes,
-  callable-class members, and dynamic calls remain protected.
-- Import/export `show` and `hide` names no longer count as escaped function
-  values for optional-argument analysis; their reference edges are preserved.
-- Resolved super formals now mark their exact parent parameters as supplied,
-  including inherited defaults, instead of making the entire parent constructor
-  uncertain. Unrelated parent parameters remain independently checked.
-- Callback argument warnings are now limited to callables with optional
-  parameters whose usage remains unproven. Known direct calls can establish
-  usage even when other calls escape; partially proven callbacks remain protected.
+- Prevented analysis failures on deferred `loadLibrary` calls and incorrect
+  unresolved-reference warnings for built-in `dynamic`.
+- Corrected reference and argument tracking for Record fields, null assertions,
+  built-in function `call`, import/export `show` and `hide`, primary-constructor
+  fields, super formals, and runtime-supplied `main` arguments.
+- Root-level scripts and `tool/` / `tools/` sources now contribute references.
+  Nested packages own their sources without duplicate findings.
+- Preserved Drift schema columns and Freezed redirecting / JSON factories needed
+  for code generation, including when generated implementations are used directly.
+- Doctor recognizes simple-name suppressions on qualified member findings and
+  returns exit code 2 when failed resolution or analysis warnings prevent safe
+  cleanup checks.
 
 ## 0.7.0
 

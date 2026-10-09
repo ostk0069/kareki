@@ -3,41 +3,41 @@ title: Doctor
 weight: 5
 ---
 
-`kareki doctor` は、`kareki-config.yaml` の内容が現在のワークスペースの実態と整合しているかを検証します。何も抑制しない glob や引数名の除外、すでに存在しないパッケージや依存を指している `ignore.*` のエントリ、効果のない `// kareki: ignore_for_file=...` / `// kareki: ignore=...` ディレクティブなど、現実から取り残された設定を浮き上がらせます。
+`kareki doctor` は、対象ファイルがない除外設定、存在しないパッケージ、効果のない抑制コメント、不要になったベースライン項目などを検出します。問題を報告するだけで、ファイルは変更しません。
 
 ```sh
 dart run kareki doctor
 ```
 
-| Issue 種別 | 意味 |
+## 検査項目
+
+| 種別 | 意味 |
 |---|---|
-| `unused-exclude` | `exclude.files` のエントリがワークスペース内のどの `.dart` ファイルにもマッチしなかった。 |
-| `unused-exclude-parameter-name` | `exclude.parameter_names` の名前が、現在の `unused_parameter` または `unused_parameter_optional` の検出を何も抑制していない。 |
-| `unused-ignore-package` | `ignore.packages` の名前がワークスペースのパッケージに存在しない。 |
-| `unused-ignore-dependencies-package` | `ignore.dependencies` のキーがワークスペースのパッケージに存在しない。 |
-| `unused-ignore-dependency` | `ignore.dependencies.<pkg>` の下に列挙されている値が、そのパッケージの `pubspec.yaml` に宣言されていない。 |
-| `unused-ignore-directive` | `// kareki: ignore_for_file=<rule>` または `// kareki: ignore=<rule>` ディレクティブが、実際の検出を何も抑制していない。行単位ディレクティブの場合、対象行は `<path>:<line>` として報告されます。 |
-| `unused-baseline-entry` | baseline ファイル内のエントリが、現在の検出のいずれにもマッチしない。抑制対象のデッドコードがすでに削除・移動されています。 |
+| `unused-exclude` | `exclude.files` の項目に一致する `.dart` ファイルがワークスペース内にない。 |
+| `unused-exclude-parameter-name` | `exclude.parameter_names` の項目が、現在の `unused_parameter`・`unused_parameter_optional` の指摘を抑制していない。 |
+| `unused-ignore-package` | `ignore.packages` の項目に一致するワークスペース内のパッケージがない。 |
+| `unused-ignore-dependencies-package` | `ignore.dependencies` のキーに一致するワークスペース内のパッケージがない。 |
+| `unused-ignore-dependency` | 抑制対象の依存パッケージが、そのパッケージの `pubspec.yaml` に宣言されていない。 |
+| `unused-ignore-directive` | ファイル単位・行単位の抑制コメントが指摘を抑制していない。行単位の場合は対象行を `<path>:<line>` で報告する。 |
+| `unused-baseline-entry` | ベースライン項目が現在の指摘に一致しない。コードの削除・移動のほか、使用されるようになった場合も含む。 |
 
-検証されるのは **ユーザーが追加した** エントリのみです。ビルトインのデフォルト（例: 同梱の `**/*.g.dart` 除外）は決して指摘されません。
+ユーザーが追加した項目だけを検査します。`**/*.g.dart` の除外など、組み込みのデフォルト設定は指摘しません。
 
-設定がクリーンであれば `0` で終了し、1 件以上の Issue があれば `1` で終了します。
+## 終了コード
 
-## 宣言単位の解析
+| コード | 意味 |
+|---|---|
+| `0` | すべての検査が完了し、問題がない。 |
+| `1` | すべての検査が完了し、1 件以上の問題がある。 |
+| `2` | 参照の解決に失敗した、または解析警告により安全に検査を完了できない。`1` より優先する。 |
+| `64` | オプションまたは設定が不正。 |
 
-```sh
-dart run kareki doctor
-```
+## 検査を完了できない場合
 
-参照解決は１回だけ行い、同じ解析結果を各チェックで共有します。
-保存用ID・JSON形式は変更せず、doctor自身がファイルを書き換えることもありません。
+引数名の除外、抑制コメント、ベースライン項目の検査には、解決済みの参照を使います。これらの検査では、1 回の解析結果を共有します。
 
-引数名除外・行/ファイル抑制・不要なベースライン項目の判定は、すべて宣言単位の方式で
-行います。参照解決に失敗すると結果を報告せず終了コード `2` を返します。
-callbackやdynamicなど保守的な近似が必要な場合も、これらの判定を保留し、
-標準エラーに理由を示して `2` を返します。未一致globなど構造的なチェック結果は
-報告できます。終了コード `2` の空のJSON検出一覧は「正常」を意味しません。
-オプションや設定が不正な場合は `64` です。
+参照の解決に失敗した場合は、結果を報告せず `2` で終了します。解析警告があり、使用状況が確定しない場合は、使用状況に依存する検査を行わず、理由を標準エラー出力に示して `2` で終了します。対象ファイルがない除外設定など、参照の解析を必要としない検査の結果は報告できます。
 
-APIでは `await DoctorRunner().analyze(request)` または `await DoctorRunner().run(request)`
-を使用します。同期APIと旧方式へのフォールバックはありません。
+終了コード `2` で JSON の一覧が空でも、**問題なしという意味ではありません**。その結果だけを根拠に、抑制設定やベースライン項目を削除しないでください。警告の根拠の読み方は[解析の内部仕様](analysis-internals.ja.md)を参照してください。
+
+ライブラリから利用する場合は、`DoctorRunner().analyze(request)` または `run(request)` を `await` します。[移行ガイド](migration.ja.md)も参照してください。

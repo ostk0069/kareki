@@ -3,37 +3,52 @@ title: Migrating from name-based analysis
 weight: 8
 ---
 
-The next release removes the legacy engine. All reachability and optional-call
-argument decisions use analyzer-resolved declaration identities; there is no
-name-based fallback or mode switch.
+The next release uses analyzer-resolved declaration identities for reachability
+and optional-argument checks. The old engine and its mode switch are removed.
+Resolution errors do not fall back to the old engine.
 
-1. Run `dart pub get`, `flutter pub get`, or your workspace bootstrap with the
-   project's SDK, then run its normal code-generation commands. Generated and
-   excluded sources still contribute references and must resolve.
-   Use an SDK/analyzer combination supporting the target language version.
-   Parser-only support for an experimental syntax is not sufficient for resolved
-   analysis; unsupported language features fail closed instead of producing findings.
+## CLI migration
+
+1. Use the project's SDK to install dependencies and generate sources.
+   Generated and excluded files still contribute references and must resolve.
+   The SDK and analyzer must support the project's language features; parser-only
+   support for experimental syntax is not enough.
 2. Remove `analysis_mode` from configuration and `--analysis-mode` from scripts.
-   Obsolete options are rejected with exit code 64 rather than silently ignored.
-3. Run kareki and review findings before updating baselines. Baseline identities
-   and JSON formats are unchanged, but previously conflated declarations can now
-   produce additional findings. Package filters limit reports, not consumers.
-4. Await library APIs: `await KarekiRunner().run(request)` (or `.analyze`) and
-   `await DoctorRunner().run(request)` (or `.analyze`). `runCli` and `runDoctor`
-   also return Futures. The preview's `runCliAsync` / `runDoctorAsync` names and
-   `AnalysisMode` arguments are removed. Low-level name-reference metadata on
-   `ParsedFile`, `DeclarationRecord`, and `EntryPointSet` is removed as well.
-5. Run `kareki doctor` before pruning old suppressions. Doctor resolves the source
-   once and shares it across its checks. Resolution failure or uncertainty that
-   prevents safe cleanup returns 2, not a healthy result.
+   Obsolete options return exit code `64`.
+3. Run kareki and review findings before updating the baseline. Baseline IDs and
+   JSON formats are unchanged, but separating same-name declarations can expose
+   new findings. Package filters limit reports, not reference collection.
+4. Run `dart run kareki doctor` before removing old suppressions. Exit code `2`
+   means checks could not complete safely, not that the configuration is clean.
 
-Resolution failure aborts graph-based analysis without publishing partial
-findings or overwriting a baseline. Uncertainty warnings retain conservative
-protection; they are distinct from unused-code findings. Rules that do not need
-the resolved graph can run without bootstrap. No persistent analysis cache is
-used, so a subsequent invocation always observes current sources.
+Resolution failures produce no partial findings and do not overwrite baselines.
+Analysis warnings are different: they retain potentially used code but do not
+fail a normal run. See [CLI exit codes](cli.md) and [doctor](doctor.md).
 
-Resolved analysis costs more time and memory than name matching. The benchmark
-tool accepts `ROOT [doctor]`; compare the same SDK, source snapshot, configuration,
-and rule set in fresh processes. Report multiple runs and peak RSS, and keep
-source changes separate from engine performance changes.
+## Library API migration
+
+Await runner and CLI APIs:
+
+```dart
+final result = await KarekiRunner().analyze(request);
+// run(request) is also asynchronous.
+```
+
+- `KarekiRunner.run`, `KarekiRunner.analyze`, `DoctorRunner.run`, and
+  `DoctorRunner.analyze` return Futures.
+- `runCli` and `runDoctor` also return Futures. The preview names
+  `runCliAsync` and `runDoctorAsync` are removed.
+- `AnalysisMode` and its arguments are removed.
+- Legacy name-reference metadata on `ParsedFile`, `DeclarationRecord`,
+  and `EntryPointSet` is removed.
+
+## Comparing performance
+
+Resolved analysis requires more work than name matching. To measure the change,
+run `tool/resolved_analysis/benchmark.dart ROOT [doctor]` with the same SDK,
+source snapshot, configuration, and rules. Compare multiple fresh-process runs
+and peak memory (RSS), keeping source changes separate from engine changes.
+
+There is no persistent analysis cache; each invocation reads current sources.
+Rules that do not require resolution can still run without dependency setup.
+See [analysis internals](analysis-internals.md) for reuse within a single run.

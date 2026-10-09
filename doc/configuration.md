@@ -3,14 +3,14 @@ title: Configuration
 weight: 3
 ---
 
-`kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional — defaults work out of the box.
+`kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional.
 
-## Top-level schema
+## Settings
 
 | Key | Type | Purpose |
 |---|---|---|
 | `packages` | map | Override workspace package globs (defaults to melos.yaml / pub workspace auto-detection). |
-| `exclude` | map | Files, declaration names, or parameter names to skip from analysis. |
+| `exclude` | map | Files, declaration names, or parameter names to exclude from findings. |
 | `entry_points` | map | Additional entry-point files / declaration names. |
 | `keep_alive_annotations` | map | Enabled built-in presets + ad-hoc keep-alive annotation names. |
 | `custom_presets` | map | Project-defined presets, or overrides of built-ins. |
@@ -50,6 +50,11 @@ file is not blindly excluded. Legacy `synthetic-package: true` output is not
 classified by this source-output rule. Run generation before analysis; this
 recognition does not create missing output files.
 
+Files matched by `exclude.files` remain reference sources; they are excluded
+from findings, not from collection. Drift schema snapshots and
+`flutter_rust_bridge` outputs are also recognized by generator-specific headers.
+Their imports, references, and supplied arguments still count.
+
 ## Built-in presets
 
 | Preset | Keep-alive annotations | Implies pub packages |
@@ -63,7 +68,27 @@ recognition does not create missing output files.
 | `hive` | `@HiveType`, `@HiveField` | `hive` |
 | `meta` *(always on)* | `@visibleForTesting`, `@visibleForOverriding`, `@protected`, `@internal`, `@immutable`, `@experimental`, `@mustCallSuper`, `@sealed`, `@factory`, `@useResult`, `@nonVirtual`, `@pragma` | `meta` |
 
-Definitions live in [`lib/src/preset/builtin_presets.dart`](../lib/src/preset/builtin_presets.dart) with a `last_verified` framework version on each entry.
+Definitions live in [`lib/src/preset/builtin_presets.dart`](https://github.com/ostk0069/kareki/blob/main/lib/src/preset/builtin_presets.dart) with a `last_verified` framework version on each entry.
+
+### Schema generation inputs
+
+The built-in `drift` preset retains columns of reachable `package:drift`
+`Table` subtypes, including inherited and mixin columns. They remain generation
+inputs even when generated getters override them. Unused tables and unrelated
+same-name types are not retained by this rule.
+
+The built-in `freezed` preset retains redirecting factories on types annotated
+with the resolved `Freezed` type from `package:freezed_annotation`, including
+`@freezed`. These factories define generated variants even when callers use
+the generated classes directly.
+
+It also retains expression-bodied `fromJson` factories as JSON generation
+switches when a `.g.dart` part exists and either JSON direction is unspecified
+in the annotation. Explicit settings for both directions, block bodies, other
+factory names, and unrelated same-name annotations do not trigger this extra
+rule. Build-level overrides may make the switch redundant; it is still retained.
+
+Disabling or replacing either preset removes its additional schema protections.
 
 ## Defining or overriding a preset
 
@@ -86,52 +111,25 @@ custom_presets:
 
 When `custom_presets.<name>` matches a built-in name, the built-in is **replaced entirely** — useful for pinning to a framework version whose annotation names have diverged from kareki's defaults.
 
-The built-in `drift` preset also preserves column declarations of reachable
-`package:drift` `Table` subtypes, including inherited and mixin columns. These are
-inputs to schema generation even when generated code overrides the original
-getters. Unrelated same-named types and unused tables are not kept alive by this
-rule. Replacing the `drift` preset also replaces this built-in behavior.
+## Dependency usage beyond imports
 
-The built-in `freezed` preset preserves redirecting factories on types annotated
-with the resolved `Freezed` type from `package:freezed_annotation` (including
-`@freezed`). They define generated variants even when all callers instantiate
-the generated class directly. Expression-bodied `fromJson` factories also act
-as JSON generation switches when the library has a `.g.dart` part and either
-JSON direction is unspecified in the annotation. Explicit settings for both
-directions, block bodies, other factory names, and same-named annotations from
-other libraries do not activate this additional rule. Build-level overrides may
-make the switch redundant; it is retained conservatively in that case.
-Disabling or replacing the
-`freezed` preset disables these additional edges.
+Some dependencies are needed without a Dart import:
 
-Drift schema snapshots and `flutter_rust_bridge` files are recognized by their
-generator-specific headers. Generated files are excluded from findings, but
-their imports, references and argument usage still participate in analysis.
+- Native Flutter plugins whose resolved `pubspec.yaml` declares
+  `ffiPlugin: true` or a nonempty `pluginClass`. Flutter can register or bundle
+  them automatically. Kareki reads the nearest `.dart_tool/package_config.json`,
+  so run `pub get` first. This exemption does not prove that a plugin is needed
+  on every target platform.
+- Packages referenced by the nearest `analysis_options.yaml` for each source,
+  including relative and package includes followed transitively.
+- Font packages referenced by resolved Flutter `IconData` constants or literal
+  constructor `fontPackage` arguments. Usage is attributed to the referencing
+  package.
 
-`unused_pub_dependency` retains dependencies whose resolved `pubspec.yaml`
-declares a native Flutter plugin (`ffiPlugin: true` or a nonempty `pluginClass`).
-Flutter can register or bundle these without a Dart import. The check reads the
-nearest `.dart_tool/package_config.json`, so run `pub get` first. This is a
-conservative build-dependency exemption, not proof that every plugin is needed
-on every target platform. Ordinary Dart dependencies remain checked.
-
-Dependency checks also follow the nearest `analysis_options.yaml` for each
-collected source, including relative/package includes and their transitive
-includes. Resolved Flutter `IconData` constants and literal constructor
-`fontPackage` arguments count as font-package usage, scoped to the referencing
-package. Flutter dependency-only runs therefore require successful resolution
-too. Dynamic asset paths and arbitrary build scripts are not inferred.
-
-Valid top-level `main` positional parameters can be supplied by the Dart/Flutter
-runtime, so they are not reported as never passed. This does not suppress the
-separate check for parameters unused inside the function body.
-
-Findings describe the analyzed source configuration, not every possible build.
-For scripts that replace source files (for example a FOSS flavor), analyze each
-prepared variant or explicitly retain its entry files before considering a
-deletion. Kareki never executes such scripts automatically. Regenerate code and
-run the project's checks after deletions; a clean analysis alone does not prove
-runtime, platform, or downstream API compatibility.
+Flutter dependency-only checks therefore also require successful resolution.
+Dynamic asset paths and arbitrary build scripts are not inferred.
+Before deleting code used by build variants, follow the checks in
+[how it works](how-it-works.md).
 
 ## Suppression
 
@@ -173,16 +171,15 @@ class MyClass {}
 ignore:
   dependencies:
     my_app:
-      # Flutter native plugins are auto-registered, never imported.
-      - geolocator_android
-      - google_sign_in_ios
+      # A dependency used by a custom build script that kareki cannot inspect.
+      - custom_build_support
 ```
 
 ### Global
 
 ```yaml
 ignore:
-  packages: [dartx, wt_cli]    # skip these workspace packages
+  packages: [legacy_tools]    # suppress reports; keep references
   rules: [unused_pub_dependency]
 ```
 
@@ -229,7 +226,7 @@ custom_presets:
 ignore:
   packages: [my_lib_package]
   dependencies:
-    my_app: [geolocator_android, google_sign_in_ios]
+    my_app: [custom_build_support]
 
 output:
   format: text

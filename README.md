@@ -49,17 +49,19 @@ dart pub get
 
 ## Usage
 
-Run from the workspace root:
+Install the project's dependencies and run code generation, then execute from
+the workspace root:
 
 ```sh
 dart run kareki
 ```
 
-See [doc/cli.md](doc/cli.md) for all options.
+See the [CLI reference](doc/cli.md) for preparation, options, and analysis warnings.
 
 ## Adopting on an existing codebase
 
-Don't try to delete every finding before turning on CI. Snapshot what's there, commit it, fail only on **new** dead code from now on:
+You can adopt kareki without fixing all existing findings. Review the results,
+save them as a baseline, and commit it so CI reports only new findings:
 
 ```sh
 dart run kareki --baseline .kareki-baseline.json --write-baseline
@@ -69,7 +71,8 @@ See [doc/baseline.md](doc/baseline.md).
 
 ## Keeping the config honest
 
-Once you start excluding files or whitelisting dependencies, the list rots — packages move, files get renamed, the excludes still pass. `kareki doctor` finds dead entries in your own config:
+File moves and dependency changes can leave obsolete exclusions and suppressions.
+`kareki doctor` checks which entries no longer apply:
 
 ```sh
 dart run kareki doctor
@@ -84,9 +87,11 @@ Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the 
 - [CLI reference](doc/cli.md) — every option, every exit code
 - [Configuration](doc/configuration.md) — `kareki-config.yaml`, defaults, built-in presets, custom presets, suppression, full example
 - [Baseline](doc/baseline.md) — incremental adoption
-- [Doctor](doc/doctor.md) — config-rot detection
-- [How it works](doc/how-it-works.md) — analysis pipeline, entry-point seeding, supported versions
+- [Doctor](doc/doctor.md) — obsolete exclusions and suppressions
+- [How it works](doc/how-it-works.md) — analysis flow, entry points, limits, and supported versions
 - [Best practices](doc/operations.md) — scheduled cleanup pull requests with an AI agent
+- [Migration guide](doc/migration.md) — changes when upgrading to declaration-identity analysis
+- [Analysis internals](doc/analysis-internals.md) — implementation constraints and warning evidence
 
 ## License
 

@@ -3,53 +3,43 @@ title: 設定
 weight: 3
 ---
 
-`kareki` はワークスペースのルートにある `kareki-config.yaml` を読み込みます。すべてのキーは省略可能で、デフォルトのままでも動作します。
+`kareki` はワークスペースのルートにある `kareki-config.yaml` を読み込みます。すべてのキーは省略可能です。
 
-## Top-level schema
+## 設定項目
 
 | キー | 型 | 用途 |
 |---|---|---|
 | `packages` | map | ワークスペースのパッケージ glob を上書き（デフォルトは melos.yaml / pub workspace から自動検出）。 |
-| `exclude` | map | 解析対象から除外するファイル、宣言名、引数名。 |
+| `exclude` | map | 指摘の対象から除外するファイル、宣言名、引数名。 |
 | `entry_points` | map | 追加のエントリポイントとなるファイル / 宣言名。 |
-| `keep_alive_annotations` | map | 有効化するビルトインプリセットと、追加で扱う keep-alive アノテーション名。 |
-| `custom_presets` | map | プロジェクト独自のプリセット、またはビルトインの上書き。 |
-| `annotation_implied_packages` | map | スタンドアロンなアノテーション → pub パッケージのマッピング。 |
+| `keep_alive_annotations` | map | 有効化する組み込みプリセットと、追加で扱う keep-alive アノテーション名。 |
+| `custom_presets` | map | プロジェクト独自のプリセット、または組み込みの上書き。 |
+| `annotation_implied_packages` | map | プリセットとは別に指定する、アノテーションと pub パッケージの対応。 |
 | `sdk_packages` | list | `unused_pub_dependency` でも決して指摘しないパッケージ（SDK 同梱）。 |
 | `ignore` | map | グローバル / パッケージ単位の抑制。 |
 | `output.format` | `text` \| `json` | デフォルトのレポート形式。 |
-| `baseline` | path | baseline ファイルのパス（ワークスペースルートからの相対）。記録された検出は出力から抑制されます。 |
+| `baseline` | path | ベースラインのパス（ワークスペースルートからの相対）。記録された指摘を出力から除外。 |
 
-## Defaults
+## デフォルト値
 
-| 設定項目 | ビルトインの値 |
+| 設定項目 | 組み込みの値 |
 |---|---|
-| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
+| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.drift.dart`, `.steps.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
 | `entry_points.files` | `**/*.story.dart`, `**/widgetbook/**/*.dart` |
 | `keep_alive_annotations.presets` | `freezed`, `json_serializable`, `riverpod`, `auto_route`, `go_router`, `drift`, `hive`, `meta` |
 | `sdk_packages` | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine` |
 | 暗黙のエントリポイント規約 | `main.dart` / `main_*.dart`、`flutter_test_config.dart`、`*_test.dart`（`test/` 配下）、`bin/`・`integration_test/`・`lib/l10n/` 配下の全ファイル、収集対象のうちトップレベル `main` を持つファイル |
-| 生成ファイル判定（中身） | 先頭行に `GENERATED CODE - DO NOT MODIFY BY HAND` または `AUTO-GENERATED FILE. DO NOT EDIT` を含む |
+| 生成ファイル判定（中身） | 冒頭に `GENERATED CODE - DO NOT MODIFY BY HAND` または `AUTO-GENERATED FILE. DO NOT EDIT` を含む |
 
 ## ソース収集と生成ファイル
 
-各パッケージ直下の Dart ファイルと、`lib/`・`bin/`・`test/`・
-`integration_test/`・`example/`・`tool/`・`tools/` 配下を収集します。
-`build/`・`.dart_tool/`・`.git/` は探索せず、独立した探索対象として見つかった
-入れ子のパッケージは、親と重複させずそのパッケージ自身のソースとして収集します。
-収集されたトップレベル `main` を持つファイルは実行入口になりますが、
-その他のスクリプト用ヘルパーは一律に保持しません。
-`entry_points.files` の指定だけでは、上記以外のディレクトリは収集されません。
+各パッケージ直下の Dart ファイルと、`lib/`・`bin/`・`test/`・ `integration_test/`・`example/`・`tool/`・`tools/` 配下を収集します。 `build/`・`.dart_tool/`・`.git/` は探索せず、独立した探索対象として見つかった入れ子のパッケージは、親と重複させずそのパッケージ自身のソースとして収集します。収集されたトップレベル `main` を持つファイルは解析の起点になりますが、その他のスクリプト用ヘルパーは、使用が確認できなければ指摘します。 `entry_points.files` の指定だけでは、上記以外のディレクトリは収集されません。
 
-`flutter: {generate: true}` のパッケージでは、`l10n.yaml` の `arb-dir`・
-`output-dir`・`output-localization-file` と ARB 入力のロケールから
-Flutter gen-l10n の出力を認識します。既定値は `lib/l10n` と
-`app_localizations.dart` です。該当する出力だけを指摘対象外とし、
-そこからの参照・引数使用は引き続き解析します。ディレクトリ全体や
-同名に似たファイルを一律には除外しません。旧方式の `synthetic-package: true`
-はこの判定の対象外です。生成処理自体は事前に実行してください。
+`flutter: {generate: true}` のパッケージでは、`l10n.yaml` の `arb-dir`・ `output-dir`・`output-localization-file` と ARB 入力のロケールから Flutter gen-l10n の出力を認識します。既定値は `lib/l10n` と `app_localizations.dart` です。該当する出力だけを指摘対象外とし、そこからの参照・引数使用は引き続き解析します。ディレクトリ全体や同名に似たファイルを一律には除外しません。旧方式の `synthetic-package: true` による出力は、この判定の対象外です。生成処理自体は事前に実行してください。
 
-## Built-in presets
+`exclude.files` に一致するファイルも参照元として扱います。除外するのは指摘だけで、ソースの収集は続けます。Drift のスキーマスナップショットと `flutter_rust_bridge` の出力も、生成ツール固有のヘッダーで認識します。これらの import、参照、渡された引数も解析に含めます。
+
+## 組み込みプリセット
 
 | プリセット | keep-alive アノテーション | 暗黙的に必要となる pub パッケージ |
 |---|---|---|
@@ -62,38 +52,23 @@ Flutter gen-l10n の出力を認識します。既定値は `lib/l10n` と
 | `hive` | `@HiveType`, `@HiveField` | `hive` |
 | `meta` *(常に有効)* | `@visibleForTesting`, `@visibleForOverriding`, `@protected`, `@internal`, `@immutable`, `@experimental`, `@mustCallSuper`, `@sealed`, `@factory`, `@useResult`, `@nonVirtual`, `@pragma` | `meta` |
 
-定義は [`lib/src/preset/builtin_presets.dart`](../lib/src/preset/builtin_presets.dart) にあり、各エントリには検証済みフレームワークバージョン（`last_verified`）が記録されています。
+定義は [`lib/src/preset/builtin_presets.dart`](https://github.com/ostk0069/kareki/blob/main/lib/src/preset/builtin_presets.dart) にあり、各項目には検証済みのフレームワークバージョン（`last_verified`）が記録されています。
 
-ビルトインの `freezed` プリセットは、実際の `package:freezed_annotation` の
-`Freezed` 型のアノテーション（`@freezed` を含む）を確認し、その型の
-リダイレクトファクトリを生成入力として保持します。生成クラスを直接使う場合も
-元のファクトリは生成に必要です。`.g.dart` part があるライブラリでは、式本体の
-`fromJson` ファクトリも JSON 生成のスイッチとして保持します。アノテーションで
-`fromJson`・`toJson` の両方が明示されている場合、ブロック本体、別名のファクトリ、
-別ライブラリの同名アノテーションは、この追加保護の対象外です。
-ビルド設定でスイッチが不要になっている場合も、保守的に保持することがあります。
-プリセットを無効化・上書きするとこの保護も外れます。
+### スキーマ生成に必要な宣言
 
-依存の使用には、各ソースに適用される `analysis_options.yaml` の相対・package
-include と推移的な include、および解決済み Flutter `IconData` 定数やコンストラクタの
-文字列リテラル `fontPackage` も含みます。フォント依存は参照元パッケージごとに判定し、
-特定アプリ・パッケージ名の許可リストは使いません。Flutter の依存ルールのみの実行も
-正常な依存解決が必要です。動的な資産パスや任意のビルドスクリプトは推論しません。
+組み込みの `drift` プリセットは、到達可能な `package:drift` の `Table` サブタイプについて、継承・mixin を含むカラム宣言を残します。生成された getter が上書きしていても、元の宣言は生成に必要です。未使用のテーブルや無関係な同名の型は、このルールでは残しません。
 
-正規のトップレベル `main` の位置引数は実行環境から渡されるため、「一度も渡されない」
-とは報告しません。関数本体で使っていない引数の検出は、別のルールとして維持します。
+組み込みの `freezed` プリセットは、`package:freezed_annotation` の `Freezed` 型（`@freezed` を含む）で注釈された型のリダイレクトファクトリを残します。生成クラスを直接使う場合も、元のファクトリは生成する型の定義に必要です。
 
-指摘は解析したソース構成に対するものです。FOSS 版などでビルド前にソースを差し替える
-場合は、各構成の準備後に解析するか、入口ファイルを明示的に保持してください。
-削除後にはコード生成・プロジェクトのテストも必要です。解析成功だけで実行時・各プラット
-フォーム・解析外の利用者との互換性を保証するものではありません。
+また、`.g.dart` part があり、アノテーションで JSON 変換の片方向でも設定が省略されている場合は、式本体の `fromJson` ファクトリを生成のスイッチとして残します。両方向の明示的な設定、ブロック本体、別名のファクトリ、無関係な同名アノテーションには、この追加ルールを適用しません。ビルド設定によってスイッチが不要な場合も、この判定では残します。
 
-## Defining or overriding a preset
+これらのプリセットを無効化・上書きすると、追加のスキーマ保護も無効になります。
+
+## プリセットの追加・上書き
 
 ```yaml
 custom_presets:
-  # ビルトインの `freezed` プリセットを差し替えて、
-  # アノテーション名が分岐しているフォークに固定する例。
+  # アノテーション名が異なるフォークに合わせて freezed を置き換える例。
   freezed:
     keep_alive_annotations: [freezed, Freezed]
     annotation_implied_packages:
@@ -107,9 +82,19 @@ custom_presets:
       Singleton: [my_di_package]
 ```
 
-`custom_presets.<name>` がビルトインと同じ名前のとき、ビルトインは **完全に置き換え** られます。アノテーション名が kareki のデフォルトと乖離した特定のフレームワークバージョンに固定したい場合に有用です。
+`custom_presets.<name>` が組み込みと同じ名前のとき、組み込みの定義を完全に置き換えます。独自のアノテーションを使うフォークなどに対応できます。
 
-## Suppression
+## import 以外で使われる依存パッケージ
+
+次の依存パッケージは、Dart の import がなくても使用中とみなします。
+
+- 解決済みの `pubspec.yaml` に `ffiPlugin: true` または空でない `pluginClass` がある、Flutter のネイティブプラグイン。 Flutter が自動登録・同梱する場合があります。最も近い `.dart_tool/package_config.json` を使うため、事前に `pub get` を実行してください。すべてのプラットフォームで必要だと保証する判定ではありません。
+- 各ソースに最も近い `analysis_options.yaml` が参照するパッケージ。相対パスと package の include を、参照先の include までたどります。
+- 解決済みの Flutter `IconData` 定数、またはコンストラクタの `fontPackage` に文字列リテラルで指定されたフォントパッケージ。参照元のパッケージで使われているものとして扱います。
+
+そのため、Flutter では依存パッケージだけの検査でも参照の解決が必要です。動的なアセットパスや任意のビルドスクリプトは推論しません。ビルド構成ごとに使うコードを削除する前に、[解析の仕組み](how-it-works.ja.md)の注意点を確認してください。
+
+## 指摘の抑制
 
 ### ファイル単位（インライン）
 
@@ -149,32 +134,28 @@ class MyClass {}
 ignore:
   dependencies:
     my_app:
-      # Flutter ネイティブプラグインは自動登録されるため import されない。
-      - geolocator_android
-      - google_sign_in_ios
+      # kareki が解析できない独自のビルドスクリプトで使う依存。
+      - custom_build_support
 ```
 
 ### グローバル
 
 ```yaml
 ignore:
-  packages: [dartx, wt_cli]    # これらのワークスペースパッケージをスキップ
+  packages: [legacy_tools]    # 指摘だけを抑制し、参照は残す
   rules: [unused_pub_dependency]
 ```
 
-未使用引数のルールを有効に保ちつつ、ワークスペース全体で意図的に残す
-特定の引数名を許可するには、完全一致のリストを指定します:
+未使用引数のルールを有効に保ちつつ、ワークスペース全体で意図的に残す特定の引数名を許可するには、完全一致のリストを指定します:
 
 ```yaml
 exclude:
   parameter_names: [context]
 ```
 
-`exclude.parameter_names` が適用されるのは `unused_parameter` と
-`unused_parameter_optional` だけです。同名の宣言は抑制しません。
-現在の検出を何も抑制していないエントリは `kareki doctor` が報告します。
+`exclude.parameter_names` が適用されるのは `unused_parameter` と `unused_parameter_optional` だけです。同名の宣言は抑制しません。現在の指摘を何も抑制していない項目は `kareki doctor` が報告します。
 
-## Full example
+## 設定例
 
 ```yaml
 version: 1
@@ -204,7 +185,7 @@ custom_presets:
 ignore:
   packages: [my_lib_package]
   dependencies:
-    my_app: [geolocator_android, google_sign_in_ios]
+    my_app: [custom_build_support]
 
 output:
   format: text
