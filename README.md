@@ -39,7 +39,7 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 
 Six key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
 
-| Feature | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart standard analysis |
+| Feature | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart standard analysis](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | [Unused public declarations and members](doc/how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
 | Unused private declarations and members | — | ✅ | ✅ | — | ✅ |
