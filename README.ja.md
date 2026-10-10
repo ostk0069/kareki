@@ -41,7 +41,7 @@
 
 主な6項目の比較です。✅ 対応（オプションでの有効化を含む）、— 該当機能なし。
 
-| 機能 | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart 標準解析 |
+| 機能 | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart 標準解析](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | [未使用 public 宣言・メンバー](doc/how-it-works.ja.md#解析の流れ) | ✅ | ✅ | ✅ | — | — |
 | 未使用 private 宣言・メンバー | — | ✅ | ✅ | — | ✅ |
