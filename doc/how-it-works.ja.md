@@ -258,5 +258,6 @@ void main() {}
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
 | analyzer | `>=10.2.0 <15.0.0` |
+| Flutter gen-l10n 実生成の検証対象 | `3.38.1`、`3.41.4`、`stable`（ソース出力のみ） |
 
-CI では、対応するすべての Dart マイナーバージョンと、最新の安定版 SDK で解析とテストを実行します。
+CI では、対応するすべての Dart マイナーバージョンと、最新の安定版 SDK で解析とテストを実行します。実際の gen-l10n 生成テストは Flutter `3.38.1`、`3.41.4`、`stable` の別 matrix で実行し、Dart と Flutter の全組み合わせにはしません。各 Flutter ジョブは、その Flutter に同梱された Dart SDK で kareki を実行します。

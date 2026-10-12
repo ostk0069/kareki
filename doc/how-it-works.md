@@ -411,6 +411,10 @@ regenerate sources and run the project's analysis, tests, and relevant builds.
 |---|---|
 | Dart SDK | `>=3.10.0 <4.0.0` |
 | analyzer | `>=10.2.0 <15.0.0` |
+| Flutter gen-l10n integration tests | `3.38.1`, `3.41.4`, and `stable` (source output only) |
 
 CI runs analysis and tests against every supported Dart minor version and the
-latest stable SDK patch.
+latest stable SDK patch. Real gen-l10n integration tests run separately on
+Flutter `3.38.1`, `3.41.4`, and `stable`; Dart and Flutter are not combined into
+a full cross-product matrix. Each Flutter job runs kareki with that Flutter
+SDK's bundled Dart SDK.
