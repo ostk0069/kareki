@@ -57,7 +57,7 @@
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  kareki: ^0.7.0
+  kareki: ^0.8.0
 ```
 
 ```sh
