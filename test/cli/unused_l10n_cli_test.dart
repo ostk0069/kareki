@@ -199,4 +199,26 @@ void main() {
     expect(result.stderr, contains('Semantic doctor checks skipped'));
     expect(result.stdout, isNot(contains(DoctorIssueKind.unusedExcludeName)));
   });
+  test(
+    'doctor distinguishes live declaration-name exclusions from stale names',
+    () async {
+      workspace.write('lib/api.dart', 'void deadFunction() {}');
+      workspace.write(
+        'kareki-config.yaml',
+        'exclude:\n  names: [deadFunction, ghost]\n',
+      );
+      final result = await DoctorRunner().run(
+        DoctorRequest(
+          rootPath: workspace.path,
+          config: KarekiConfig.load(workspace.path),
+        ),
+      );
+      expect(
+        result.findings
+            .where((f) => f.kind == DoctorIssueKind.unusedExcludeName)
+            .map((f) => f.subject),
+        ['ghost'],
+      );
+    },
+  );
 }

@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:kareki/kareki.dart';
+import 'package:kareki/src/entry_points/entry_point_resolver.dart';
+import 'package:kareki/src/l10n/flutter_l10n.dart';
+import 'package:kareki/src/reachability/resolved_reachability.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -457,4 +462,115 @@ void main() { print(AppLocalizations.of(Object()) as dynamic); }
       await expectLater(analyze(), throwsA(isA<ResolvedAnalysisException>()));
     });
   }
+  test(
+    'configured missing ARB directory fails before source analysis',
+    () async {
+      writeL10n(workspace);
+      Directory(p.join(workspace.path, 'lib/l10n')).deleteSync(recursive: true);
+      await expectLater(
+        analyze(),
+        throwsA(
+          isA<ResolvedAnalysisException>().having(
+            (e) => e.toString(),
+            'diagnostics',
+            contains('ARB directory is missing'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'missing generated output fails before resolving its locale imports',
+    () async {
+      writeL10n(workspace);
+      File(
+        p.join(workspace.path, 'lib/l10n/app_localizations.dart'),
+      ).deleteSync();
+      await expectLater(
+        analyze(),
+        throwsA(
+          isA<ResolvedAnalysisException>().having(
+            (e) => e.toString(),
+            'diagnostics',
+            contains('Generated localization file is missing'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'valid Dart without the configured generated class fails closed',
+    () async {
+      writeL10n(workspace);
+      File(
+        p.join(workspace.path, 'lib/l10n/app_localizations_en.dart'),
+      ).deleteSync();
+      workspace.write('lib/l10n/app_localizations.dart', 'class Unrelated {}');
+      await expectLater(
+        analyze(),
+        throwsA(
+          isA<ResolvedAnalysisException>().having(
+            (e) => e.toString(),
+            'diagnostics',
+            contains('Generated class AppLocalizations was not resolved'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'escaping callbacks that return localization retain the resource family',
+    () async {
+      writeL10n(workspace);
+      workspace.write('lib/main.dart', """
+import 'l10n/app_localizations.dart';
+AppLocalizations factory() => AppLocalizations.of(Object());
+void main() { print(factory); }
+""");
+      final result = await analyze();
+      expect(keys(result), isEmpty);
+      expect(result.analysisWarnings, contains(contains('unknown consumer')));
+    },
+  );
+
+  test('DartDoc references do not count as translation uses', () async {
+    writeL10n(workspace);
+    workspace.write('lib/main.dart', """
+import 'l10n/app_localizations.dart';
+/// [AppLocalizations.dead] is documentation, not an application reference.
+void main() { print(AppLocalizations.of(Object()).used); }
+""");
+    expect(keys(await analyze()), {'dead'});
+  });
+
+  test(
+    'empty resolved input cannot publish unused keys for a known resource family',
+    () async {
+      writeL10n(workspace);
+      final family = FlutterL10n.load(workspace.path, 'runner_fixture', {})!;
+      await expectLater(
+        ResolvedReachability.build(
+          files: [],
+          generatedPaths: {},
+          entryPoints: EntryPointSet(
+            entryPointPaths: {},
+            keepAliveAnnotations: {},
+          ),
+          config: KarekiConfig.defaults(),
+          packageRoots: {'runner_fixture': workspace.path},
+          localizations: [family],
+        ),
+        throwsA(
+          isA<ResolvedAnalysisException>().having(
+            (e) => e.toString(),
+            'diagnostics',
+            contains('Generated localization APIs were not collected'),
+          ),
+        ),
+      );
+    },
+  );
 }
