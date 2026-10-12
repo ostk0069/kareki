@@ -5,12 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.8.0
 
 ### Added
 
 - Detect unused public enum values with `unused_element` and test-only values
   with `test_only_used`. Reachable `Enum.values` conservatively retains all values.
+- Added English and Japanese comparisons with other Dart analysis tools.
 
 ### Changed
 
@@ -18,8 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed `analysis_mode` / `--analysis-mode`. Install dependencies and generate
   sources before analysis.
 - **Breaking:** runner and CLI APIs now require `await`.
-  See the [API example and notes](example/example.md#programmatic-api).
+  Removed legacy name-reference metadata and preview async APIs.
+  See the [API example and migration notes](example/example.md#programmatic-api).
 - Reduced repeated resolution and graph-building work.
+- Updated English and Japanese analysis guides with verified examples,
+  preparation steps, and documented analysis limits.
 
 ### Fixed
 
