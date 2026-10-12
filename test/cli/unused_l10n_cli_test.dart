@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:kareki/kareki.dart';
+import 'package:kareki/src/cli/cli.dart';
 import 'package:kareki/src/doctor/doctor_finding.dart';
 import 'package:kareki/src/doctor/doctor_runner.dart';
 import 'package:path/path.dart' as p;
@@ -185,6 +186,66 @@ void main() {
             .map((f) => f.subject),
         ['ghost'],
       );
+    },
+  );
+
+  test('unknown key usage cannot create or overwrite a baseline', () async {
+    workspace.write(
+      'lib/main.dart',
+      "import 'l10n/app_localizations.dart';\nvoid main() { final value = AppLocalizations.of(Object()); print(value.used); print(value); }",
+    );
+    const original = '{"version":1,"findings":[]}\n';
+    workspace.write('baseline.json', original);
+    for (final existing in [true, false]) {
+      if (!existing) File(p.join(workspace.path, 'baseline.json')).deleteSync();
+      final result = await run([
+        '--rule',
+        'unused_l10n',
+        '--baseline',
+        'baseline.json',
+        '--write-baseline',
+      ]);
+      expect(result.exitCode, 2, reason: '${result.stderr}');
+      expect(result.stderr, contains('1 used, 0 unused, 1 unknown'));
+      expect(result.stderr, contains('cannot write baseline'));
+      expect(result.stdout, isEmpty);
+      final baseline = File(p.join(workspace.path, 'baseline.json'));
+      expect(baseline.existsSync(), existing);
+      if (existing) expect(baseline.readAsStringSync(), original);
+    }
+  });
+
+  test(
+    'baseline protection depends on unknown keys, not warning presence alone',
+    () async {
+      const imports = "import 'l10n/app_localizations.dart';\n";
+      workspace.write(
+        'lib/main.dart',
+        '${imports}void main() { print(AppLocalizations.of(Object())); }',
+      );
+      const original = '{"version":1,"findings":[]}\n';
+      workspace.write('baseline.json', original);
+      final args = [
+        '--root',
+        workspace.path,
+        '--rule',
+        'unused_l10n',
+        '--baseline',
+        'baseline.json',
+        '--write-baseline',
+      ];
+      expect(await runCli(args, workingDirectory: workspace.path), 2);
+      expect(
+        File(p.join(workspace.path, 'baseline.json')).readAsStringSync(),
+        original,
+      );
+      workspace.write(
+        'lib/main.dart',
+        '${imports}void main() { final value = AppLocalizations.of(Object()); print(value.used); print(value.dead); print(value); }',
+      );
+      expect(await runCli(args, workingDirectory: workspace.path), 0);
+      final baseline = Baseline.load(p.join(workspace.path, 'baseline.json'));
+      expect(baseline, isNotNull);
     },
   );
 

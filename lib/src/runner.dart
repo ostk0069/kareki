@@ -10,6 +10,7 @@ import 'package:kareki/src/generated/flutter_localizations.dart';
 import 'package:kareki/src/l10n/flutter_l10n.dart';
 import 'package:kareki/src/model/declaration.dart';
 import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/model/localization_usage.dart';
 import 'package:kareki/src/model/package_info.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
@@ -100,6 +101,7 @@ class RunResult {
     required this.filesAnalyzed,
     required this.elapsed,
     this.analysisWarnings = const [],
+    this.localizationUsage = const [],
   });
 
   /// All detections produced by the run, in deterministic order
@@ -119,6 +121,9 @@ class RunResult {
 
   /// Conservative approximations made by the resolved engine.
   final List<String> analysisWarnings;
+
+  /// Localization reference evidence, independent of report suppressions.
+  final List<LocalizationUsage> localizationUsage;
 }
 
 /// Orchestrates workspace discovery, parsing, entry-point resolution,
@@ -714,7 +719,8 @@ class KarekiRunner {
         for (final key in family.keys.values) {
           if ((!request.disregardNameExcludes &&
                   request.config.excludeNames.contains(key.name)) ||
-              (resolved?.l10nUses[family]?.contains(key.name) ?? false)) {
+              (resolved?.l10nUses[family]?.contains(key.name) ?? false) ||
+              (resolved?.l10nUnknown[family]?.contains(key.name) ?? false)) {
             continue;
           }
           findings.add(
@@ -747,6 +753,11 @@ class KarekiRunner {
           .length,
       elapsed: stopwatch.elapsed,
       analysisWarnings: resolved?.warnings ?? const [],
+      localizationUsage: _ruleEnabled(RuleId.unusedL10n, request)
+          ? (resolved?.localizationUsage ?? const [])
+                .where((usage) => reportingPackages.contains(usage.packageName))
+                .toList()
+          : const [],
     );
   }
 

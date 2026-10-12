@@ -40,6 +40,9 @@ jobs:
       - name: Analyze
         run: dart analyze --fatal-warnings
 
+      - name: Resolve l10n consumer fixtures
+        run: dart pub get --directory test/fixtures/l10n_consumers --enforce-lockfile
+
       - name: Run tests
         run: dart test
 
@@ -91,6 +94,9 @@ jobs:
       - name: Analyze
         run: dart analyze --fatal-warnings
 
+      - name: Resolve l10n consumer fixtures
+        run: dart pub get --directory test/fixtures/l10n_consumers --enforce-lockfile
+
       - name: Run tests
         run: dart test
 
@@ -114,6 +120,9 @@ jobs:
 
       - name: Resolve dependencies
         run: dart pub get
+
+      - name: Resolve l10n consumer fixtures
+        run: dart pub get --directory test/fixtures/l10n_consumers --enforce-lockfile
 
       - name: Run tests with coverage
         run: dart run test --coverage-path=coverage/lcov.info

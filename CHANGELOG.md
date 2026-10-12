@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Distinguish confirmed, unused, and unknown localization-key usage; protect
+  baseline writes while keys remain unknown. Resolve local callback origins and
+  audited Mockito/null-matcher value consumers without retaining every key.
 - `unused_l10n` detects unreferenced Flutter gen-l10n template ARB keys using
   resolved member identities, including custom output classes and wrappers.
 - Localization input/API validation stops incomplete analysis without publishing

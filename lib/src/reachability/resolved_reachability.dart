@@ -13,6 +13,7 @@ import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/l10n/flutter_l10n.dart';
 import 'package:kareki/src/l10n/l10n_usage.dart';
 import 'package:kareki/src/model/declaration.dart';
+import 'package:kareki/src/model/localization_usage.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
 import 'package:kareki/src/reachability/external_decoder_models.dart';
@@ -41,6 +42,8 @@ class ResolvedReachability {
     this.optionalArgumentStates,
     this.assetDependencies,
     this.l10nUses,
+    this.l10nUnknown,
+    this.localizationUsage,
   );
 
   final Set<DeclarationRecord> reachable;
@@ -52,6 +55,8 @@ class ResolvedReachability {
   optionalArgumentStates;
   final Map<String, Set<String>> assetDependencies;
   final Map<FlutterL10n, Set<String>> l10nUses;
+  final Map<FlutterL10n, Set<String>> l10nUnknown;
+  final List<LocalizationUsage> localizationUsage;
 
   static Future<ResolvedReachability> build({
     required List<ParsedFile> files,
@@ -69,7 +74,7 @@ class ResolvedReachability {
           'Generated localization APIs were not collected; run flutter gen-l10n.',
         ]);
       }
-      return ResolvedReachability._({}, {}, [], {}, {}, {}, {}, {});
+      return ResolvedReachability._({}, {}, [], {}, {}, {}, {}, {}, {}, []);
     }
     final assetDependencies = <String, Set<String>>{};
     final presets = PresetRegistry(
@@ -214,6 +219,8 @@ class ResolvedReachability {
         },
         assetDependencies,
         l10n.used,
+        l10n.unknown,
+        l10n.summaries,
       );
     } on ResolvedAnalysisException {
       rethrow;

@@ -4,7 +4,11 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:kareki/src/l10n/ast_values.dart';
+import 'package:kareki/src/l10n/callable_origins.dart';
+import 'package:kareki/src/l10n/consumer_models.dart';
 import 'package:kareki/src/l10n/flutter_l10n.dart';
+import 'package:kareki/src/model/localization_usage.dart';
 
 /// Collects resolved member uses separately from generated reachability roots.
 /// Analyzer objects stay inside this execution-local collector.
@@ -15,6 +19,24 @@ class L10nUsage {
   final String Function(String) canonical;
   final Set<String> workspacePaths;
   final used = <FlutterL10n, Set<String>>{};
+  final unknown = <FlutterL10n, Set<String>>{};
+  late final models = L10nConsumerModels(
+    (path) => workspacePaths.contains(canonical(path)),
+  );
+
+  List<LocalizationUsage> get summaries => [
+    for (final family in families)
+      LocalizationUsage(
+        packageName: family.packageName,
+        templatePath: family.templatePath,
+        used: used[family]?.length ?? 0,
+        unknown: (unknown[family] ?? const <String>{})
+            .difference(used[family] ?? const <String>{})
+            .length,
+        unused:
+            family.keys.length - {...?used[family], ...?unknown[family]}.length,
+      ),
+  ];
   final warnings = <String>{};
   final _validated = <FlutterL10n>{};
 
@@ -50,6 +72,10 @@ class L10nUsage {
       for (final argument in type.typeArguments) {
         yield* _types(argument, visited);
       }
+    } else if (type is RecordType) {
+      for (final field in [...type.positionalFields, ...type.namedFields]) {
+        yield* _types(field.type, visited);
+      }
     } else if (type is FunctionType) {
       yield* _types(type.returnType, visited);
     } else if (type is TypeParameterType) {
@@ -58,7 +84,7 @@ class L10nUsage {
   }
 
   void visit(String path, CompilationUnit unit) {
-    unit.accept(_L10nVisitor(this, path));
+    unit.accept(_L10nVisitor(this, path, L10nCallableOrigins(unit)));
   }
 
   void _validate(ClassElement type) {
@@ -123,7 +149,7 @@ class L10nUsage {
           : const <FlutterL10n>[];
       for (final family in uncertain) {
         if (!family.keys.containsKey(name)) continue;
-        used.putIfAbsent(family, () => {}).add(name);
+        unknown.putIfAbsent(family, () => {}).add(name);
         warnings.add(
           'Localization use of ${family.className}.$name is uncertain at $site; key retained conservatively.',
         );
@@ -133,7 +159,7 @@ class L10nUsage {
 
   void _escape(DartType? type, String site) {
     for (final family in _types(type).toSet()) {
-      used.putIfAbsent(family, () => {}).addAll(family.keys.keys);
+      unknown.putIfAbsent(family, () => {}).addAll(family.keys.keys);
       warnings.add(
         'Localization instance ${family.className} escapes to an unknown consumer at $site; keys retained conservatively.',
       );
@@ -142,10 +168,11 @@ class L10nUsage {
 }
 
 class _L10nVisitor extends RecursiveAstVisitor<void> {
-  _L10nVisitor(this.usage, this.path);
+  _L10nVisitor(this.usage, this.path, this.origins);
 
   final L10nUsage usage;
   final String path;
+  final L10nCallableOrigins origins;
 
   bool get _generated => usage.families.any(
     (family) =>
@@ -205,12 +232,24 @@ class _L10nVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitArgumentList(ArgumentList node) {
     if (!_generated) {
-      final callee = switch (node.parent) {
+      var callee = switch (node.parent) {
         final MethodInvocation parent => parent.methodName.element,
         final InstanceCreationExpression parent =>
           parent.constructorName.element,
+        final FunctionExpressionInvocation parent => switch (parent.function) {
+          final SimpleIdentifier identifier => identifier.element,
+          final PrefixedIdentifier identifier => identifier.identifier.element,
+          _ => null,
+        },
         _ => null,
       };
+      final parent = node.parent;
+      if (callee is MethodElement &&
+          callee.isAbstract &&
+          parent is MethodInvocation) {
+        callee =
+            origins.concreteMethod(parent.realTarget, callee.name!) ?? callee;
+      }
       final knownCallable =
           callee is TopLevelFunctionElement ||
           callee is ConstructorElement ||
@@ -219,22 +258,23 @@ class _L10nVisitor extends RecursiveAstVisitor<void> {
           callee is ExecutableElement &&
           !callee.isExternal &&
           !(callee is MethodElement && callee.isAbstract);
-      if (!knownCallable ||
-          !hasBody ||
-          !usage.workspacePaths.contains(usage._path(callee))) {
+      final localCallback = parent is FunctionExpressionInvocation
+          ? origins.isLocalCallback(parent.function)
+          : parent is MethodInvocation &&
+                (origins.isRecordCallback(parent) ||
+                    parent.realTarget == null &&
+                        origins.isLocalCallback(parent.methodName));
+      if (!localCallback &&
+          (!knownCallable ||
+              !hasBody ||
+              !usage.workspacePaths.contains(usage._path(callee)))) {
         for (final argument in node.arguments) {
-          final AstNode value = argument;
-          final expression = value is Expression
-              ? value
-              : value.childEntities.whereType<Expression>().firstOrNull;
-          if (expression != null) {
-            usage._escape(expression.staticType, _site(expression));
-            if (expression is AsExpression) {
-              usage._escape(
-                expression.expression.staticType,
-                _site(expression),
-              );
-            }
+          if (usage.models.accepts(callee, node, argument)) continue;
+          final expression = l10nValueExpression(argument);
+          if (expression == null) continue;
+          usage._escape(expression.staticType, _site(expression));
+          if (expression is AsExpression) {
+            usage._escape(expression.expression.staticType, _site(expression));
           }
         }
       }

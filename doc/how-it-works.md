@@ -94,6 +94,39 @@ can skip graph construction; each rule uses different evidence:
 | `unused_parameter_optional` | Whether callers supply an optional parameter; all scanned calls count, including generated and unreachable code. Unknown call paths prevent an unused verdict. |
 | `unused_file` | Whether another scanned file imports, exports, or parts the file, or it is an entry point. This is not declaration reachability. |
 | `unused_pub_dependency` | Imports and recognized annotation, build-configuration, native-plugin, and asset usage. |
+| `unused_l10n` | Resolved references to generated localization getters/methods outside their configured output files. Tests and unreachable bodies count. |
+
+### Localization-key analysis
+
+`unused_l10n` checks Flutter standard gen-l10n keys independently of declaration
+reachability. Resolved getter and method uses in wrappers, extensions, other
+workspace packages, tests, and unreachable bodies all retain keys. Configured
+localization outputs, delegate registration, imports, comments, and string
+literals do not count as key uses. Other generated or excluded Dart files still
+contribute references.
+
+Each unused key is reported once at its span in the template ARB; other locales
+and `@` metadata do not produce duplicates. Baseline IDs include the package,
+template path, and key, so message edits and key reordering do not change them.
+
+Malformed inputs, missing generated APIs, mismatched template/API keys, and
+source-resolution errors stop analysis with exit `2`, without publishing findings
+or writing a baseline. Matching APIs do not prove message contents are current;
+regenerate after translation changes.
+
+Dynamic access retains matching candidate keys with a warning. Passing a
+localization instance to an unknown or external consumer retains all keys in
+that resource family. Confirmed references remain classified as used; keys
+without a confirmed reference are classified as unknown, not used. The CLI
+reports these counts and refuses baseline writes while unknown keys remain. [Doctor](doctor.md) skips semantic cleanup after warnings.
+Local final function values, read-only record callback lists, and abstract calls
+with a proven concrete local receiver can be checked. Merely finding workspace
+implementations does not prove an abstract receiver is closed. Audited Mockito
+value registration and exact null-matcher expectations do not consume keys;
+changed dependency sources, custom matchers, and escaped/mutated lists restore
+conservative warnings.
+See [localization configuration](configuration.md#unused-localization-keys)
+for supported generators and settings.
 
 ### Optional-argument usage
 
@@ -325,6 +358,37 @@ keep stale references alive; missing outputs that break resolution stop the
 analysis. Do not edit generated files just to change the report. Some generators
 also read declarations without emitting a normal call; supported presets cover
 specific cases, not arbitrary generator behavior.
+
+Configured Flutter gen-l10n outputs are identified from `l10n.yaml` paths and
+ARB locales for packages with `flutter.generate: true`. Only matching output
+paths are exempted; an entire directory or every `app_localizations*.dart` file
+is not excluded. Legacy synthetic-package output is not covered by this rule.
+
+Generated files are also recognized by `GENERATED CODE - DO NOT MODIFY BY HAND`
+or `AUTO-GENERATED FILE. DO NOT EDIT` in their first lines, and generator-specific
+headers for Drift schema snapshots and `flutter_rust_bridge` outputs. Their
+imports, references, and supplied arguments still count.
+
+### Schema generation inputs
+
+The built-in `drift` preset retains columns of reachable `package:drift`
+`Table` subtypes, including inherited and mixin columns. They remain generation
+inputs even when generated getters override them. Unused tables and unrelated
+same-name types are not retained by this rule.
+
+The built-in `freezed` preset retains redirecting factories on types annotated
+with the resolved `Freezed` type from `package:freezed_annotation`, including
+`@freezed`. These factories define generated variants even when callers use
+the generated classes directly.
+
+It also retains expression-bodied `fromJson` factories as JSON generation
+switches when a `.g.dart` part exists and either JSON direction is unspecified
+in the annotation. Explicit settings for both directions, block bodies, other
+factory names, and unrelated same-name annotations do not trigger this extra
+rule. Build-level overrides may make the switch redundant; it is still retained.
+
+Disabling or replacing either preset removes its additional schema protections.
+
 
 ## Reviewing the results
 
