@@ -55,6 +55,42 @@ from findings, not from collection. Drift schema snapshots and
 `flutter_rust_bridge` outputs are also recognized by generator-specific headers.
 Their imports, references, and supplied arguments still count.
 
+## Unused localization keys
+
+`unused_l10n` supports Flutter standard `gen-l10n` with `flutter.generate: true`.
+It reads the template ARB (default `app_en.arb`) and output class (default
+`AppLocalizations`), including custom `template-arb-file` and `output-class`.
+Generate code first with `flutter gen-l10n` and bootstrap workspace dependencies.
+
+```sh
+dart run kareki --rule unused_l10n
+```
+
+Resolved getter/method uses outside the configured localization outputs retain
+keys, including wrappers, extensions, other workspace packages, tests and
+unreachable source bodies. Generated overrides, delegate registration, imports,
+comments and string literals do not count as key uses. Other excluded/generated
+Dart files still contribute references. Each unused key is reported once at its
+key span in the template ARB; other locales and `@` metadata are not duplicate
+findings. This detects missing references, not production-only reachability.
+
+Use `exclude.names`, ARB path globs in `exclude.files`, `ignore.rules` or a
+baseline to suppress findings. ARB files do not support Dart suppression comments.
+The stable ID includes the package, template path and key; message edits and
+key reordering do not change it. File exclusions suppress reports, not validation.
+
+Malformed inputs, missing generated APIs, mismatched template/API keys and source
+resolution errors stop analysis with exit `2`, without publishing findings or
+writing a baseline. API consistency does not verify generated message contents;
+regenerate after translation changes. Dynamic uses retain matching candidate
+keys with a warning; instances passed to unknown/external consumers retain their
+resource family. Doctor avoids semantic cleanup after such warnings.
+
+Flutter Intl / `intl_utils`, `easy_localization`, `slang`, legacy synthetic
+packages and paths outside the package are unsupported. Generator settings
+supplied only through command-line overrides cannot be discovered: persist
+paths and class/template choices in `l10n.yaml`.
+
 ## Built-in presets
 
 | Preset | Keep-alive annotations | Implies pub packages |

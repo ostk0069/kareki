@@ -1,8 +1,10 @@
 import 'package:kareki_example/api.dart';
+import 'package:kareki_example/l10n/app_localizations_en.dart';
 import 'package:kareki_example/parameters.dart';
 
 void main() {
   greet('world');
+  print(ExampleLocalizationsEn().greeting);
   print(Status.active);
 
   // `port` is never passed at any call site in the workspace —

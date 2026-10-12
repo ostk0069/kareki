@@ -19,13 +19,15 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 | [Detect unused pub dependencies](#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
 | [Detect optional public API parameters never supplied by callers](#unsupplied-optional-parameters) | ✅ | — | — | — | — |
 | [Detect public declarations used only by tests](#test-only-declarations) | ✅ | — | — | — | — |
-| Dedicated unused-l10n checks | Coming soon | — | ✅ | — | — |
+| Dedicated unused-l10n checks | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](#baseline) | ✅ | — | — | — | — |
 | [Check stale exclusions and baseline entries](#stale-configuration) | ✅ | — | — | — | — |
 | Automatically remove unused public declarations | Coming soon | △ | — | — | — |
 
 - A ✅ still has analysis limits; for example, kareki excludes operators.
 - Enum values are compared separately from declarations and members.
+- Kareki checks Flutter standard gen-l10n template ARB keys using resolved references. Flutter Intl / intl_utils, easy_localization and slang are not supported.
+
 - Dart Code Linter's public / private member checks require opt-in flags and include enum values.
   See its [CLI][dcl-cli].
 - Dart Code Linter's l10n check targets members of Dart classes. The default class-name

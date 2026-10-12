@@ -16,8 +16,11 @@ class DoctorFinding {
 
 /// Stable issue ids used by both reporters and tests.
 abstract final class DoctorIssueKind {
-  /// `exclude.files` glob that matches no `.dart` file in the workspace.
+  /// `exclude.files` glob that matches no Dart or ARB file in the workspace.
   static const String unusedExclude = 'unused-exclude';
+
+  /// An exclude.names entry suppresses no current finding.
+  static const String unusedExcludeName = 'unused-exclude-name';
 
   /// `exclude.parameter_names` entry that suppresses no current
   /// `unused_parameter` or `unused_parameter_optional` finding.

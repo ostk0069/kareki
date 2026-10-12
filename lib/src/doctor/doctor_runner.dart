@@ -26,6 +26,7 @@ class _UserConfig {
   _UserConfig({
     required this.excludeFiles,
     required this.excludeParameterNames,
+    required this.excludeNames,
     required this.ignorePackages,
     required this.ignoredDependencies,
   });
@@ -49,6 +50,7 @@ class _UserConfig {
     final ignore = yaml['ignore'] as YamlMap?;
     return _UserConfig(
       excludeFiles: _stringList(exclude?['files']),
+      excludeNames: _stringSet(exclude?['names']),
       excludeParameterNames: _stringSet(exclude?['parameter_names']),
       ignorePackages: _stringSet(ignore?['packages']),
       ignoredDependencies: _stringSetMap(ignore?['dependencies']),
@@ -60,12 +62,14 @@ class _UserConfig {
   /// defaults baked into [KarekiConfig.defaults].
   final List<String> excludeFiles;
   final Set<String> excludeParameterNames;
+  final Set<String> excludeNames;
   final Set<String> ignorePackages;
   final Map<String, Set<String>> ignoredDependencies;
 
   static final empty = _UserConfig(
     excludeFiles: const [],
     excludeParameterNames: const {},
+    excludeNames: const {},
     ignorePackages: const {},
     ignoredDependencies: const {},
   );
@@ -132,20 +136,25 @@ class DoctorRunner {
   Future<DoctorResult> analyze(DoctorRequest request) async {
     final stopwatch = Stopwatch()..start();
     final runner = KarekiRunner();
-    RunRequest input({bool parameters = false, bool comments = false}) =>
-        RunRequest(
-          rootPath: request.rootPath,
-          config: request.config,
-          enabledRules: parameters
-              ? {RuleId.unusedParameter, RuleId.unusedParameterOptional}
-              : null,
-          disregardParameterNameExcludes: parameters,
-          disregardFileLevelIgnores: comments,
-        );
+    RunRequest input({
+      bool parameters = false,
+      bool comments = false,
+      bool names = false,
+    }) => RunRequest(
+      rootPath: request.rootPath,
+      config: request.config,
+      enabledRules: parameters
+          ? {RuleId.unusedParameter, RuleId.unusedParameterOptional}
+          : null,
+      disregardParameterNameExcludes: parameters,
+      disregardFileLevelIgnores: comments,
+      disregardNameExcludes: names,
+    );
     final variants = await runner.analyzeVariants([
       input(),
       input(parameters: true),
       input(comments: true),
+      input(names: true),
     ]);
     final ordinary = variants[0];
     final parameters = variants[1];
@@ -154,6 +163,7 @@ class DoctorRunner {
       ...ordinary.analysisWarnings,
       ...parameters.analysisWarnings,
       ...comments.analysisWarnings,
+      ...variants[3].analysisWarnings,
     };
     if (warnings.isNotEmpty) {
       warnings.add(
@@ -165,6 +175,7 @@ class DoctorRunner {
       ordinary: ordinary,
       parameters: parameters,
       comments: comments,
+      names: variants[3],
       skipSemantic: warnings.isNotEmpty,
     );
     return DoctorResult(
@@ -179,6 +190,7 @@ class DoctorRunner {
     required RunResult ordinary,
     required RunResult parameters,
     required RunResult comments,
+    required RunResult names,
     bool skipSemantic = false,
   }) {
     final stopwatch = Stopwatch()..start();
@@ -196,6 +208,28 @@ class DoctorRunner {
 
     findings.addAll(_findDeadExcludeGlobs(request, user, analyzedPackages));
     if (!skipSemantic) {
+      final matchedNames = <String>{};
+      final ordinaryIds = ordinary.findings
+          .map((f) => (f.ruleId, f.stableId))
+          .toSet();
+      for (final finding in names.findings) {
+        if (ordinaryIds.contains((finding.ruleId, finding.stableId))) continue;
+        final parts = finding.stableId.split('|');
+        if (finding.ruleId == RuleId.unusedL10n) {
+          matchedNames.add(parts.last.substring(5));
+        } else if (parts.length >= 5) {
+          matchedNames.add(parts[3]);
+        }
+      }
+      for (final name in user.excludeNames.difference(matchedNames)) {
+        findings.add(
+          DoctorFinding(
+            kind: DoctorIssueKind.unusedExcludeName,
+            subject: name,
+            detail: 'exclude.names',
+          ),
+        );
+      }
       findings.addAll(
         _findDeadExcludeParameterNames(request, user, parameters),
       );
@@ -233,7 +267,10 @@ class DoctorRunner {
     };
     final hits = <String, int>{for (final pattern in globs.keys) pattern: 0};
     for (final pkg in analyzedPackages) {
-      for (final file in packageDartFiles(pkg.rootPath)) {
+      for (final file in [
+        ...packageDartFiles(pkg.rootPath),
+        ...packageArbFiles(pkg.rootPath),
+      ]) {
         final rel = p.relative(file.path, from: request.rootPath);
         final base = p.basename(file.path);
         for (final entry in globs.entries) {

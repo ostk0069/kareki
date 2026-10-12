@@ -36,6 +36,7 @@
 | `test_only_used` | `lib/` 配下にあり、テストコード（`*_test.dart`、`test/`、`integration_test/` 配下）からしか参照されていない public 宣言 |
 | `unused_parameter` | 関数、メソッド、名前付きコンストラクタの本体や初期化処理で一度も参照されていない引数。Dart 標準の `unused_element_parameter` では検出できない必須引数や public API も対象です。 |
 | `unused_parameter_optional` | ワークスペース内のどの呼び出し元からも値を渡されていない省略可能な引数（名前付き引数またはオプショナル位置引数）。単一ライブラリ内の private な省略可能引数だけを調べる Dart 標準の `unused_element_parameter` と異なり、public API やパッケージをまたぐ呼び出しも対象です。 |
+| `unused_l10n` | Flutter gen-l10n のテンプレート ARB に定義され、生成出力以外から getter／method が参照されていない翻訳キー。 |
 
 ## Tool comparison
 

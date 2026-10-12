@@ -43,6 +43,9 @@ abstract final class RuleId {
   /// private optional parameters within a single library.
   static const String unusedParameterOptional = 'unused_parameter_optional';
 
+  /// A gen-l10n template key has no resolved use outside its generated output.
+  static const String unusedL10n = 'unused_l10n';
+
   /// The complete set of rule ids emitted by kareki.
   static const Set<String> all = {
     unusedElement,
@@ -51,6 +54,7 @@ abstract final class RuleId {
     testOnlyUsed,
     unusedParameter,
     unusedParameterOptional,
+    unusedL10n,
   };
 }
 

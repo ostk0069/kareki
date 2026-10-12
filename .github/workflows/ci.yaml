@@ -141,3 +141,22 @@ jobs:
         # Catches .pubignore gaps, missing LICENSE/README, pub score
         # regressions, and version/CHANGELOG drift before tagging.
         run: dart pub publish --dry-run
+
+  flutter-localizations:
+    name: Flutter gen-l10n integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+        with:
+          sdk: stable
+      - name: Prepare Flutter SDK
+        run: |
+          git clone --depth 1 --branch 3.41.4 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+      - run: dart pub get
+      - name: Test actual generated localization APIs
+        run: KAREKI_FLUTTER_BIN="$RUNNER_TEMP/flutter/bin/flutter" dart test test/runner/flutter_gen_l10n_test.dart

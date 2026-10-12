@@ -19,13 +19,15 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 | [未使用の pub 依存パッケージの検出](#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
 | [呼び出し元から渡されない public API の省略可能な引数の検出](#unsupplied-optional-parameters) | ✅ | — | — | — | — |
 | [テストからしか使われない public 宣言の検出](#test-only-declarations) | ✅ | — | — | — | — |
-| l10n 専用の未使用検査 | 近日対応 | — | ✅ | — | — |
+| l10n 専用の未使用検査 | ✅ | — | ✅ | — | — |
 | [ベースラインによる新規指摘だけの報告](#baseline) | ✅ | — | — | — | — |
 | [不要な除外設定・ベースライン項目の検査](#stale-configuration) | ✅ | — | — | — | — |
 | 未使用 public 宣言の自動削除 | 近日対応 | △ | — | — | — |
 
 - ✅ でも解析対象には制限があり、たとえば kareki は演算子を検査しません。
 - enum の値は宣言・メンバーの行とは分けて比較しています。
+- kareki の l10n 検査は Flutter 標準 gen-l10n のテンプレート ARB と解決済み参照を対象にします。Flutter Intl／intl_utils、easy_localization、slang は未対応です。
+
 - Dart Code Linter のメンバー検査は public / private ともオプションで有効にします。enum の値も対象です。[CLI][dcl-cli]
 - Dart Code Linter の l10n 検査は Dart クラスのメンバーが対象です。クラス名の既定パターンは `I18n$` で、`AppLocalizations` には `--class-pattern AppLocalizations` を指定します。[設定][dcl-l10n]
 - ciach の自動削除には、報告のみで削除しない指摘があります。[README][ciach-readme]

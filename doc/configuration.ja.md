@@ -39,6 +39,38 @@ weight: 3
 
 `exclude.files` に一致するファイルも参照元として扱います。除外するのは指摘だけで、ソースの収集は続けます。Drift のスキーマスナップショットと `flutter_rust_bridge` の出力も、生成ツール固有のヘッダーで認識します。これらの import、参照、渡された引数も解析に含めます。
 
+## 未使用の翻訳キー
+
+`unused_l10n` は `flutter.generate: true` を設定した Flutter 標準の
+`gen-l10n` に対応します。テンプレート ARB（既定は `app_en.arb`）と生成クラス
+（既定は `AppLocalizations`）を読み取り、`template-arb-file`・`output-class`
+の変更にも対応します。事前に依存を解決し、`flutter gen-l10n` を実行してください。
+
+```sh
+dart run kareki --rule unused_l10n
+```
+
+生成出力以外のコードから getter／method が参照されれば使用扱いです。
+ラッパー、extension、別パッケージ、テスト、到達不能なコードからの参照も含みます。
+生成された override、delegate の登録、import、コメント、文字列は使用の証拠にしません。
+対象 gen-l10n 以外の生成・除外された Dart ファイルからの参照は引き続き収集します。
+未使用キーはテンプレート ARB のキー位置に各 1 件報告し、言語別ファイルや `@` メタデータには重複報告しません。
+本ルールは参照の有無を調べます。
+
+`exclude.names`、`exclude.files` の ARB パス、`ignore.rules`、baseline で抑制できます。
+ARB に Dart の抑制コメントは書けません。stable ID はパッケージ・テンプレートのパス・キーから作り、
+文言変更やキーの並べ替えでは変わりません。ファイル除外は報告を抑制し、入力検証は省略しません。
+
+入力の破損、生成 API の欠落、テンプレートと API のキー不整合、参照の解決失敗では
+`2` で終了し、指摘や baseline を公開・保存しません。生成文言の鮮度までは検証しないため、
+文言変更後も再生成してください。dynamic な参照は該当候補を保持して警告し、
+不明・外部の呼び出し先に翻訳インスタンスを渡す場合は対応する翻訳群を保持します。
+その場合、doctor は使用状況に依存する削除提案を行いません。
+
+Flutter Intl／`intl_utils`、`easy_localization`、`slang`、旧 synthetic package、
+パッケージ外のパスは未対応です。生成コマンドだけで指定した設定は検出できないため、
+入力・出力・クラス・テンプレートの設定を `l10n.yaml` に保存してください。
+
 ## 組み込みプリセット
 
 | プリセット | keep-alive アノテーション | 暗黙的に必要となる pub パッケージ |
