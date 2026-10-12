@@ -19,20 +19,15 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 | [Detect unused pub dependencies](#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
 | [Detect optional public API parameters never supplied by callers](#unsupplied-optional-parameters) | ✅ | — | — | — | — |
 | [Detect public declarations used only by tests](#test-only-declarations) | ✅ | — | — | — | — |
-| Dedicated unused-l10n checks | ✅ | — | ✅ | — | — |
+| [Dedicated unused-l10n checks](#unused-l10n) | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](#baseline) | ✅ | — | — | — | — |
 | [Check stale exclusions and baseline entries](#stale-configuration) | ✅ | — | — | — | — |
 | Automatically remove unused public declarations | Coming soon | △ | — | — | — |
 
 - A ✅ still has analysis limits; for example, kareki excludes operators.
 - Enum values are compared separately from declarations and members.
-- Kareki checks Flutter standard gen-l10n template ARB keys using resolved references. Flutter Intl / intl_utils, easy_localization and slang are not supported.
-
 - Dart Code Linter's public / private member checks require opt-in flags and include enum values.
   See its [CLI][dcl-cli].
-- Dart Code Linter's l10n check targets members of Dart classes. The default class-name
-  pattern is `I18n$`; use `--class-pattern AppLocalizations` for `AppLocalizations`.
-  See its [configuration][dcl-l10n].
 - Some ciach findings are report-only and cannot be automatically removed.
   See its [README][ciach-readme].
 - The parameter row checks whether callers supply values. This differs from
@@ -91,6 +86,26 @@ entry points. Kareki's `test_only_used` distinguishes test-only use from code
 with no recognized use at all.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
 
+### Unused localization keys {#unused-l10n}
+
+Kareki's `unused_l10n` checks Flutter standard gen-l10n template ARB keys.
+For example, a resolved `l10n.title` reference retains `title`; an unreferenced
+key is reported once at its location in the template ARB. Generated localization
+implementations and delegate registration alone do not retain keys.
+
+References in wrappers, other workspace packages, tests, and unreachable bodies
+count as uses. Unknown access retains affected keys with a warning, rather than
+reporting them as unused. Kareki reports used, unused, and unknown key counts;
+baseline writes stop while unknown keys remain. See
+[localization-key analysis](how-it-works.md#localization-key-analysis).
+
+Flutter Intl / `intl_utils`, `easy_localization`, and `slang` are not supported.
+See [supported configuration](configuration.md#unused-localization-keys).
+
+Dart Code Linter's l10n check targets members of Dart classes. The default
+class-name pattern is `I18n$`; use `--class-pattern AppLocalizations` for
+`AppLocalizations`. See its [configuration][dcl-l10n].
+
 ### Report only new findings using a baseline {#baseline}
 
 Save existing findings, then omit matching findings on later runs so CI can
@@ -137,6 +152,7 @@ especially for published APIs and dynamic calls.
 ## Versions compared
 
 Checked October 10, 2026, against official documentation and source.
+Kareki's l10n details were updated October 13, 2026.
 
 | Tool | Version examined |
 |---|---|
