@@ -1,3 +1,8 @@
+// These integration tests start fresh Dart VMs and resolve source in each run.
+// Shared CI runners need more than the default 30 seconds for multi-run cases.
+@Timeout(Duration(minutes: 2))
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -18,13 +23,22 @@ void main() {
   });
   tearDown(() => workspace.dispose());
 
-  Future<ProcessResult> run(
-    List<String> arguments,
-  ) => Process.run(Platform.resolvedExecutable, [
-    '--packages=${p.join(Directory.current.path, '.dart_tool', 'package_config.json')}',
-    p.join(Directory.current.path, 'bin', 'kareki.dart'),
-    ...arguments,
-  ], workingDirectory: workspace.path);
+  Future<ProcessResult> run(List<String> arguments) async {
+    final process = await Process.start(Platform.resolvedExecutable, [
+      '--packages=${p.join(Directory.current.path, '.dart_tool', 'package_config.json')}',
+      p.join(Directory.current.path, 'bin', 'kareki.dart'),
+      ...arguments,
+    ], workingDirectory: workspace.path);
+    // Stop subprocesses before the workspace teardown, including on timeout.
+    addTearDown(() async {
+      process.kill();
+      await process.exitCode;
+    });
+    final stdout = process.stdout.transform(utf8.decoder).join();
+    final stderr = process.stderr.transform(utf8.decoder).join();
+    final exitCode = await process.exitCode;
+    return ProcessResult(process.pid, exitCode, await stdout, await stderr);
+  }
 
   test('rule filtering, JSON locations and CLI exit codes 0/1', () async {
     final result = await run(['--rule', 'unused_l10n', '--format', 'json']);
