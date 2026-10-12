@@ -38,7 +38,7 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 
 ## Tool comparison
 
-Six key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
+Seven key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
 
 | Feature | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart standard analysis](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -47,6 +47,7 @@ Six key features at a glance. ✅ Supported (including opt-in features), — no 
 | [Public declaration cycles unreachable from entry points](doc/comparison.md#analysis-differences) | ✅ | — | — | — | — |
 | [Unused Dart files](doc/how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
 | [Unused pub dependencies](doc/configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
+| [Unused localization keys (l10n)](doc/comparison.md#unused-l10n) | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](doc/baseline.md) | ✅ | — | — | — | — |
 
 See the [full comparison](doc/comparison.md) for other features, required settings, limitations, and versions compared.

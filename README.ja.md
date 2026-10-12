@@ -40,7 +40,7 @@
 
 ## Tool comparison
 
-主な6項目の比較です。✅ 対応（オプションでの有効化を含む）、— 該当機能なし。
+主な7項目の比較です。✅ 対応（オプションでの有効化を含む）、— 該当機能なし。
 
 | 機能 | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart 標準解析](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -49,6 +49,7 @@
 | [起点から到達できない public 宣言の循環参照](doc/comparison.ja.md#解析方式の違い) | ✅ | — | — | — | — |
 | [未使用 Dart ファイル](doc/how-it-works.ja.md#各ルールが使う根拠) | ✅ | — | ✅ | — | — |
 | [未使用の pub 依存パッケージ](doc/configuration.ja.md#import-以外で使われる依存パッケージ) | ✅ | — | — | ✅ | — |
+| [未使用の翻訳キー（l10n）](doc/comparison.ja.md#unused-l10n) | ✅ | — | ✅ | — | — |
 | [ベースラインで新規指摘だけを報告](doc/baseline.ja.md) | ✅ | — | — | — | — |
 
 ほかの機能、各ツールの設定条件・制限、比較した版は[詳しい比較](doc/comparison.ja.md)を参照してください。
