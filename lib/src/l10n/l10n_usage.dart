@@ -20,6 +20,13 @@ class L10nUsage {
   final Set<String> workspacePaths;
   final used = <FlutterL10n, Set<String>>{};
   final unknown = <FlutterL10n, Set<String>>{};
+  late final Set<String> _keyNames = {
+    for (final family in families) ...family.keys.keys,
+  };
+  late final Set<String> _generatedPaths = {
+    for (final family in families)
+      for (final path in family.outputPaths) canonical(path),
+  };
   late final models = L10nConsumerModels(
     (path) => workspacePaths.contains(canonical(path)),
   );
@@ -84,7 +91,7 @@ class L10nUsage {
   }
 
   void visit(String path, CompilationUnit unit) {
-    unit.accept(_L10nVisitor(this, path, L10nCallableOrigins(unit)));
+    unit.accept(_L10nVisitor(this, path, unit));
   }
 
   void _validate(ClassElement type) {
@@ -128,8 +135,10 @@ class L10nUsage {
     Element? element,
     String name,
     Expression? receiver,
-    String site,
+    AstNode node,
+    String path,
   ) {
+    if (!_keyNames.contains(name)) return;
     final host = element?.baseElement.enclosingElement;
     if (host is ClassElement &&
         (element is GetterElement || element is MethodElement)) {
@@ -151,40 +160,38 @@ class L10nUsage {
         if (!family.keys.containsKey(name)) continue;
         unknown.putIfAbsent(family, () => {}).add(name);
         warnings.add(
-          'Localization use of ${family.className}.$name is uncertain at $site; key retained conservatively.',
+          'Localization use of ${family.className}.$name is uncertain at ${_site(node, path)}; key retained conservatively.',
         );
       }
     }
   }
 
-  void _escape(DartType? type, String site) {
-    for (final family in _types(type).toSet()) {
+  void _escape(Set<FlutterL10n> families, AstNode node, String path) {
+    for (final family in families) {
       unknown.putIfAbsent(family, () => {}).addAll(family.keys.keys);
       warnings.add(
-        'Localization instance ${family.className} escapes to an unknown consumer at $site; keys retained conservatively.',
+        'Localization instance ${family.className} escapes to an unknown consumer at ${_site(node, path)}; keys retained conservatively.',
       );
     }
   }
-}
 
-class _L10nVisitor extends RecursiveAstVisitor<void> {
-  _L10nVisitor(this.usage, this.path, this.origins);
-
-  final L10nUsage usage;
-  final String path;
-  final L10nCallableOrigins origins;
-
-  bool get _generated => usage.families.any(
-    (family) =>
-        family.outputPaths.any((output) => usage.canonical(output) == path),
-  );
-
-  String _site(AstNode node) {
+  String _site(AstNode node, String path) {
     final location = (node.root as CompilationUnit).lineInfo.getLocation(
       node.offset,
     );
     return '$path:${location.lineNumber}:${location.columnNumber}';
   }
+}
+
+class _L10nVisitor extends RecursiveAstVisitor<void> {
+  _L10nVisitor(this.usage, this.path, this.unit);
+
+  final L10nUsage usage;
+  final String path;
+  final CompilationUnit unit;
+  // Index the whole unit only when a localization argument needs origin proof.
+  late final origins = L10nCallableOrigins(unit);
+  late final bool _generated = usage._generatedPaths.contains(path);
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
@@ -208,7 +215,7 @@ class _L10nVisitor extends RecursiveAstVisitor<void> {
           parent.realTarget,
         _ => null,
       };
-      usage._reference(node.element, node.name, receiver, _site(node));
+      usage._reference(node.element, node.name, receiver, node, path);
     }
     super.visitSimpleIdentifier(node);
   }
@@ -223,62 +230,73 @@ class _L10nVisitor extends RecursiveAstVisitor<void> {
         node.element,
         node.effectiveName ?? '',
         null,
-        _site(node),
+        node,
+        path,
       );
     }
     super.visitPatternField(node);
   }
 
+  bool _hasWorkspaceBody(Element? callee) =>
+      (callee is TopLevelFunctionElement ||
+          callee is ConstructorElement ||
+          callee is MethodElement) &&
+      callee is ExecutableElement &&
+      !callee.isExternal &&
+      !(callee is MethodElement && callee.isAbstract) &&
+      usage.workspacePaths.contains(usage._path(callee));
+
+  void _arguments(ArgumentList node) {
+    if (_generated) return;
+    var callee = switch (node.parent) {
+      final MethodInvocation parent => parent.methodName.element,
+      final InstanceCreationExpression parent => parent.constructorName.element,
+      final FunctionExpressionInvocation parent => switch (parent.function) {
+        final SimpleIdentifier identifier => identifier.element,
+        final PrefixedIdentifier identifier => identifier.identifier.element,
+        _ => null,
+      },
+      _ => null,
+    };
+    if (_hasWorkspaceBody(callee)) return;
+
+    final candidates = <(AstNode, Expression, Set<FlutterL10n>)>[];
+    for (final argument in node.arguments) {
+      final expression = l10nValueExpression(argument);
+      if (expression == null) continue;
+      final families = {
+        ...usage._types(expression.staticType),
+        if (expression is AsExpression)
+          ...usage._types(expression.expression.staticType),
+      };
+      if (families.isNotEmpty) candidates.add((argument, expression, families));
+    }
+    if (candidates.isEmpty) return;
+
+    final parent = node.parent;
+    if (callee is MethodElement &&
+        callee.isAbstract &&
+        parent is MethodInvocation) {
+      callee =
+          origins.concreteMethod(parent.realTarget, callee.name!) ?? callee;
+    }
+    if (_hasWorkspaceBody(callee)) return;
+    final localCallback = parent is FunctionExpressionInvocation
+        ? origins.isLocalCallback(parent.function)
+        : parent is MethodInvocation &&
+              (origins.isRecordCallback(parent) ||
+                  parent.realTarget == null &&
+                      origins.isLocalCallback(parent.methodName));
+    if (localCallback) return;
+    for (final (argument, expression, families) in candidates) {
+      if (usage.models.accepts(callee, node, argument)) continue;
+      usage._escape(families, expression, path);
+    }
+  }
+
   @override
   void visitArgumentList(ArgumentList node) {
-    if (!_generated) {
-      var callee = switch (node.parent) {
-        final MethodInvocation parent => parent.methodName.element,
-        final InstanceCreationExpression parent =>
-          parent.constructorName.element,
-        final FunctionExpressionInvocation parent => switch (parent.function) {
-          final SimpleIdentifier identifier => identifier.element,
-          final PrefixedIdentifier identifier => identifier.identifier.element,
-          _ => null,
-        },
-        _ => null,
-      };
-      final parent = node.parent;
-      if (callee is MethodElement &&
-          callee.isAbstract &&
-          parent is MethodInvocation) {
-        callee =
-            origins.concreteMethod(parent.realTarget, callee.name!) ?? callee;
-      }
-      final knownCallable =
-          callee is TopLevelFunctionElement ||
-          callee is ConstructorElement ||
-          callee is MethodElement;
-      final hasBody =
-          callee is ExecutableElement &&
-          !callee.isExternal &&
-          !(callee is MethodElement && callee.isAbstract);
-      final localCallback = parent is FunctionExpressionInvocation
-          ? origins.isLocalCallback(parent.function)
-          : parent is MethodInvocation &&
-                (origins.isRecordCallback(parent) ||
-                    parent.realTarget == null &&
-                        origins.isLocalCallback(parent.methodName));
-      if (!localCallback &&
-          (!knownCallable ||
-              !hasBody ||
-              !usage.workspacePaths.contains(usage._path(callee)))) {
-        for (final argument in node.arguments) {
-          if (usage.models.accepts(callee, node, argument)) continue;
-          final expression = l10nValueExpression(argument);
-          if (expression == null) continue;
-          usage._escape(expression.staticType, _site(expression));
-          if (expression is AsExpression) {
-            usage._escape(expression.expression.staticType, _site(expression));
-          }
-        }
-      }
-    }
+    _arguments(node);
     super.visitArgumentList(node);
   }
 }

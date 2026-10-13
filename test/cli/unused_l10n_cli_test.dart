@@ -1,4 +1,5 @@
-// These integration tests start fresh Dart VMs and resolve source in each run.
+// Representative integration cases start fresh Dart VMs; detailed failure
+// and baseline cases exercise the same CLI in process with captured output.
 // Shared CI runners need more than the default 30 seconds for multi-run cases.
 @Timeout(Duration(minutes: 2))
 library;
@@ -16,6 +17,8 @@ import 'package:test/test.dart';
 import '../support/l10n_workspace.dart';
 import '../support/test_workspace.dart';
 
+typedef _CliResult = ({int exitCode, String stdout, String stderr});
+
 void main() {
   late TestWorkspace workspace;
   setUp(() {
@@ -24,7 +27,7 @@ void main() {
   });
   tearDown(() => workspace.dispose());
 
-  Future<ProcessResult> run(List<String> arguments) async {
+  Future<_CliResult> run(List<String> arguments) async {
     final process = await Process.start(Platform.resolvedExecutable, [
       '--packages=${p.join(Directory.current.path, '.dart_tool', 'package_config.json')}',
       p.join(Directory.current.path, 'bin', 'kareki.dart'),
@@ -38,13 +41,28 @@ void main() {
     final stdout = process.stdout.transform(utf8.decoder).join();
     final stderr = process.stderr.transform(utf8.decoder).join();
     final exitCode = await process.exitCode;
-    return ProcessResult(process.pid, exitCode, await stdout, await stderr);
+    return (exitCode: exitCode, stdout: await stdout, stderr: await stderr);
+  }
+
+  Future<_CliResult> runInProcess(List<String> arguments) async {
+    final output = _BufferStdout();
+    final errors = _BufferStdout();
+    final code = await IOOverrides.runZoned(
+      () => runCli(arguments, workingDirectory: workspace.path),
+      stdout: () => output,
+      stderr: () => errors,
+    );
+    return (
+      exitCode: code,
+      stdout: output.buffer.toString(),
+      stderr: errors.buffer.toString(),
+    );
   }
 
   test('rule filtering, JSON locations and CLI exit codes 0/1', () async {
     final result = await run(['--rule', 'unused_l10n', '--format', 'json']);
-    expect(result.exitCode, 1, reason: '${result.stderr}');
-    final json = jsonDecode(result.stdout as String) as Map<String, dynamic>;
+    expect(result.exitCode, 1, reason: result.stderr);
+    final json = jsonDecode(result.stdout) as Map<String, dynamic>;
     final findings = (json['findings'] as List).cast<Map<String, dynamic>>();
     expect(findings, hasLength(2));
     expect(findings.map((f) => f['ruleId']).toSet(), {'unused_l10n'});
@@ -56,16 +74,16 @@ void main() {
   });
 
   test('baseline suppresses keys and doctor detects stale entries', () async {
-    final written = await run([
+    final written = await runInProcess([
       '--rule',
       'unused_l10n',
       '--baseline',
       'baseline.json',
       '--write-baseline',
     ]);
-    expect(written.exitCode, 0, reason: '${written.stderr}');
+    expect(written.exitCode, 0, reason: written.stderr);
     expect(
-      (await run([
+      (await runInProcess([
         '--rule',
         'unused_l10n',
         '--baseline',
@@ -117,16 +135,19 @@ void main() {
         }
         const original = '{"version":1,"findings":[]}\n';
         workspace.write('baseline.json', original);
-        final result = await run([
-          '--rule',
-          'unused_l10n',
-          '--format',
-          'json',
-          '--baseline',
-          'baseline.json',
-          '--write-baseline',
-        ]);
-        expect(result.exitCode, 2, reason: '${result.stderr}');
+        // Keep a real exit-2 subprocess; the other failure variants exercise
+        // the same error boundary without recompiling the CLI each time.
+        final result =
+            await (failure == 'missing-output' ? run : runInProcess)([
+              '--rule',
+              'unused_l10n',
+              '--format',
+              'json',
+              '--baseline',
+              'baseline.json',
+              '--write-baseline',
+            ]);
+        expect(result.exitCode, 2, reason: result.stderr);
         expect(result.stdout, isEmpty);
         expect(result.stderr, contains('kareki:'));
         expect(result.stderr, isNot(contains('Unhandled exception')));
@@ -136,7 +157,7 @@ void main() {
         );
         File(p.join(workspace.path, 'baseline.json')).deleteSync();
         expect(
-          (await run([
+          (await runInProcess([
             '--rule',
             'unused_l10n',
             '--baseline',
@@ -198,14 +219,14 @@ void main() {
     workspace.write('baseline.json', original);
     for (final existing in [true, false]) {
       if (!existing) File(p.join(workspace.path, 'baseline.json')).deleteSync();
-      final result = await run([
+      final result = await (existing ? run : runInProcess)([
         '--rule',
         'unused_l10n',
         '--baseline',
         'baseline.json',
         '--write-baseline',
       ]);
-      expect(result.exitCode, 2, reason: '${result.stderr}');
+      expect(result.exitCode, 2, reason: result.stderr);
       expect(result.stderr, contains('1 used, 0 unused, 1 unknown'));
       expect(result.stderr, contains('cannot write baseline'));
       expect(result.stdout, isEmpty);
@@ -234,7 +255,7 @@ void main() {
         'baseline.json',
         '--write-baseline',
       ];
-      expect(await runCli(args, workingDirectory: workspace.path), 2);
+      expect((await runInProcess(args)).exitCode, 2);
       expect(
         File(p.join(workspace.path, 'baseline.json')).readAsStringSync(),
         original,
@@ -243,7 +264,7 @@ void main() {
         'lib/main.dart',
         '${imports}void main() { final value = AppLocalizations.of(Object()); print(value.used); print(value.dead); print(value); }',
       );
-      expect(await runCli(args, workingDirectory: workspace.path), 0);
+      expect((await runInProcess(args)).exitCode, 0);
       final baseline = Baseline.load(p.join(workspace.path, 'baseline.json'));
       expect(baseline, isNotNull);
     },
@@ -256,7 +277,7 @@ void main() {
       'void main() { dynamic value = Object(); print(value.used); }',
     );
     final result = await run(['doctor', '--format', 'json']);
-    expect(result.exitCode, 2, reason: '${result.stderr}');
+    expect(result.exitCode, 2, reason: result.stderr);
     expect(result.stderr, contains('Semantic doctor checks skipped'));
     expect(result.stdout, isNot(contains(DoctorIssueKind.unusedExcludeName)));
   });
@@ -282,4 +303,26 @@ void main() {
       );
     },
   );
+}
+
+// Only the text-writing surface used by the CLI is supported. Unexpected I/O
+// operations throw through noSuchMethod instead of silently losing output.
+class _BufferStdout implements Stdout {
+  final buffer = StringBuffer();
+
+  @override
+  void write(Object? object) => buffer.write(object);
+
+  @override
+  void writeln([Object? object = '']) => buffer.writeln(object);
+
+  @override
+  void writeAll(Iterable<Object?> objects, [String separator = '']) =>
+      buffer.writeAll(objects, separator);
+
+  @override
+  void writeCharCode(int charCode) => buffer.writeCharCode(charCode);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
