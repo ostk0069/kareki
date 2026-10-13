@@ -104,6 +104,14 @@ int _reportResult(
     stderr.writeln('kareki: $warning');
   }
 
+  for (final usage in result.localizationUsage) {
+    stderr.writeln(
+      'kareki: localization ${usage.packageName}: '
+      '${usage.used} used, ${usage.unused} unused, ${usage.unknown} unknown '
+      '(${p.relative(usage.templatePath, from: rootPath)}).',
+    );
+  }
+
   final baselineOverride = args['baseline'] as String?;
   final baselinePath = _resolveBaselinePath(
     rootPath: rootPath,
@@ -118,6 +126,13 @@ int _reportResult(
         'or `baseline:` in kareki-config.yaml.',
       );
       return 64;
+    }
+    if (result.localizationUsage.any((usage) => usage.unknown > 0)) {
+      stderr.writeln(
+        'kareki: cannot write baseline while localization keys have unknown usage; '
+        'resolve the localization warnings first.',
+      );
+      return 2;
     }
     Baseline.write(baselinePath, result.findings, rootPath: rootPath);
     final rel = p.relative(baselinePath, from: rootPath);

@@ -2,7 +2,11 @@
 
 This directory is a real, runnable Dart package. Every file under `lib/`
 is wired so that running kareki produces exactly **one finding per
-rule** — six in total. Use it to see what each rule actually catches.
+rule** — seven in total. Use it to see what each rule actually catches.
+
+The localization example uses a minimal Dart-only fixture with the same API
+shape as Flutter gen-l10n, so this example does not require the Flutter SDK.
+The test suite separately exercises actual Flutter-generated code.
 
 ## Layout
 
@@ -16,6 +20,7 @@ example/
 │   ├── parameters.dart  # body-unused arg → unused_parameter
 │   │                    # never-passed optional → unused_parameter_optional
 │   ├── test_only.dart   # only test/ references it → test_only_used
+│   ├── l10n/app_en.arb  # unused translation key → unused_l10n
 │   └── orphan.dart      # never imported → unused_file
 ├── test/api_test.dart   # references test_only.dart (test-side only)
 └── example.dart         # programmatic API demo (run from this dir)
@@ -34,6 +39,8 @@ $ dart run kareki --root example
     Unused public enum value 'Status.inactive'.
   [unused_file] lib/orphan.dart:1:1
     File is never imported, parted, or exported.
+  [unused_l10n] lib/l10n/app_en.arb:4:3
+    Unused localization key 'unusedGreeting' (ExampleLocalizations).
   [unused_parameter] lib/parameters.dart:10:26
     Parameter 'unusedTwo' of 'Service.doWork' is never used.
   [unused_parameter_optional] lib/parameters.dart:3:49
@@ -41,7 +48,7 @@ $ dart run kareki --root example
   [unused_pub_dependency] pubspec.yaml:1:1
     Dependency 'collection' is declared in pubspec.yaml but never imported within 'kareki_example'.
 
-kareki: 6 finding(s) across 1 package(s).
+kareki: 7 finding(s) across 1 package(s).
 ```
 
 ## Rule-by-rule walkthrough
@@ -49,6 +56,7 @@ kareki: 6 finding(s) across 1 package(s).
 | Rule | Where it's planted | Why it fires |
 |---|---|---|
 | `unused_element` | `lib/api.dart` — `Status.inactive` | `bin/main.dart` references `Status.active`, but nobody references `Status.inactive`. |
+| `unused_l10n` | `lib/l10n/app_en.arb` — `unusedGreeting` | The Dart-only gen-l10n fixture exposes two keys; only `greeting` is referenced. |
 | `unused_file` | `lib/orphan.dart` | The file is never imported, parted, or exported from anywhere in the package. (The single declaration inside is `_OrphanWidget` — private — so `unused_element` does not double-fire.) |
 | `unused_pub_dependency` | `pubspec.yaml` — `collection` | Declared under `dependencies:` but no source file imports `package:collection/...`. `meta`, which `lib/api.dart` does import, is not flagged. |
 | `test_only_used` | `lib/test_only.dart` — `testOnlyHelper` | Defined in `lib/` (production source) but the only reference comes from `test/api_test.dart`. Production reachability is empty. |
@@ -66,7 +74,7 @@ $ dart run kareki --root example --rule unused_parameter --rule unused_parameter
 
 ```sh
 $ dart run kareki --root example --format json | jq '.findings | length'
-6
+7
 ```
 
 ## Programmatic API

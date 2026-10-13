@@ -7,8 +7,10 @@ import 'package:kareki/src/dependency/native_plugin_dependencies.dart';
 import 'package:kareki/src/dependency/pub_dependency_checker.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
 import 'package:kareki/src/generated/flutter_localizations.dart';
+import 'package:kareki/src/l10n/flutter_l10n.dart';
 import 'package:kareki/src/model/declaration.dart';
 import 'package:kareki/src/model/finding.dart';
+import 'package:kareki/src/model/localization_usage.dart';
 import 'package:kareki/src/model/package_info.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
@@ -26,6 +28,7 @@ class _AnalysisInput {
     this.generatedPaths,
     this.packageRoots,
     this.entryPoints,
+    this.localizations,
   );
 
   final List<PackageInfo> packages;
@@ -33,6 +36,7 @@ class _AnalysisInput {
   final Set<String> generatedPaths;
   final Map<String, String> packageRoots;
   final EntryPointSet entryPoints;
+  final List<FlutterL10n> localizations;
 }
 
 /// Configurable input for [KarekiRunner.run].
@@ -48,6 +52,7 @@ class RunRequest {
     this.strictDependencies = false,
     this.disregardFileLevelIgnores = false,
     this.disregardParameterNameExcludes = false,
+    this.disregardNameExcludes = false,
   });
 
   /// Workspace root used for package discovery, glob matching, and
@@ -81,6 +86,9 @@ class RunRequest {
   /// When `true`, `exclude.parameter_names` is not applied. Used by
   /// `kareki doctor` to identify entries that suppress no current finding.
   final bool disregardParameterNameExcludes;
+
+  /// Evaluate findings hidden by exclude.names for doctor.
+  final bool disregardNameExcludes;
 }
 
 /// Result of one analysis run.
@@ -93,6 +101,7 @@ class RunResult {
     required this.filesAnalyzed,
     required this.elapsed,
     this.analysisWarnings = const [],
+    this.localizationUsage = const [],
   });
 
   /// All detections produced by the run, in deterministic order
@@ -112,6 +121,9 @@ class RunResult {
 
   /// Conservative approximations made by the resolved engine.
   final List<String> analysisWarnings;
+
+  /// Localization reference evidence, independent of report suppressions.
+  final List<LocalizationUsage> localizationUsage;
 }
 
 /// Orchestrates workspace discovery, parsing, entry-point resolution,
@@ -145,7 +157,10 @@ class KarekiRunner {
       throw ArgumentError('Analysis variants must share their source scope.');
     }
     final stopwatch = Stopwatch()..start();
-    final input = _prepare(request);
+    final trackL10n = requests.any(
+      (variant) => _ruleEnabled(RuleId.unusedL10n, variant),
+    );
+    final input = _prepare(request, trackL10n: trackL10n);
     final trackAssets = requests.any(
       (variant) => _ruleEnabled(RuleId.unusedPubDependency, variant),
     );
@@ -162,7 +177,15 @@ class KarekiRunner {
         input.packages.any(
           (package) => package.dependencies.contains('flutter'),
         );
-    final resolved = needsGraph || needsAssets
+    final resolved =
+        needsGraph ||
+            needsAssets ||
+            (trackL10n &&
+                input.localizations.any(
+                  (family) =>
+                      family.keys.isNotEmpty ||
+                      File(family.outputPath).existsSync(),
+                ))
         ? await ResolvedReachability.build(
             files: input.parsedFiles,
             generatedPaths: input.generatedPaths,
@@ -170,6 +193,7 @@ class KarekiRunner {
             config: request.config,
             packageRoots: input.packageRoots,
             trackAssets: trackAssets,
+            localizations: input.localizations,
             trackArguments: requests.any(
               (variant) =>
                   _ruleEnabled(RuleId.unusedParameterOptional, variant),
@@ -182,7 +206,7 @@ class KarekiRunner {
     ];
   }
 
-  _AnalysisInput _prepare(RunRequest request) {
+  _AnalysisInput _prepare(RunRequest request, {required bool trackL10n}) {
     final workspaceLoader = WorkspaceLoader(rootPath: request.rootPath);
     final allPackages = workspaceLoader.load(
       include: request.config.includePackages,
@@ -205,6 +229,7 @@ class KarekiRunner {
     final collector = DeclarationCollector();
     final parsedFiles = <ParsedFile>[];
     final generatedPaths = <String>{};
+    final localizations = <FlutterL10n>[];
 
     // Reporting filters never remove reference sources.
     final sourcePackages = [...allPackages];
@@ -219,16 +244,38 @@ class KarekiRunner {
       final Set<String> localizationOutputs;
       try {
         localizationOutputs = flutterLocalizationOutputs(pkg.rootPath);
+        if (trackL10n) {
+          final family = FlutterL10n.load(
+            pkg.rootPath,
+            pkg.name,
+            localizationOutputs,
+          );
+          if (family != null) localizations.add(family);
+        }
       } on YamlException catch (error) {
         throw ResolvedAnalysisException([
           'Cannot read Flutter localization configuration in ${pkg.rootPath}: $error',
+        ]);
+      } on FormatException catch (error) {
+        throw ResolvedAnalysisException([
+          'Cannot read Flutter localization inputs in ${pkg.rootPath}: $error',
         ]);
       } on FileSystemException catch (error) {
         throw ResolvedAnalysisException([
           'Cannot read Flutter localization inputs in ${pkg.rootPath}: $error',
         ]);
       }
-      for (final file in packageDartFiles(pkg.rootPath)) {
+      // Configured gen-l10n outputs may live outside the ordinary Dart source
+      // directories. Resolve those exact files too, never an entire directory.
+      final configuredOutputs = localizationOutputs
+          .map(File.new)
+          .where((file) => file.existsSync())
+          .toList();
+      generatedPaths.addAll(configuredOutputs.map((file) => file.path));
+      for (final file in [
+        ...packageDartFiles(pkg.rootPath),
+        ...configuredOutputs,
+      ]) {
         final relForGlob = p.relative(file.path, from: request.rootPath);
         final excluded = excludeGlobs.any(
           (g) => g.matches(relForGlob) || g.matches(p.basename(file.path)),
@@ -287,6 +334,7 @@ class KarekiRunner {
       generatedPaths,
       packageRoots,
       entryPoints,
+      localizations,
     );
   }
 
@@ -381,7 +429,10 @@ class KarekiRunner {
         if (enclosingTypeName != null && enclosingTypeName.startsWith('_')) {
           continue;
         }
-        if (request.config.excludeNames.contains(declaration.name)) continue;
+        if (!request.disregardNameExcludes &&
+            request.config.excludeNames.contains(declaration.name)) {
+          continue;
+        }
         if (declaration.annotations.any(
           entryPoints.keepAliveAnnotations.contains,
         )) {
@@ -649,6 +700,48 @@ class KarekiRunner {
       }
     }
 
+    if (_ruleEnabled(RuleId.unusedL10n, request)) {
+      final globs = request.config.excludeFiles.map(
+        (pattern) => Glob(pattern, recursive: true),
+      );
+      for (final family in input.localizations) {
+        final relative = p.relative(
+          family.templatePath,
+          from: request.rootPath,
+        );
+        if (globs.any(
+          (glob) =>
+              glob.matches(relative) ||
+              glob.matches(p.basename(family.templatePath)),
+        )) {
+          continue;
+        }
+        for (final key in family.keys.values) {
+          if ((!request.disregardNameExcludes &&
+                  request.config.excludeNames.contains(key.name)) ||
+              (resolved?.l10nUses[family]?.contains(key.name) ?? false) ||
+              (resolved?.l10nUnknown[family]?.contains(key.name) ?? false)) {
+            continue;
+          }
+          findings.add(
+            Finding(
+              ruleId: RuleId.unusedL10n,
+              severity: Severity.warning,
+              message:
+                  "Unused localization key '${key.name}' (${family.className}).",
+              packageName: family.packageName,
+              filePath: family.templatePath,
+              line: key.line,
+              column: key.column,
+              length: key.length,
+              stableId:
+                  '${family.packageName}|${family.templatePath}|l10n:${key.name}',
+            ),
+          );
+        }
+      }
+    }
+
     final reportingPackages = packages.map((p) => p.name).toSet();
     findings.removeWhere((f) => !reportingPackages.contains(f.packageName));
     stopwatch.stop();
@@ -660,6 +753,11 @@ class KarekiRunner {
           .length,
       elapsed: stopwatch.elapsed,
       analysisWarnings: resolved?.warnings ?? const [],
+      localizationUsage: _ruleEnabled(RuleId.unusedL10n, request)
+          ? (resolved?.localizationUsage ?? const [])
+                .where((usage) => reportingPackages.contains(usage.packageName))
+                .toList()
+          : const [],
     );
   }
 

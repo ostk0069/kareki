@@ -23,8 +23,15 @@ import 'package:kareki/src/entry_points/entry_point_resolver.dart'
     deferred as coverage09;
 import 'package:kareki/src/generated/flutter_localizations.dart'
     deferred as coverage26;
+import 'package:kareki/src/l10n/ast_values.dart' deferred as coverage32;
+import 'package:kareki/src/l10n/callable_origins.dart' deferred as coverage33;
+import 'package:kareki/src/l10n/consumer_models.dart' deferred as coverage34;
+import 'package:kareki/src/l10n/flutter_l10n.dart' deferred as coverage30;
+import 'package:kareki/src/l10n/l10n_usage.dart' deferred as coverage31;
 import 'package:kareki/src/model/declaration.dart' deferred as coverage10;
 import 'package:kareki/src/model/finding.dart' deferred as coverage11;
+import 'package:kareki/src/model/localization_usage.dart'
+    deferred as coverage35;
 import 'package:kareki/src/model/package_info.dart' deferred as coverage12;
 import 'package:kareki/src/parser/declaration_collector.dart'
     deferred as coverage13;
@@ -81,6 +88,12 @@ void main() {
 
     await Future.wait([
       coverage29.loadLibrary(),
+      coverage30.loadLibrary(),
+      coverage31.loadLibrary(),
+      coverage32.loadLibrary(),
+      coverage33.loadLibrary(),
+      coverage34.loadLibrary(),
+      coverage35.loadLibrary(),
       coverage27.loadLibrary(),
       coverage28.loadLibrary(),
       coverage00.loadLibrary(),

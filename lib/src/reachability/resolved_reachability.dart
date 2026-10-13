@@ -10,7 +10,10 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/dependency/flutter_asset_dependencies.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
+import 'package:kareki/src/l10n/flutter_l10n.dart';
+import 'package:kareki/src/l10n/l10n_usage.dart';
 import 'package:kareki/src/model/declaration.dart';
+import 'package:kareki/src/model/localization_usage.dart';
 import 'package:kareki/src/parser/declaration_collector.dart';
 import 'package:kareki/src/preset/preset_registry.dart';
 import 'package:kareki/src/reachability/external_decoder_models.dart';
@@ -38,6 +41,9 @@ class ResolvedReachability {
     this.uncertainCallables,
     this.optionalArgumentStates,
     this.assetDependencies,
+    this.l10nUses,
+    this.l10nUnknown,
+    this.localizationUsage,
   );
 
   final Set<DeclarationRecord> reachable;
@@ -48,6 +54,9 @@ class ResolvedReachability {
   final Map<OptionalParameterRecord, OptionalArgumentState>
   optionalArgumentStates;
   final Map<String, Set<String>> assetDependencies;
+  final Map<FlutterL10n, Set<String>> l10nUses;
+  final Map<FlutterL10n, Set<String>> l10nUnknown;
+  final List<LocalizationUsage> localizationUsage;
 
   static Future<ResolvedReachability> build({
     required List<ParsedFile> files,
@@ -57,9 +66,15 @@ class ResolvedReachability {
     required Map<String, String> packageRoots,
     bool trackArguments = false,
     bool trackAssets = false,
+    List<FlutterL10n> localizations = const [],
   }) async {
     if (files.isEmpty) {
-      return ResolvedReachability._({}, {}, [], {}, {}, {}, {});
+      if (localizations.any((family) => family.keys.isNotEmpty)) {
+        throw ResolvedAnalysisException([
+          'Generated localization APIs were not collected; run flutter gen-l10n.',
+        ]);
+      }
+      return ResolvedReachability._({}, {}, [], {}, {}, {}, {}, {}, {}, []);
     }
     final assetDependencies = <String, Set<String>>{};
     final presets = PresetRegistry(
@@ -73,6 +88,11 @@ class ResolvedReachability {
       trackArguments: trackArguments,
       keepDriftColumns: presets.keepDriftColumns,
       keepFreezedFactories: presets.keepFreezedFactories,
+    );
+    final l10n = L10nUsage(
+      localizations,
+      graph.canonical,
+      graph.files.keys.toSet(),
     );
     final problems = <String>[];
     for (final root in packageRoots.values.toSet()) {
@@ -149,6 +169,7 @@ class ResolvedReachability {
             problems.add('${file.path}:$line: ${diagnostic.message}');
           }
           unit.unit.accept(_ResolvedVisitor(graph, path, file));
+          if (localizations.isNotEmpty) l10n.visit(path, unit.unit);
           if (trackAssets) {
             unit.unit.accept(
               FlutterAssetDependencies(
@@ -167,6 +188,8 @@ class ResolvedReachability {
         }
       }
       if (problems.isNotEmpty) throw ResolvedAnalysisException(problems);
+      l10n.finish();
+      graph.warnings.addAll(l10n.warnings);
       await graph.summarizeExternalCallbacks();
       graph.finish(entryPoints, config);
       final all = graph.compute(productionOnly: false);
@@ -195,6 +218,9 @@ class ResolvedReachability {
               parameter: graph.argumentState(entry.value, parameter),
         },
         assetDependencies,
+        l10n.used,
+        l10n.unknown,
+        l10n.summaries,
       );
     } on ResolvedAnalysisException {
       rethrow;
