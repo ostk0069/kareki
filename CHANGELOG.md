@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `unused_element` now detects private declarations and members, including
+  public-named members of private types and unreachable private cycles.
+  Ordinary entry files require reachable references to private helpers;
+  explicitly protected and generated files retain their existing protection.
+  Private findings use existing suppressions, baselines, and doctor checks.
+  `test_only_used` remains public-only. Existing runs can produce more findings.
+
 - Distinguish confirmed, unused, and unknown localization-key usage; protect
   baseline writes while keys remain unknown. Resolve local callback origins and
   audited Mockito/null-matcher value consumers without retaining every key.

@@ -151,6 +151,11 @@ class DeclarationRecord {
   /// `true` if the name does not start with `_`.
   final bool isPublic;
 
+  /// Whether this declaration is accessible outside its library. A public
+  /// member name inside a private type still has library-private visibility.
+  bool get isLibraryPublic =>
+      isPublic && !(enclosingTypeName?.startsWith('_') ?? false);
+
   /// Annotation simple names attached to the declaration
   /// (e.g. `visibleForTesting`, `internal`, `RoutePage`).
   final Set<String> annotations;

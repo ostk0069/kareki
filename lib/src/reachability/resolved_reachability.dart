@@ -438,24 +438,27 @@ class _ResolvedGraph {
         if (implementation != null) {
           argumentTargets.putIfAbsent(contract, () => {}).add(implementation);
           argumentTargets.putIfAbsent(implementation, () => {}).add(contract);
+          if (!_isLibraryPublic(member)) edge(implementation, contract);
         }
         edge(id, implementation);
       }
       for (final member in ancestor.getters.where((m) => !m.isStatic)) {
-        edge(
-          id,
-          ensure(
-            type.lookUpGetter(name: member.name!, library: ancestor.library),
-          ),
+        final implementation = ensure(
+          type.lookUpGetter(name: member.name!, library: ancestor.library),
         );
+        edge(id, implementation);
+        if (implementation != null && !_isLibraryPublic(member)) {
+          edge(implementation, ensure(member));
+        }
       }
       for (final member in ancestor.setters.where((m) => !m.isStatic)) {
-        edge(
-          id,
-          ensure(
-            type.lookUpSetter(name: member.name!, library: ancestor.library),
-          ),
+        final implementation = ensure(
+          type.lookUpSetter(name: member.name!, library: ancestor.library),
         );
+        edge(id, implementation);
+        if (implementation != null && !_isLibraryPublic(member)) {
+          edge(implementation, ensure(member));
+        }
       }
     }
   }
@@ -693,9 +696,19 @@ class _ResolvedGraph {
   // Reachability may inspect many declarations and edges from the same unit.
   bool isTest(_Id id) => _testPaths.contains(id.unit);
 
+  bool _isLibraryPublic(Element element) {
+    Element? current = element;
+    while (current != null && current is! LibraryElement) {
+      if (current.isPrivate) return false;
+      current = current.enclosingElement;
+    }
+    return true;
+  }
+
   void finish(EntryPointSet entryPoints, KarekiConfig config) {
     connectConditionalFacades();
     final entryPaths = entryPoints.entryPointPaths.map(canonical).toSet();
+    final wholeFilePaths = entryPoints.wholeFilePaths.map(canonical).toSet();
     final idsByUnit = <String, Set<_Id>>{};
     for (final id in elements.keys) {
       idsByUnit.putIfAbsent(id.unit, () => {}).add(id);
@@ -710,7 +723,15 @@ class _ResolvedGraph {
             ? productionRoots
             : testRoots;
         roots.add(fileId(file.key));
-        roots.addAll(idsByUnit[file.key] ?? const {});
+        final retainWholeFile =
+            generated.contains(file.key) ||
+            wholeFilePaths.contains(file.key) ||
+            conditionalPaths.contains(file.key);
+        roots.addAll(
+          (idsByUnit[file.key] ?? const <_Id>{}).where(
+            (id) => retainWholeFile || _isLibraryPublic(elements[id]!),
+          ),
+        );
         if (conditionalPaths.contains(file.key)) {
           for (final id in idsByUnit[file.key] ?? const <_Id>{}) {
             markUncertain(id, 'Conditional target: ${file.key}');
@@ -746,14 +767,22 @@ class _ResolvedGraph {
     }
     // Keep one warning per file/name, but retain every source location. Owners
     // (including initializer hosts) may share an AST site.
-    final unresolvedEvidence = <(String, String), Set<String>>{};
+    final unresolvedEvidence = <(String, String, String), Set<String>>{};
     final recordsByName = <String, Map<DeclarationRecord, _Id>>{};
     for (final entry in recordIds.entries) {
       recordsByName.putIfAbsent(entry.key.name, () => {})[entry.key] =
           entry.value;
     }
     for (final (owner, name) in unknown) {
-      final candidates = recordsByName[name]?.entries ?? const [];
+      // A private member spelling is scoped to the caller's library, including
+      // its parts; homonyms in other libraries cannot be dynamic targets.
+      final candidates = (recordsByName[name]?.entries ?? const [])
+          .where(
+            (candidate) =>
+                !name.startsWith('_') ||
+                candidate.value.library == owner.library,
+          )
+          .toList();
       if (candidates.isEmpty) continue;
       for (final candidate in candidates) {
         edge(owner, candidate.value);
@@ -764,14 +793,20 @@ class _ResolvedGraph {
         }
       }
       unresolvedEvidence
-          .putIfAbsent((owner.unit, name), () => {})
+          .putIfAbsent((owner.unit, owner.library, name), () => {})
           .addAll(unknownSites[(owner, name)]!);
     }
     for (final entry in unresolvedEvidence.entries) {
-      final (unit, name) = entry.key;
-      final candidates = recordsByName[name]!.keys.map(
-        (record) => '${record.libraryPath}:${record.line} ${record.name}',
-      );
+      final (unit, library, name) = entry.key;
+      final candidates = recordsByName[name]!.entries
+          .where(
+            (candidate) =>
+                !name.startsWith('_') || candidate.value.library == library,
+          )
+          .map(
+            (candidate) =>
+                '${candidate.key.libraryPath}:${candidate.key.line} ${candidate.key.name}',
+          );
       warnings.add(
         'Unresolved reference "$name" in $unit; matching declarations retained conservatively when reachable.'
         '\n  Sites: ${sortedEvidence(entry.value)}'

@@ -79,6 +79,14 @@ Entry points are code treated as used without a caller. Four sources provide the
 Generated code can therefore keep its source declarations in use. Run code
 generation before analysis; kareki does not generate missing files.
 
+Ordinary entry files retain public declarations. Their private helpers and
+members need reachable references, so an unused `_helper` in `main.dart` can be
+reported. A public name inside a private type still counts as private. Explicit
+`entry_points.files`, generated/excluded files, and conservative conditional
+targets retain all declarations. Private unnamed constructors are not reported
+separately from their type; operators and local declarations are not reported.
+`test_only_used` remains limited to public declarations.
+
 Explicit `entry_points.names` settings match by name, unlike resolved calls.
 
 ### Evidence used by each rule
@@ -88,7 +96,7 @@ can skip graph construction; each rule uses different evidence:
 
 | Rule | Evidence it uses |
 |---|---|
-| `unused_element` | Whether an eligible public declaration is reachable from any entry point. Enum values are checked individually; a reachable `Enum.values` retains all values. |
+| `unused_element` | Whether an eligible public or private declaration is reachable from any entry point. Enum values are checked individually; a reachable `Enum.values` retains all values. |
 | `test_only_used` | Whether it is reachable from test entry points but not production entry points. |
 | `unused_parameter` | Whether a parameter is referenced inside its function body. |
 | `unused_parameter_optional` | Whether callers supply an optional parameter; all scanned calls count, including generated and unreachable code. Unknown call paths prevent an unused verdict. |

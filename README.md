@@ -28,7 +28,7 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 
 | Rule | Detects |
 |---|---|
-| `unused_element` | Public classes / functions / methods / getters / setters / fields / enums / enum values / top-level variables / extensions / extension types / typedefs with no caller anywhere in the workspace. |
+| `unused_element` | Public and private classes / functions / methods / getters / setters / fields / enums / enum values / top-level variables / extensions / extension types / typedefs / named constructors unreachable from workspace entry points. |
 | `unused_file` | `.dart` files that are not `import`-ed, `part`-ed, or `export`-ed from any other file. |
 | `unused_pub_dependency` | Packages declared in `pubspec.yaml` with no recognized source, analyzer configuration, native plugin, or font asset use. |
 | `test_only_used` | Public declarations under `lib/` that are only referenced from test code (`*_test.dart`, files under `test/` or `integration_test/`). The implementation has no production consumer — typically its tests are the only thing keeping it alive. |
@@ -43,7 +43,7 @@ Seven key features at a glance. ✅ Supported (including opt-in features), — n
 | Feature | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart standard analysis](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | [Unused public declarations and members](doc/how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
-| Unused private declarations and members | — | ✅ | ✅ | — | ✅ |
+| [Unused private declarations and members](doc/comparison.md#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
 | [Public declaration cycles unreachable from entry points](doc/comparison.md#analysis-differences) | ✅ | — | — | — | — |
 | [Unused Dart files](doc/how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
 | [Unused pub dependencies](doc/configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |

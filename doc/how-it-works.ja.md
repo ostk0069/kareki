@@ -53,6 +53,8 @@ void main() => LocalStore().save();
 
 生成コードからの参照も考慮するため、生成元の宣言の誤検出を抑えられます。解析前にコード生成を実行してください。kareki 自体は不足しているファイルを生成しません。
 
+通常の起点ファイルは public 宣言を保持します。private helper・メンバーには到達できる参照が必要なので、`main.dart` 内の未使用 `_helper` も報告できます。private 型に属する public 名のメンバーも private として扱います。明示的な `entry_points.files`、生成・除外ファイル、保守的に扱う条件分岐先は全宣言を保持します。private 型の名前なしコンストラクタは型とは別に報告せず、operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public 宣言だけが対象です。
+
 明示的な `entry_points.names` の指定は、解決済みの呼び出しとは異なり、名前で照合します。
 
 ### 各ルールが使う根拠
@@ -61,7 +63,7 @@ void main() => LocalStore().save();
 
 | ルール | 判定に使う根拠 |
 |---|---|
-| `unused_element` | 指摘対象の公開宣言に、いずれかの起点から到達できるか。enum の値も個別に判定するが、`Enum.values` に到達すると全値を保持する。 |
+| `unused_element` | 指摘対象の public / private 宣言に、いずれかの起点から到達できるか。enum の値も個別に判定するが、`Enum.values` に到達すると全値を保持する。 |
 | `test_only_used` | テストの起点からは到達できるが、本番コードの起点からは到達できないか。 |
 | `unused_parameter` | 関数の本体で引数を参照しているか。 |
 | `unused_parameter_optional` | 呼び出し側が省略可能な引数を指定しているか。生成コードや未到達コードを含む全呼び出しを集計し、不明な呼び出し経路が残れば未使用とは断定しない。 |

@@ -122,12 +122,20 @@ class Other { static const values = [1, 2]; }
     expect(values.where((f) => f.filePath.endsWith('/api.dart')), hasLength(1));
   });
 
-  test('private enums and private values are not reported', () async {
+  test('private enums and private values are reported', () async {
     workspace.write('lib/api.dart', '''
 enum Status { active, _hidden }
 enum _Private { active, inactive }
 ''');
-    expect(unused(await analyze()), isEmpty);
+    expect(
+      unused(await analyze()),
+      unorderedEquals([
+        "Unused private enum value 'Status._hidden'.",
+        "Unused private enumDecl '_Private'.",
+        "Unused private enum value '_Private.active'.",
+        "Unused private enum value '_Private.inactive'.",
+      ]),
+    );
   });
 
   test(

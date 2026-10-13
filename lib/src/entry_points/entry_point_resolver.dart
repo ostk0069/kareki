@@ -66,11 +66,16 @@ class EntryPointSet {
   EntryPointSet({
     required this.entryPointPaths,
     required this.keepAliveAnnotations,
+    this.wholeFilePaths = const {},
   });
 
-  /// Files considered entry points (whose declarations are all reachable
-  /// AND whose existence prevents `unused_file`).
+  /// Entry files retain public declarations and prevent `unused_file`.
+  /// Private declarations require reachable references unless the file is
+  /// explicitly protected by [wholeFilePaths].
   final Set<String> entryPointPaths;
+
+  /// Generated and explicitly configured entry files retain every declaration.
+  final Set<String> wholeFilePaths;
 
   /// All annotation simple names that mark a declaration as keep-alive.
   final Set<String> keepAliveAnnotations;
@@ -97,6 +102,7 @@ class EntryPointResolver {
     };
 
     final entryPointPaths = <String>{};
+    final wholeFilePaths = <String>{};
 
     final extraGlobs = config.entryPointFiles
         .map((g) => Glob(g, recursive: true, caseSensitive: false))
@@ -107,14 +113,16 @@ class EntryPointResolver {
       // with `/`), so always reduce to a workspace-relative form before
       // matching.
       final relPath = p.relative(file.path, from: rootPath);
+      final isExplicitEntry = extraGlobs.any(
+        (g) => g.matches(relPath) || g.matches(p.basename(file.path)),
+      );
       final isEntry =
           _isImplicitEntryPath(file.path) ||
           // Any collected top-level main can be invoked with dart run,
           // including root/tool scripts and custom-named test executables.
           file.hasTopLevelMain ||
-          extraGlobs.any(
-            (g) => g.matches(relPath) || g.matches(p.basename(file.path)),
-          );
+          isExplicitEntry;
+      if (isExplicitEntry) wholeFilePaths.add(file.path);
       if (isEntry) {
         entryPointPaths.add(file.path);
       }
@@ -122,10 +130,13 @@ class EntryPointResolver {
 
     entryPointPaths.addAll(generatedFilePaths);
     entryPointPaths.addAll(additionalKeepAlivePaths);
+    wholeFilePaths.addAll(generatedFilePaths);
+    wholeFilePaths.addAll(additionalKeepAlivePaths);
 
     return EntryPointSet(
       entryPointPaths: entryPointPaths,
       keepAliveAnnotations: keepAliveAnnotations,
+      wholeFilePaths: wholeFilePaths,
     );
   }
 }

@@ -57,7 +57,7 @@ kareki: 7 finding(s) across 1 package(s).
 |---|---|---|
 | `unused_element` | `lib/api.dart` — `Status.inactive` | `bin/main.dart` references `Status.active`, but nobody references `Status.inactive`. |
 | `unused_l10n` | `lib/l10n/app_en.arb` — `unusedGreeting` | The Dart-only gen-l10n fixture exposes two keys; only `greeting` is referenced. |
-| `unused_file` | `lib/orphan.dart` | The file is never imported, parted, or exported from anywhere in the package. (The single declaration inside is `_OrphanWidget` — private — so `unused_element` does not double-fire.) |
+| `unused_file` | `lib/orphan.dart` | The file is never imported, parted, or exported from anywhere in the package. (Its private `_OrphanWidget` declaration suppresses `unused_element` so this example demonstrates each rule exactly once.) |
 | `unused_pub_dependency` | `pubspec.yaml` — `collection` | Declared under `dependencies:` but no source file imports `package:collection/...`. `meta`, which `lib/api.dart` does import, is not flagged. |
 | `test_only_used` | `lib/test_only.dart` — `testOnlyHelper` | Defined in `lib/` (production source) but the only reference comes from `test/api_test.dart`. Production reachability is empty. |
 | `unused_parameter` | `lib/parameters.dart` — `Service.doWork(int a, int unusedTwo)` | `unusedTwo` is never referenced in the method body. |
