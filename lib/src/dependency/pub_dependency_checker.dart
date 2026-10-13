@@ -5,12 +5,12 @@ import 'package:kareki/src/parser/declaration_collector.dart';
 /// Detects packages declared in `pubspec.yaml` that are never imported.
 ///
 /// The check subtracts from the declared set:
-/// - packages actually imported by source,
+/// - packages imported or exported by source, including documentation imports,
 /// - packages implied by annotations used in source (via the merged
 ///   preset registry passed as `annotationImpliedPackages`),
 /// - packages explicitly suppressed via `ignoredDeps`,
 /// - resolved native Flutter plugins used by the build/registration pipeline,
-/// - analyzer configuration includes and resolved Flutter font asset uses,
+/// - analyzer configuration includes, builders and resolved font asset uses,
 /// - `sdkPackages` (Flutter / Dart SDK packages).
 class PubDependencyChecker {
   List<Finding> check({
@@ -27,7 +27,11 @@ class PubDependencyChecker {
     final imported = <String>{};
     final implicitlyNeeded = <String>{};
     for (final file in filesInPackage) {
-      for (final uri in [...file.imports, ...file.exports]) {
+      for (final uri in [
+        ...file.imports,
+        ...file.exports,
+        ...file.docImports,
+      ]) {
         final pkg = _packageFromUri(uri);
         if (pkg != null) imported.add(pkg);
       }

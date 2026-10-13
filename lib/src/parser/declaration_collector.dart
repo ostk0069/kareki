@@ -21,6 +21,7 @@ class ParsedFile {
     required this.lineLevelIgnores,
     required this.isGeneratedByHeader,
     required this.hasTopLevelMain,
+    this.docImports = const [],
   });
 
   final String path;
@@ -29,6 +30,9 @@ class ParsedFile {
 
   /// `import 'uri'` URIs.
   final List<String> imports;
+
+  /// Documentation-only imports; these don't create runtime reachability.
+  final List<String> docImports;
 
   /// `part 'uri'` URIs.
   final List<String> parts;
@@ -119,6 +123,8 @@ class DeclarationCollector {
     }
 
     final declarations = <DeclarationRecord>[];
+    final docImports = _DocImportCollector();
+    unit.accept(docImports);
 
     for (final member in unit.declarations) {
       _visitTopLevel(
@@ -144,6 +150,7 @@ class DeclarationCollector {
       packageName: packageName,
       declarations: declarations,
       imports: imports,
+      docImports: docImports.uris,
       parts: parts,
       partOf: partOf,
       exports: exports,
@@ -903,6 +910,24 @@ class DeclarationCollector {
       result.putIfAbsent(targetLine, () => <String>{}).addAll(values);
     }
     return result;
+  }
+}
+
+class _DocImportCollector extends RecursiveAstVisitor<void> {
+  final uris = <String>[];
+
+  @override
+  void visitComment(Comment node) {
+    for (final docImport in node.docImports) {
+      final directive = docImport.import;
+      final uri = directive.uri.stringValue;
+      if (uri != null) uris.add(uri);
+      for (final configuration in directive.configurations) {
+        final alternative = configuration.uri.stringValue;
+        if (alternative != null) uris.add(alternative);
+      }
+    }
+    super.visitComment(node);
   }
 }
 

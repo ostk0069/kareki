@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- Recognize imports in build/link hooks and documentation-only `@docImport`
+  references when detecting unused pub dependencies.
+- Respect nested package boundaries even for children not registered in the
+  workspace, preventing their imports from hiding unused parent dependencies.
+
+### Added
+
+- Recognize explicit build.yaml builder references and resolved auto-applied
+  builders, respecting per-target `enabled: false` settings.
+
 ## 0.9.0
 
 ### Added

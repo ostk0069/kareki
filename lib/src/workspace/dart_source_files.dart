@@ -17,6 +17,7 @@ Iterable<File> packageDartFiles(String packageRoot) sync* {
     'example',
     'tool',
     'tools',
+    'hook',
   ]) {
     final dir = Directory(p.join(packageRoot, sub));
     if (dir.existsSync()) yield* _filesBelow(dir, '.dart');
@@ -25,9 +26,19 @@ Iterable<File> packageDartFiles(String packageRoot) sync* {
 
 /// ARB files are also valid exclude.files subjects for localization checks.
 Iterable<File> packageArbFiles(String packageRoot) =>
-    _filesBelow(Directory(packageRoot), '.arb');
+    _filesBelow(Directory(packageRoot), '.arb', isPackageRoot: true);
 
-Iterable<File> _filesBelow(Directory directory, String extension) sync* {
+Iterable<File> _filesBelow(
+  Directory directory,
+  String extension, {
+  bool isPackageRoot = false,
+}) sync* {
+  // A child pubspec establishes ownership even when the child isn't listed
+  // in the workspace. Registered children are scanned separately.
+  if (!isPackageRoot &&
+      File(p.join(directory.path, 'pubspec.yaml')).existsSync()) {
+    return;
+  }
   for (final entity in directory.listSync(followLinks: false)) {
     if (entity is File && entity.path.endsWith(extension)) {
       yield entity;
