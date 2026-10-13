@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.9.0
 
 ### Added
 
@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Private findings use existing suppressions, baselines, and doctor checks.
   Reachable types retain sole private constructors that prevent external
   construction or subclassing. `test_only_used` remains public-only.
-  Existing runs can produce more findings.
 
 - Distinguish confirmed, unused, and unknown localization-key usage; protect
   baseline writes while keys remain unknown. Resolve local callback origins and
@@ -27,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   findings or baselines. Uncertain consumers retain candidate keys with warnings.
 - Doctor recognizes ARB file exclusions and reports stale `exclude.names` entries.
 - Integration coverage for actual Flutter-generated localization code.
+
+### Changed
+
+- `unused_element` now reports private declarations as well as public APIs.
+  Existing runs can produce more findings; review them before updating a baseline.
+  See the [CLI upgrade notes](doc/cli.md#results-and-exit-codes).
+- Updated GitHub Actions runner hardening dependency.
 
 ## 0.8.0
 
