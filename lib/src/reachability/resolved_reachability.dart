@@ -420,6 +420,13 @@ class _ResolvedGraph {
   void expandType(InterfaceElement type) {
     final id = ensure(type)!;
     if (!expandedTypes.add(id)) return;
+    // A sole private constructor can intentionally prevent construction or
+    // subclassing outside the library. Keep this contract when the type is
+    // reachable, even if no invocation exists (for example Constants._()).
+    final constructors = type.constructors;
+    if (constructors.length == 1 && constructors.single.isPrivate) {
+      edge(id, ensure(constructors.single));
+    }
     if (keepDriftColumns) connectDriftColumns(type, id);
     if (keepFreezedFactories) connectFreezedFactories(type, id);
     // Preserve implicit runtime hooks and actual inherited contracts. This is

@@ -50,7 +50,9 @@ public-named members of private types. References in unreachable code or cycles
 alone do not retain them. Ordinary entry files retain public declarations;
 private helpers need reachable references. Explicit `entry_points.files`,
 generated files, and conservative conditional targets retain entire files.
-Private unnamed constructors are not reported separately from their type;
+A reachable type retains its sole private constructor because it can intentionally
+prevent external construction or subclassing. Private unnamed constructors are
+not reported separately from their type;
 operators and local declarations remain outside the reporting scope.
 `test_only_used` remains limited to public APIs.
 

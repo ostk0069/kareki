@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ordinary entry files require reachable references to private helpers;
   explicitly protected and generated files retain their existing protection.
   Private findings use existing suppressions, baselines, and doctor checks.
-  `test_only_used` remains public-only. Existing runs can produce more findings.
+  Reachable types retain sole private constructors that prevent external
+  construction or subclassing. `test_only_used` remains public-only.
+  Existing runs can produce more findings.
 
 - Distinguish confirmed, unused, and unknown localization-key usage; protect
   baseline writes while keys remain unknown. Resolve local callback origins and

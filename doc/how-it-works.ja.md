@@ -53,7 +53,7 @@ void main() => LocalStore().save();
 
 生成コードからの参照も考慮するため、生成元の宣言の誤検出を抑えられます。解析前にコード生成を実行してください。kareki 自体は不足しているファイルを生成しません。
 
-通常の起点ファイルは public 宣言を保持します。private helper・メンバーには到達できる参照が必要なので、`main.dart` 内の未使用 `_helper` も報告できます。private 型に属する public 名のメンバーも private として扱います。明示的な `entry_points.files`、生成・除外ファイル、保守的に扱う条件分岐先は全宣言を保持します。private 型の名前なしコンストラクタは型とは別に報告せず、operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public 宣言だけが対象です。
+通常の起点ファイルは public 宣言を保持します。private helper・メンバーには到達できる参照が必要なので、`main.dart` 内の未使用 `_helper` も報告できます。private 型に属する public 名のメンバーも private として扱います。明示的な `entry_points.files`、生成・除外ファイル、保守的に扱う条件分岐先は全宣言を保持します。到達可能な型の唯一の private コンストラクタは、ライブラリ外からの生成・継承を禁止する目的があるため保持します。private 型の名前なしコンストラクタは型とは別に報告せず、operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public 宣言だけが対象です。
 
 明示的な `entry_points.names` の指定は、解決済みの呼び出しとは異なり、名前で照合します。
 

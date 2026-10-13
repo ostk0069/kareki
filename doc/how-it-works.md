@@ -83,8 +83,10 @@ Ordinary entry files retain public declarations. Their private helpers and
 members need reachable references, so an unused `_helper` in `main.dart` can be
 reported. A public name inside a private type still counts as private. Explicit
 `entry_points.files`, generated/excluded files, and conservative conditional
-targets retain all declarations. Private unnamed constructors are not reported
-separately from their type; operators and local declarations are not reported.
+targets retain all declarations. A reachable type retains its sole private
+constructor because it can intentionally prevent external construction or
+subclassing. Private unnamed constructors are not reported separately from their
+type; operators and local declarations are not reported.
 `test_only_used` remains limited to public declarations.
 
 Explicit `entry_points.names` settings match by name, unlike resolved calls.

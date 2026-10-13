@@ -458,4 +458,44 @@ void run() => print(_Point(1, 2).value());
     expect(result.analysisWarnings, isEmpty);
     expect(unused(result), ["Unused private field '_Point._dead'."]);
   });
+
+  test(
+    'sole private constructors preserve intentional construction barriers',
+    () async {
+      workspace.write('lib/api.dart', '''
+class Constants {
+  const Constants._();
+  static const value = 1;
+}
+class _PrivateConstants {
+  _PrivateConstants._();
+  static const value = 2;
+}
+class Unused {
+  Unused._();
+  static const value = 3;
+}
+class Multiple {
+  Multiple();
+  Multiple._dead();
+}
+void run() {
+  print(Constants.value);
+  print(_PrivateConstants.value);
+  print(Multiple());
+}
+''');
+      final result = await analyze();
+      expect(result.analysisWarnings, isEmpty);
+      expect(
+        unused(result),
+        unorderedEquals([
+          "Unused public classDecl 'Unused'.",
+          "Unused private constructor 'Unused._'.",
+          "Unused public field 'Unused.value'.",
+          "Unused private constructor 'Multiple._dead'.",
+        ]),
+      );
+    },
+  );
 }

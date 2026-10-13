@@ -40,7 +40,7 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 
 `unused_element` は private 宣言・メンバーと、private 型に属する public 名のメンバーも検査します。未到達コード内の参照や循環参照だけでは保持しません。通常の起点ファイルでは public 宣言を保持し、private helper は到達できる参照が必要です。明示的な `entry_points.files`、生成ファイル、保守的に扱う条件分岐先はファイル全体を保持します。
 
-private 型の名前なしコンストラクタは型とは別に報告しません。operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public API だけが対象です。
+到達可能な型の唯一の private コンストラクタは、ライブラリ外からの生成・継承を禁止する目的があるため保持します。private 型の名前なしコンストラクタは型とは別に報告しません。operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public API だけが対象です。
 
 ### public enum の未使用値 {#unused-enum-values}
 
