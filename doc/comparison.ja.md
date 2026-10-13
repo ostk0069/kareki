@@ -19,7 +19,7 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 | [未使用の pub 依存パッケージの検出](#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
 | [呼び出し元から渡されない public API の省略可能な引数の検出](#unsupplied-optional-parameters) | ✅ | — | — | — | — |
 | [テストからしか使われない public 宣言の検出](#test-only-declarations) | ✅ | — | — | — | — |
-| l10n 専用の未使用検査 | 近日対応 | — | ✅ | — | — |
+| [l10n 専用の未使用検査](#unused-l10n) | ✅ | — | ✅ | — | — |
 | [ベースラインによる新規指摘だけの報告](#baseline) | ✅ | — | — | — | — |
 | [不要な除外設定・ベースライン項目の検査](#stale-configuration) | ✅ | — | — | — | — |
 | 未使用 public 宣言の自動削除 | 近日対応 | △ | — | — | — |
@@ -27,7 +27,6 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 - ✅ でも解析対象には制限があり、たとえば kareki は演算子を検査しません。
 - enum の値は宣言・メンバーの行とは分けて比較しています。
 - Dart Code Linter のメンバー検査は public / private ともオプションで有効にします。enum の値も対象です。[CLI][dcl-cli]
-- Dart Code Linter の l10n 検査は Dart クラスのメンバーが対象です。クラス名の既定パターンは `I18n$` で、`AppLocalizations` には `--class-pattern AppLocalizations` を指定します。[設定][dcl-l10n]
 - ciach の自動削除には、報告のみで削除しない指摘があります。[README][ciach-readme]
 - 引数の行は「呼び出し元が値を渡すか」の検査です。Dart Code Linter の[本体で読まれない引数の検査][dcl-parameters]や、Dart の[private 宣言向けの検査][dart-parameter]とは対象が異なります。
 
@@ -61,6 +60,16 @@ enum 型自体が使われていても、各値が使われているかを個別
 
 テストの起点からは到達できても、本番コードの起点からは到達できない公開宣言を検出します。kareki の `test_only_used` は、利用がまったく確認できないコードと、テストだけで使うコードを区別します。[各ルールの判定根拠](how-it-works.ja.md#各ルールが使う根拠)を参照してください。
 
+### 未使用の翻訳キー {#unused-l10n}
+
+kareki の `unused_l10n` は、Flutter 標準 gen-l10n のテンプレート ARB にあるキーを検査します。例えば、解決済みの `l10n.title` 参照があれば `title` を保持し、参照のないキーはテンプレート ARB のキー位置で一度だけ報告します。生成された翻訳実装や delegate の登録だけでは、キーを使用中とみなしません。
+
+ラッパー、別のワークスペースパッケージ、テスト、到達不能な関数本体からの参照も使用とみなします。利用経路が不明な場合は、対象キーを未使用と報告せず、警告付きで保持します。使用・未使用・判定保留のキー数を表示し、判定保留が残る間はベースラインの保存を停止します。[出力と終了コード](cli.ja.md#結果と終了コード)を参照してください。
+
+Flutter Intl／`intl_utils`、`easy_localization`、`slang` は未対応です。[対応する設定](configuration.ja.md#未使用の翻訳キー)を参照してください。
+
+Dart Code Linter の l10n 検査は Dart クラスのメンバーが対象です。クラス名の既定パターンは `I18n$` で、`AppLocalizations` には `--class-pattern AppLocalizations` を指定します。[設定][dcl-l10n]を参照してください。
+
 ### ベースラインによる新規指摘だけの報告 {#baseline}
 
 既存の指摘を保存し、次回以降は一致する指摘を報告から除外します。段階的に整理しながら、CI で新しく増えた問題を検出できます。kareki は `--baseline` で読み込み、`--write-baseline` で保存します。[ベースラインの使い方](baseline.ja.md)を参照してください。
@@ -85,7 +94,7 @@ dependency_validator は未使用依存だけでなく、宣言漏れや `depend
 
 ## 比較した版
 
-確認日：2026 年 10 月 10 日。公式ドキュメントとソースに基づく比較です。
+確認日：2026 年 10 月 10 日。公式ドキュメントとソースに基づく比較です。kareki の l10n の説明は 2026 年 10 月 13 日に更新しました。
 
 | ツール | 比較した版 |
 |---|---|

@@ -3,59 +3,100 @@ title: Configuration
 weight: 3
 ---
 
-`kareki` reads `kareki-config.yaml` from the workspace root. All keys are optional.
+Use `kareki-config.yaml` at the workspace root to choose packages, retain code
+used by your tools, and suppress findings you intend to keep. The file and all
+settings are optional; start with defaults and add only the overrides you need.
+Check the [list replacement rules](#replacing-default-lists) before overriding a default list.
+For setup and command options, see the [CLI reference](cli.md). For how kareki
+decides whether code is used, see [How it works](how-it-works.md).
 
-## Settings
+## Packages and entry points
 
-| Key | Type | Purpose |
+| Key | Value | Default / effect |
 |---|---|---|
-| `packages` | map | Override workspace package globs (defaults to melos.yaml / pub workspace auto-detection). |
-| `exclude` | map | Files, declaration names, or parameter names to exclude from findings. |
-| `entry_points` | map | Additional entry-point files / declaration names. |
-| `keep_alive_annotations` | map | Enabled built-in presets + ad-hoc keep-alive annotation names. |
-| `custom_presets` | map | Project-defined presets, or overrides of built-ins. |
-| `annotation_implied_packages` | map | Standalone annotation → pub package mappings. |
-| `sdk_packages` | list | Packages never flagged as `unused_pub_dependency` (SDK-provided). |
-| `ignore` | map | Global / per-package suppressions. |
-| `output.format` | `text` \| `json` | Default report format. |
-| `baseline` | path | Path to a baseline file (relative to the workspace root). Findings recorded here are suppressed from output. |
+| `packages.include` | Package-directory globs | Auto-detect from Melos / pub workspace settings, or use the root package, when omitted or empty. A nonempty list replaces auto-detection. |
+| `packages.exclude` | Package-directory globs | Adds to Melos `ignore` when auto-detecting; otherwise none. Removes matching packages from discovery, including their references. |
+| `entry_points.files` | File globs | `**/*.story.dart`, `**/widgetbook/**/*.dart`. Retains declarations in matching files. |
+| `entry_points.names` | Exact declaration names | None. Retains matching declarations. |
 
-## Defaults
+Kareki collects Dart files at each package root and in `lib/`, `bin/`, `test/`,
+`integration_test/`, `example/`, `tool/`, and `tools/`. `entry_points.files`
+cannot add other source directories. `build/`, `.dart_tool/`, and `.git/` are
+skipped; nested packages own their files.
 
-| Setting | Built-in value |
-|---|---|
-| `exclude.files` | `.g.dart`, `.freezed.dart`, `.gr.dart`, `.generated.dart`, `.drift.dart`, `.steps.dart`, `.pb.dart`, `.pbenum.dart`, `.pbjson.dart`, `.pbserver.dart`, `.pbgrpc.dart`, `.config.dart`, `l10n*.dart`, `*mocks.dart` |
-| `entry_points.files` | `**/*.story.dart`, `**/widgetbook/**/*.dart` |
-| `keep_alive_annotations.presets` | `freezed`, `json_serializable`, `riverpod`, `auto_route`, `go_router`, `drift`, `hive`, `meta` |
-| `sdk_packages` | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine` |
-| Implicit entry-point conventions | `main.dart` / `main_*.dart`, `flutter_test_config.dart`, `*_test.dart` (in `test/`), any file in `bin/`, `integration_test/`, `lib/l10n/`, or any collected file with a top-level `main` |
-| Generated-file detection (content) | First lines contain `GENERATED CODE - DO NOT MODIFY BY HAND` or `AUTO-GENERATED FILE. DO NOT EDIT` |
+Dart / Flutter entry-point conventions remain active regardless of these
+settings: top-level `main`, `main.dart` / `main_*.dart`, `flutter_test_config.dart`,
+`*_test.dart` under `test/`, and files in `bin/`, `integration_test/`, or `lib/l10n/`.
 
-## Source collection and generated files
+For example, retain a framework callback that has no visible caller:
 
-Source collection includes Dart files directly in each package root and under
-`lib/`, `bin/`, `test/`, `integration_test/`, `example/`, `tool/`, and `tools/`.
-`build/`, `.dart_tool/`, and `.git/` directories are pruned; discovered nested packages own their
-files without duplicate collection under the parent. Any collected file
-with a top-level `main` is an executable entry point. Other script helpers are
-not automatically kept alive. Nonstandard source directories are not discovered
-merely by listing them in `entry_points.files`.
+```yaml
+entry_points:
+  names: [registerBackgroundHandler]
+```
 
-For packages with `flutter: {generate: true}`, Flutter gen-l10n outputs are
-recognized using `l10n.yaml` (`arb-dir`, `output-dir`, `output-localization-file`)
-and locales in ARB inputs. Defaults are `lib/l10n` and `app_localizations.dart`.
-Only matching output paths are exempted from findings; their outgoing references
-still count. An entire generated directory or every `app_localizations*.dart`
-file is not blindly excluded. Legacy `synthetic-package: true` output is not
-classified by this source-output rule. Run generation before analysis; this
-recognition does not create missing output files.
+## Suppression
 
-Files matched by `exclude.files` remain reference sources; they are excluded
-from findings, not from collection. Drift schema snapshots and
-`flutter_rust_bridge` outputs are also recognized by generator-specific headers.
-Their imports, references, and supplied arguments still count.
+Use suppression when a finding is intentional. File and package report
+exclusions still contribute references to other code.
+
+| Key | Value | Suppresses |
+|---|---|---|
+| `exclude.files` | File globs | Findings in matching Dart or ARB files. See defaults below. |
+| `exclude.names` | Exact names | Matching declaration or localization-key findings. |
+| `exclude.parameter_names` | Exact names | Only `unused_parameter` and `unused_parameter_optional` findings. |
+| `ignore.packages` | Pub package names | All findings in those packages. |
+| `ignore.rules` | Rule IDs | All findings for those rules. |
+| `ignore.dependencies` | Package name → dependency-name list | `unused_pub_dependency` findings for the listed dependencies in each package. |
+| `baseline` | File path, relative to workspace root | Previously recorded findings. See [baseline options](cli.md#options). |
+
+By default, `exclude.files` contains `**/` globs for these filename patterns:
+
+```text
+*.g.dart          *.freezed.dart   *.gr.dart         *.generated.dart
+*.drift.dart      *.steps.dart     *.pb.dart         *.pbenum.dart
+*.pbjson.dart     *.pbserver.dart  *.pbgrpc.dart     *.config.dart
+l10n*.dart        *mocks.dart
+```
+
+Generated-file headers and configured Flutter gen-l10n outputs are also
+recognized automatically; see [generated code](how-it-works.md#5-generated-code-can-be-the-only-caller).
+
+For example, allow a retained parameter and a dependency used by a build script:
+
+```yaml
+exclude:
+  parameter_names: [context]
+ignore:
+  dependencies:
+    my_app: [custom_build_support]
+```
+
+### Inline comments
+
+Use Dart comments for a local exception instead of a workspace-wide setting:
+
+```dart
+// kareki: ignore_for_file=unused_element,unused_file
+
+// kareki: ignore=unused_element
+class Dead {}
+
+void foo({
+  int? unused, // kareki: ignore=unused_parameter_optional
+}) {}
+```
+
+`ignore_for_file` applies to the whole file. `ignore` applies to its own line
+when trailing code, or to the next non-blank, non-comment line when standalone.
+Comma-separated values can be rule IDs or, for `ignore`, symbol names.
+ARB files cannot use these comments; use the settings above for localization keys.
+[Doctor](doctor.md) finds suppressions that no longer match a finding.
 
 ## Built-in presets
+
+Presets retain annotated declarations used by generators and recognize the
+annotations' implied dependencies. All presets below are enabled by default.
 
 | Preset | Keep-alive annotations | Implies pub packages |
 |---|---|---|
@@ -68,166 +109,101 @@ Their imports, references, and supplied arguments still count.
 | `hive` | `@HiveType`, `@HiveField` | `hive` |
 | `meta` *(always on)* | `@visibleForTesting`, `@visibleForOverriding`, `@protected`, `@internal`, `@immutable`, `@experimental`, `@mustCallSuper`, `@sealed`, `@factory`, `@useResult`, `@nonVirtual`, `@pragma` | `meta` |
 
-Definitions live in [`lib/src/preset/builtin_presets.dart`](https://github.com/ostk0069/kareki/blob/main/lib/src/preset/builtin_presets.dart) with a `last_verified` framework version on each entry.
+| Key | Value | Default / effect |
+|---|---|---|
+| `keep_alive_annotations.presets` | Preset names | All built-ins above. A nonempty list selects which to enable; `meta` stays active. |
+| `keep_alive_annotations.custom` | Annotation names without `@` | None. Retains declarations with these annotations. |
+| `custom_presets` | Preset name → definition | None. Each definition is always active; matching a built-in name replaces that preset entirely. |
+| `annotation_implied_packages` | Annotation name → pub-package list | None. Adds dependency mappings to the active presets. |
 
-### Schema generation inputs
+For example, select the generators used by your project and add an annotation:
 
-The built-in `drift` preset retains columns of reachable `package:drift`
-`Table` subtypes, including inherited and mixin columns. They remain generation
-inputs even when generated getters override them. Unused tables and unrelated
-same-name types are not retained by this rule.
+```yaml
+keep_alive_annotations:
+  presets: [freezed, json_serializable, riverpod]
+  custom: [KeepAlive]
+```
 
-The built-in `freezed` preset retains redirecting factories on types annotated
-with the resolved `Freezed` type from `package:freezed_annotation`, including
-`@freezed`. These factories define generated variants even when callers use
-the generated classes directly.
+The `freezed` and `drift` presets also protect schema-generation inputs.
+Replacing either preset removes those protections; see
+[schema generation inputs](how-it-works.md#schema-generation-inputs).
 
-It also retains expression-bodied `fromJson` factories as JSON generation
-switches when a `.g.dart` part exists and either JSON direction is unspecified
-in the annotation. Explicit settings for both directions, block bodies, other
-factory names, and unrelated same-name annotations do not trigger this extra
-rule. Build-level overrides may make the switch redundant; it is still retained.
-
-Disabling or replacing either preset removes its additional schema protections.
-
-## Defining or overriding a preset
+### Defining or overriding a preset
 
 ```yaml
 custom_presets:
-  # Replace the built-in `freezed` preset to pin to a fork whose
-  # annotation names have diverged.
-  freezed:
-    keep_alive_annotations: [freezed, Freezed]
-    annotation_implied_packages:
-      freezed: [freezed_annotation_v4]
-
-  # Add a brand-new preset for an in-house DI codegen.
   my_internal_di:
     keep_alive_annotations: [Injectable, Singleton]
     annotation_implied_packages:
       Injectable: [my_di_package]
       Singleton: [my_di_package]
+
+  # Replace the built-in preset for a framework fork.
+  freezed:
+    keep_alive_annotations: [freezed, Freezed]
+    annotation_implied_packages:
+      freezed: [freezed_annotation_v4]
+      Freezed: [freezed_annotation_v4]
 ```
 
-When `custom_presets.<name>` matches a built-in name, the built-in is **replaced entirely** — useful for pinning to a framework version whose annotation names have diverged from kareki's defaults.
+## Unused localization keys
+
+`unused_l10n` reads Flutter's `pubspec.yaml` and `l10n.yaml`; it has no separate
+kareki configuration. Enable `flutter.generate: true`, generate the code, and
+resolve workspace dependencies before running `dart run kareki --rule unused_l10n`.
+
+| Flutter setting | Default |
+|---|---|
+| `arb-dir` | `lib/l10n` |
+| `template-arb-file` | `app_en.arb` |
+| `output-dir` | The ARB directory |
+| `output-localization-file` | `app_localizations.dart` |
+| `output-class` | `AppLocalizations` |
+
+Persist custom paths, template names, and class names in `l10n.yaml` so kareki
+can discover them. Generator command-line overrides alone are not discoverable.
+Flutter Intl / `intl_utils`, `easy_localization`, `slang`, legacy synthetic
+packages, and paths outside the package are unsupported.
+
+Findings point to keys in the template ARB. Suppress them with `exclude.names`,
+ARB globs in `exclude.files`, `ignore.rules`, or a baseline. Exclusions do not
+skip input validation. See [localization-key analysis](how-it-works.md#localization-key-analysis)
+for what counts as usage, warnings, and validation failures.
 
 ## Dependency usage beyond imports
 
-Some dependencies are needed without a Dart import:
+Before adding a dependency exception, check whether kareki already recognizes it:
 
-- Native Flutter plugins whose resolved `pubspec.yaml` declares
-  `ffiPlugin: true` or a nonempty `pluginClass`. Flutter can register or bundle
-  them automatically. Kareki reads the nearest `.dart_tool/package_config.json`,
-  so run `pub get` first. This exemption does not prove that a plugin is needed
-  on every target platform.
-- Packages referenced by the nearest `analysis_options.yaml` for each source,
-  including relative and package includes followed transitively.
-- Font packages referenced by resolved Flutter `IconData` constants or literal
-  constructor `fontPackage` arguments. Usage is attributed to the referencing
-  package.
+- Native Flutter plugins with `ffiPlugin: true` or a nonempty `pluginClass` in
+  their resolved `pubspec.yaml`.
+- Packages included by `analysis_options.yaml`, including transitive includes.
+- Font packages in resolved Flutter `IconData` constants or literal `fontPackage`
+  constructor arguments.
 
-Flutter dependency-only checks therefore also require successful resolution.
-Dynamic asset paths and arbitrary build scripts are not inferred.
-Before deleting code used by build variants, follow the checks in
-[how it works](how-it-works.md).
+Run `pub get` first, including for Flutter dependency-only checks. Dynamic asset
+paths and arbitrary build scripts are not inferred: use `ignore.dependencies`
+for dependencies they require. A native-plugin exemption does not establish
+that the plugin is needed on every target platform.
 
-## Suppression
+## SDK packages and output
 
-### Inline (file-level)
+| Key | Value | Default / effect |
+|---|---|---|
+| `sdk_packages` | Pub package names | `flutter`, `flutter_test`, `flutter_driver`, `flutter_localizations`, `flutter_web_plugins`, `integration_test`, `sky_engine`. Never reported as unused dependencies. Override for SDK forks. |
+| `output.format` | `text` or `json` | `text`. The CLI `--format` option takes precedence. |
 
-```dart
-// kareki: ignore_for_file=unused_element
-```
+## Replacing default lists
 
-```dart
-// kareki: ignore_for_file=unused_element,unused_file
-```
-
-### Inline (per-line)
-
-Suppress findings on a single line with `// kareki: ignore=<rule|name>`. Standalone comments target the next non-blank, non-comment line; trailing comments target their own line.
-
-```dart
-// kareki: ignore=unused_element
-class Dead {}
-
-class Other {} // kareki: ignore=unused_element
-
-void foo({
-  int? unused, // kareki: ignore=unused_parameter_optional
-}) {}
-```
-
-Multiple rules / symbol names can be comma-separated:
-
-```dart
-// kareki: ignore=unused_element, MyClass
-class MyClass {}
-```
-
-### Per-package dependency
+`exclude.files` and `entry_points.files` **replace**, rather than extend, their
+default lists. Include default patterns you still need; `[]` clears the list.
+For example, to keep the story convention but stop treating widgetbook files
+as entry points:
 
 ```yaml
-ignore:
-  dependencies:
-    my_app:
-      # A dependency used by a custom build script that kareki cannot inspect.
-      - custom_build_support
-```
-
-### Global
-
-```yaml
-ignore:
-  packages: [legacy_tools]    # suppress reports; keep references
-  rules: [unused_pub_dependency]
-```
-
-To keep the unused-parameter rules enabled while allowing intentionally
-retained parameters with specific names across the workspace, use an exact-name
-allowlist:
-
-```yaml
-exclude:
-  parameter_names: [context]
-```
-
-`exclude.parameter_names` applies only to `unused_parameter` and
-`unused_parameter_optional`. It does not suppress declarations with the same
-name. `kareki doctor` reports entries that suppress no current finding.
-
-## Full example
-
-```yaml
-version: 1
-
-packages:
-  include: ["packages/**", "modules/**", "."]
-  exclude: ["**/build/**"]
-
-exclude:
-  files: ["**/*.fake.dart"]
-  names: [debugFillProperties]
-  parameter_names: [context]
-
 entry_points:
   files: ["**/*.story.dart"]
-
-keep_alive_annotations:
-  presets: [freezed, riverpod, auto_route, json_serializable]
-  custom: [KeepAlive]
-
-custom_presets:
-  my_internal_di:
-    keep_alive_annotations: [Injectable]
-    annotation_implied_packages:
-      Injectable: [my_di_package]
-
-ignore:
-  packages: [my_lib_package]
-  dependencies:
-    my_app: [custom_build_support]
-
-output:
-  format: text
 ```
+
+`keep_alive_annotations.presets` and `sdk_packages` also replace their defaults
+when nonempty, but `[]` uses the defaults. `meta` remains active even when omitted
+from the selected presets; override it through `custom_presets.meta` if needed.

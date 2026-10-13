@@ -19,20 +19,24 @@ Iterable<File> packageDartFiles(String packageRoot) sync* {
     'tools',
   ]) {
     final dir = Directory(p.join(packageRoot, sub));
-    if (dir.existsSync()) yield* _dartFilesBelow(dir);
+    if (dir.existsSync()) yield* _filesBelow(dir, '.dart');
   }
 }
 
-Iterable<File> _dartFilesBelow(Directory directory) sync* {
+/// ARB files are also valid exclude.files subjects for localization checks.
+Iterable<File> packageArbFiles(String packageRoot) =>
+    _filesBelow(Directory(packageRoot), '.arb');
+
+Iterable<File> _filesBelow(Directory directory, String extension) sync* {
   for (final entity in directory.listSync(followLinks: false)) {
-    if (entity is File && entity.path.endsWith('.dart')) {
+    if (entity is File && entity.path.endsWith(extension)) {
       yield entity;
     } else if (entity is Directory) {
       // Prune before descending, including large build/cache directories.
       if ({'.dart_tool', '.git', 'build'}.contains(p.basename(entity.path))) {
         continue;
       }
-      yield* _dartFilesBelow(entity);
+      yield* _filesBelow(entity, extension);
     }
   }
 }

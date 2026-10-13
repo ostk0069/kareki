@@ -34,10 +34,11 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 | `test_only_used` | Public declarations under `lib/` that are only referenced from test code (`*_test.dart`, files under `test/` or `integration_test/`). The implementation has no production consumer — typically its tests are the only thing keeping it alive. |
 | `unused_parameter` | Parameters of a function, method, or named constructor that are never referenced in the body or initializers. Covers required and public-API parameters that Dart's built-in `unused_element_parameter` doesn't reach. |
 | `unused_parameter_optional` | Optional parameters (named or positional optional) of a function, method, or constructor that are never passed at any call site in the workspace. The public / cross-package counterpart to Dart's built-in `unused_element_parameter`, which only inspects private optional parameters within a single library. |
+| `unused_l10n` | Flutter gen-l10n template ARB keys with no resolved getter/method reference outside the localization outputs. |
 
 ## Tool comparison
 
-Six key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
+Seven key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
 
 | Feature | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart standard analysis](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -46,6 +47,7 @@ Six key features at a glance. ✅ Supported (including opt-in features), — no 
 | [Public declaration cycles unreachable from entry points](doc/comparison.md#analysis-differences) | ✅ | — | — | — | — |
 | [Unused Dart files](doc/how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
 | [Unused pub dependencies](doc/configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
+| [Unused localization keys (l10n)](doc/comparison.md#unused-l10n) | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](doc/baseline.md) | ✅ | — | — | — | — |
 
 See the [full comparison](doc/comparison.md) for other features, required settings, limitations, and versions compared.
@@ -100,7 +102,7 @@ See [doc/doctor.md](doc/doctor.md).
 Browse the [documentation site](https://ostk0069.github.io/kareki/) or read the Markdown sources directly:
 
 - [CLI reference](doc/cli.md) — every option, every exit code
-- [Configuration](doc/configuration.md) — `kareki-config.yaml`, defaults, built-in presets, custom presets, suppression, full example
+- [Configuration](doc/configuration.md) — `kareki-config.yaml`, scope, suppression, presets, localization settings, defaults
 - [Baseline](doc/baseline.md) — incremental adoption
 - [Doctor](doc/doctor.md) — obsolete exclusions and suppressions
 - [How it works](doc/how-it-works.md) — analysis flow, entry points, limits, and supported versions

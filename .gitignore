@@ -3,6 +3,8 @@
 .packages
 build/
 pubspec.lock
+# Freeze reviewed external consumer sources for integration tests.
+!test/fixtures/l10n_consumers/pubspec.lock
 
 # IDE
 .idea/

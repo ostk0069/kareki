@@ -48,14 +48,16 @@ See [configuration](configuration.md).
 |---|---|
 | `0` | No findings remain after filtering, or a baseline was successfully written. |
 | `1` | One or more findings remain after filtering. |
-| `2` | Source resolution or gen-l10n input loading failed. No findings or baseline are published. |
+| `2` | Source resolution or gen-l10n input loading failed, or unknown localization usage blocked a baseline write. No findings or baseline are published. |
 | `64` | Invalid CLI options or kareki configuration. |
 
 Analysis warnings describe uncertain usage, not confirmed unused code.
 They go to **stderr**, separately from text or JSON findings, and have no rule ID
 or dedicated exit code. Warnings alone do not cause a nonzero exit:
-a normal run can return `0` with warnings. They also do not prevent
-`--write-baseline` from saving findings, so review stderr before accepting a baseline.
+a normal run can return `0` with warnings. For localization analysis, stderr also shows used, unused, and unknown key
+counts. `--write-baseline` refuses to create or overwrite a baseline while
+localization keys remain unknown (exit `2`). Other warnings do not block baseline
+writes; review stderr before accepting one.
 
 `kareki doctor` is stricter: warnings prevent safe suppression and baseline
 cleanup checks, so it returns `2`. See [doctor](doctor.md).

@@ -38,6 +38,7 @@ void configure({String? token}) => print(token);
 ''');
       workspace.write('lib/generated/translations/messages.dart', '''
 import '../../api.dart';
+abstract class AppLocalizations {}
 UsedByLocalization create({String? unused}) => UsedByLocalization();
 void setup() => configure(token: 'generated');
 ''');

@@ -47,6 +47,7 @@ export 'src/baseline/baseline.dart';
 export 'src/config/kareki_config.dart';
 export 'src/model/declaration.dart';
 export 'src/model/finding.dart';
+export 'src/model/localization_usage.dart';
 export 'src/model/package_info.dart';
 export 'src/parser/declaration_collector.dart';
 export 'src/reachability/resolved_reachability.dart'
