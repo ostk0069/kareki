@@ -132,6 +132,22 @@ global_options:
     ]);
   });
 
+  test('conditional doc imports retain each platform URI', () {
+    final parsed = DeclarationCollector().collect(
+      path: '${workspace.path}/lib/example.dart',
+      packageName: 'app',
+      content: '''
+/// @docImport 'package:default_api/api.dart' if (dart.library.io) 'package:native_api/api.dart';
+class Example {}
+''',
+    );
+    expect(parsed.docImports, [
+      'package:default_api/api.dart',
+      'package:native_api/api.dart',
+    ]);
+    expect(parsed.imports, isEmpty);
+  });
+
   test('auto-applied builders honor each target and reread metadata', () async {
     workspace.writePubspec(
       name: 'app',
