@@ -417,16 +417,15 @@ class KarekiRunner {
 
     if (unusedElementEnabled || testOnlyUsedEnabled) {
       for (final declaration in declarations) {
-        if (!declaration.isPublic) continue;
         // Preserve the reporting policy for operators. Their resolved edges
         // still retain dependencies, but operators themselves are not findings.
         if (_isOperatorName(declaration.name)) continue;
-        // A "public" member of a library-private type (`_Foo.bar`) is only
-        // reachable from inside the library and is already covered by
-        // `dart analyze`'s built-in unused_element. Skip to avoid duplicate
-        // reports.
         final enclosingTypeName = declaration.enclosingTypeName;
-        if (enclosingTypeName != null && enclosingTypeName.startsWith('_')) {
+        // An unnamed private constructor shares its source name with the type;
+        // report the type rather than a second finding on the same name.
+        if (!declaration.isLibraryPublic &&
+            declaration.kind == DeclarationKind.constructor &&
+            declaration.name == enclosingTypeName) {
           continue;
         }
         if (!request.disregardNameExcludes &&
@@ -506,6 +505,7 @@ class KarekiRunner {
         // production code never appears as a SimpleIdentifier and
         // would otherwise yield false positives.
         if (testOnlyUsedEnabled &&
+            declaration.isLibraryPublic &&
             isReachable &&
             !isProductionReachable &&
             !hasProductionReachableOverrideHost &&
@@ -787,7 +787,8 @@ class KarekiRunner {
     final kind = declaration.kind == DeclarationKind.enumConstant
         ? 'enum value'
         : declaration.kind.name;
-    return "Unused public $kind '$qualifier'.";
+    final visibility = declaration.isLibraryPublic ? 'public' : 'private';
+    return "Unused $visibility $kind '$qualifier'.";
   }
 
   String _unusedParameterMessageFor(

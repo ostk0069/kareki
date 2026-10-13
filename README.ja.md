@@ -30,7 +30,7 @@
 
 | ルール | 検出対象 |
 |---|---|
-| `unused_element` | ワークスペース内のどこからも使われていない public なクラス、関数、メソッド、getter、setter、フィールド、enum とその値、トップレベル変数、extension、extension type、typedef |
+| `unused_element` | ワークスペースの起点から到達できない public / private のクラス、関数、メソッド、getter、setter、フィールド、enum とその値、トップレベル変数、extension、extension type、typedef、名前付きコンストラクタ |
 | `unused_file` | ほかのファイルから `import`、`part`、`export` されていない `.dart` ファイル |
 | `unused_pub_dependency` | `pubspec.yaml` に記載されているものの、ソース、解析設定、ネイティブプラグイン、フォントアセットのいずれでも使用が確認できない依存パッケージ |
 | `test_only_used` | `lib/` 配下にあり、テストコード（`*_test.dart`、`test/`、`integration_test/` 配下）からしか参照されていない public 宣言 |
@@ -45,7 +45,7 @@
 | 機能 | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart 標準解析](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | [未使用 public 宣言・メンバー](doc/how-it-works.ja.md#解析の流れ) | ✅ | ✅ | ✅ | — | — |
-| 未使用 private 宣言・メンバー | — | ✅ | ✅ | — | ✅ |
+| [未使用 private 宣言・メンバー](doc/comparison.ja.md#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
 | [起点から到達できない public 宣言の循環参照](doc/comparison.ja.md#解析方式の違い) | ✅ | — | — | — | — |
 | [未使用 Dart ファイル](doc/how-it-works.ja.md#各ルールが使う根拠) | ✅ | — | ✅ | — | — |
 | [未使用の pub 依存パッケージ](doc/configuration.ja.md#import-以外で使われる依存パッケージ) | ✅ | — | — | ✅ | — |

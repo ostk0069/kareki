@@ -12,7 +12,7 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 | 機能 | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart 標準解析][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|
 | [未使用の public 宣言・メンバーの検出](#unused-public-declarations) | ✅ | ✅ | ✅ | — | — |
-| 未使用の private 宣言・メンバーの検出 | — | ✅ | ✅ | — | ✅ |
+| [未使用の private 宣言・メンバーの検出](#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
 | [public enum の未使用値の検出](#unused-enum-values) | ✅ | ✅ | ✅ | — | — |
 | [起点から到達できない public 宣言の循環参照の検出](#unreachable-cycles) | ✅ | — | — | — | — |
 | [未使用 Dart ファイルの検出](#unused-dart-files) | ✅ | — | ✅ | — | — |
@@ -35,6 +35,12 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 ### 未使用の public 宣言・メンバー {#unused-public-declarations}
 
 解析範囲内で利用が確認できない公開クラス、関数、フィールド、メソッドなどを検出します。kareki は、解析の起点から到達できない対象宣言を `unused_element` で報告します。[解析の具体例](how-it-works.ja.md#解析の流れ)を参照してください。
+
+### 未使用の private 宣言・メンバー {#unused-private-declarations}
+
+`unused_element` は private 宣言・メンバーと、private 型に属する public 名のメンバーも検査します。未到達コード内の参照や循環参照だけでは保持しません。通常の起点ファイルでは public 宣言を保持し、private helper は到達できる参照が必要です。明示的な `entry_points.files`、生成ファイル、保守的に扱う条件分岐先はファイル全体を保持します。
+
+到達可能な型の唯一の private コンストラクタは、ライブラリ外からの生成・継承を禁止する目的があるため保持します。private 型の名前なしコンストラクタは型とは別に報告しません。operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public API だけが対象です。
 
 ### public enum の未使用値 {#unused-enum-values}
 
@@ -86,7 +92,7 @@ kareki は解析の起点から参照をたどるため、相互参照だけが�
 
 ## 使い分けの補足
 
-kareki は private 宣言・メンバーの未使用検出を Dart 標準解析に任せ、public API やパッケージ横断の検査を補います。型検査や lint も含め、`dart analyze` / `flutter analyze` は併用します。[Dart の未使用宣言の診断][dart-unused]
+kareki は public / private の宣言を起点からの到達可能性で検査します。private の指摘は Dart 標準解析と重なる場合がありますが、未到達コード内の参照だけでは使用中とみなしません。型検査や lint のため、`dart analyze` / `flutter analyze` は併用します。[Dart の未使用宣言の診断][dart-unused]
 
 dependency_validator は未使用依存だけでなく、宣言漏れや `dependencies` / `dev_dependencies` の配置間違いも検出します。[dependency_validator の説明][dependency-readme]
 
@@ -94,7 +100,7 @@ dependency_validator は未使用依存だけでなく、宣言漏れや `depend
 
 ## 比較した版
 
-確認日：2026 年 10 月 10 日。公式ドキュメントとソースに基づく比較です。kareki の l10n の説明は 2026 年 10 月 13 日に更新しました。
+確認日：2026 年 10 月 10 日。公式ドキュメントとソースに基づく比較です。kareki の l10n と private コード検出の説明は 2026 年 10 月 13 日に更新しました。
 
 | ツール | 比較した版 |
 |---|---|

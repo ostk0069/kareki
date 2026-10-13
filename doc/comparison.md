@@ -12,7 +12,7 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 | Feature | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart standard analysis][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|
 | [Detect unused public declarations and members](#unused-public-declarations) | ✅ | ✅ | ✅ | — | — |
-| Detect unused private declarations and members | — | ✅ | ✅ | — | ✅ |
+| [Detect unused private declarations and members](#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
 | [Detect unused values of public enums](#unused-enum-values) | ✅ | ✅ | ✅ | — | — |
 | [Detect cycles of public declarations unreachable from entry points](#unreachable-cycles) | ✅ | — | — | — | — |
 | [Detect unused Dart files](#unused-dart-files) | ✅ | — | ✅ | — | — |
@@ -42,6 +42,19 @@ Find public classes, functions, fields, and methods that have no recognized use
 within the analyzed workspace. Kareki reports eligible declarations that cannot
 be reached from entry points with `unused_element`.
 See the [analysis example](how-it-works.md#analysis-flow).
+
+### Unused private declarations and members {#unused-private-declarations}
+
+`unused_element` also checks library-private declarations and members, including
+public-named members of private types. References in unreachable code or cycles
+alone do not retain them. Ordinary entry files retain public declarations;
+private helpers need reachable references. Explicit `entry_points.files`,
+generated files, and conservative conditional targets retain entire files.
+A reachable type retains its sole private constructor because it can intentionally
+prevent external construction or subclassing. Private unnamed constructors are
+not reported separately from their type;
+operators and local declarations remain outside the reporting scope.
+`test_only_used` remains limited to public APIs.
 
 ### Unused public enum values {#unused-enum-values}
 
@@ -136,9 +149,10 @@ and [monorepo documentation][ciach-readme].
 
 ## Using the tools together
 
-Kareki leaves unused private declarations and members to standard Dart analysis,
-adding public API and cross-package checks. Keep `dart analyze` / `flutter analyze`
-for those private-code checks, type checking, and linting.
+Kareki checks both public and private declarations using entry-point reachability.
+Private findings can overlap with standard Dart analysis, but references from
+unreachable code alone do not retain declarations in kareki. Keep
+`dart analyze` / `flutter analyze` for type checking and linting.
 See [Dart's unused-declaration diagnostic][dart-unused].
 
 dependency_validator also covers missing dependencies and incorrect
@@ -152,7 +166,7 @@ especially for published APIs and dynamic calls.
 ## Versions compared
 
 Checked October 10, 2026, against official documentation and source.
-Kareki's l10n details were updated October 13, 2026.
+Kareki's l10n and private-code details were updated October 13, 2026.
 
 | Tool | Version examined |
 |---|---|
