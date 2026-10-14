@@ -85,15 +85,14 @@ flutter:
       expect(written.exitCode, 0, reason: written.errors);
       final pubspec = File(p.join(workspace.path, 'pubspec.yaml'));
       pubspec.writeAsStringSync('\n${pubspec.readAsStringSync()}');
-      expect(
-        (await run([
-          '--rule',
-          'unused_asset',
-          '--baseline',
-          'baseline.json',
-        ])).exitCode,
-        0,
-      );
+      final suppressed = await run([
+        '--rule',
+        'unused_asset',
+        '--baseline',
+        'baseline.json',
+      ]);
+      expect(suppressed.exitCode, 0);
+      expect(suppressed.errors, contains('2 suppressed by baseline'));
     },
   );
 

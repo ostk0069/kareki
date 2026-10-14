@@ -12,6 +12,7 @@ class FlutterAsset {
     this.name,
     this.node, {
     this.font = false,
+    this.fontFiles = const {},
   });
 
   final String packageName;
@@ -19,6 +20,7 @@ class FlutterAsset {
   final String name;
   final YamlNode node;
   final bool font;
+  final Set<String> fontFiles;
 
   String get id => '$packageName|${font ? 'font' : 'asset'}:$name';
 
@@ -29,13 +31,19 @@ class FlutterAsset {
     final flutter = document.nodes['flutter'];
     if (flutter is! YamlMap) return [];
     final result = <String, FlutterAsset>{};
-    void add(String name, YamlNode node, {bool font = false}) {
+    void add(
+      String name,
+      YamlNode node, {
+      bool font = false,
+      Set<String> fontFiles = const {},
+    }) {
       final asset = FlutterAsset(
         packageName,
         file.path,
         name,
         node,
         font: font,
+        fontFiles: fontFiles,
       );
       result[asset.id] = asset;
     }
@@ -89,10 +97,37 @@ class FlutterAsset {
     if (fonts is YamlList) {
       for (final entry in fonts.nodes) {
         final family = entry is YamlMap ? entry.nodes['family'] : null;
-        if (family is! YamlScalar || family.value is! String) {
+        if (family is! YamlScalar ||
+            family.value is! String ||
+            (family.value as String).isEmpty) {
           throw FormatException('${file.path}: font family must be a string.');
         }
-        add(family.value as String, family, font: true);
+        final faces = (entry as YamlMap).nodes['fonts'];
+        if (faces is! YamlList || faces.nodes.isEmpty) {
+          throw FormatException(
+            '${file.path}: font family must contain a non-empty fonts list.',
+          );
+        }
+        final paths = <String>{};
+        for (final face in faces.nodes) {
+          final asset = face is YamlMap ? face.nodes['asset'] : null;
+          if (asset is! YamlScalar ||
+              asset.value is! String ||
+              (asset.value as String).isEmpty) {
+            throw FormatException(
+              '${file.path}: font asset path must be a non-empty string.',
+            );
+          }
+          final name = asset.value as String;
+          if (!name.startsWith('packages/') &&
+              !p.isWithin(root, p.normalize(p.join(root, name)))) {
+            throw FormatException(
+              '${file.path}: font asset path escapes package: $name',
+            );
+          }
+          paths.add(p.posix.normalize(name));
+        }
+        add(family.value as String, family, font: true, fontFiles: paths);
       }
     }
     return result.values.toList()..sort((a, b) => a.id.compareTo(b.id));

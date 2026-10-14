@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:glob/glob.dart';
 import 'package:kareki/src/assets/flutter_assets.dart';
+import 'package:kareki/src/assets/non_dart_asset_usage.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/dependency/analysis_options_dependencies.dart';
 import 'package:kareki/src/dependency/builder_dependencies.dart';
@@ -32,6 +33,7 @@ class _AnalysisInput {
     this.entryPoints,
     this.localizations,
     this.assets,
+    this.nonDartAssetUses,
   );
 
   final List<PackageInfo> packages;
@@ -41,6 +43,7 @@ class _AnalysisInput {
   final EntryPointSet entryPoints;
   final List<FlutterL10n> localizations;
   final List<FlutterAsset> assets;
+  final Set<String> nonDartAssetUses;
 }
 
 /// Configurable input for [KarekiRunner.run].
@@ -355,6 +358,14 @@ class KarekiRunner {
       packageRoots: packageRoots,
     );
 
+    final Set<String> nonDartAssetUses;
+    try {
+      nonDartAssetUses = NonDartAssetUsage.collect(request.rootPath, assets);
+    } on Object catch (error) {
+      throw ResolvedAnalysisException([
+        'Cannot read asset consumer sources: $error',
+      ]);
+    }
     return _AnalysisInput(
       packages,
       parsedFiles,
@@ -363,6 +374,7 @@ class KarekiRunner {
       entryPoints,
       localizations,
       assets,
+      nonDartAssetUses,
     );
   }
 
@@ -778,7 +790,10 @@ class KarekiRunner {
           .map((pattern) => Glob(pattern, recursive: true))
           .toList();
       for (final asset in input.assets) {
-        if (resolved?.usedAssets.contains(asset.id) ?? false) continue;
+        if (input.nonDartAssetUses.contains(asset.id) ||
+            (resolved?.usedAssets.contains(asset.id) ?? false)) {
+          continue;
+        }
         if (!request.disregardNameExcludes &&
             request.config.excludeNames.contains(asset.name)) {
           continue;

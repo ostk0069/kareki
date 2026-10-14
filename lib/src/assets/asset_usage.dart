@@ -1,16 +1,21 @@
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:kareki/src/assets/flutter_assets.dart';
 import 'package:kareki/src/l10n/ast_values.dart';
+import 'package:path/path.dart' as p;
 
 /// Records generated member dependencies separately from user references.
 /// Only strings/ids survive resolution; analyzer elements and ASTs do not.
 class AssetUsage {
-  AssetUsage(this.assets);
+  AssetUsage(this.assets, this.isWorkspaceSource, this.canonical);
 
   final List<FlutterAsset> assets;
+  final bool Function(String) isWorkspaceSource;
+  final String Function(String) canonical;
+  late final bool _hasFonts = assets.any((asset) => asset.font);
   final used = <String>{};
   final warnings = <String>{};
   final _references = <String>{};
@@ -19,6 +24,102 @@ class AssetUsage {
   final _members = <String, Set<String>>{};
   final _containers = <String, Set<String>>{};
   final _escapedTypes = <String>{};
+  final _generatedSources = <String, bool>{};
+  final _consumerLibraries = <LibraryElement, bool>{};
+  late final Set<String> _resourceRoots = {
+    for (final asset in assets) canonical(p.dirname(asset.pubspecPath)),
+  };
+  static final _densityDirectory = RegExp(r'/\d+(?:\.\d+)?x/');
+
+  bool _generatedElement(Element? element) {
+    final source =
+        element?.nonSynthetic.baseElement.firstFragment.libraryFragment?.source;
+    if (source == null) return false;
+    return _generatedSources.putIfAbsent(source.fullName, () {
+      if (!_resourceRoots.any(
+        (root) => p.isWithin(root, canonical(source.fullName)),
+      )) {
+        return false;
+      }
+      final contents = source.contents.data;
+      final header = contents.substring(0, contents.length.clamp(0, 1000));
+      return header.contains('GENERATED CODE') &&
+          (header.contains('FlutterGen') ||
+              {
+                'assets.gen.dart',
+                'fonts.gen.dart',
+              }.contains(p.basename(source.fullName)));
+    });
+  }
+
+  void _manifest(String value, String site) {
+    final fonts = value == 'FontManifest.json';
+    if (!fonts &&
+        !{'AssetManifest.json', 'AssetManifest.bin'}.contains(value)) {
+      return;
+    }
+    final candidates = assets
+        .where((asset) => asset.font == fonts)
+        .map((asset) => asset.id)
+        .toSet();
+    if (candidates.isEmpty) return;
+    used.addAll(candidates);
+    warnings.add(
+      '${fonts ? 'Font' : 'Asset'} manifest consumer at $site; bundled ${fonts ? 'font families' : 'assets'} retained conservatively.',
+    );
+  }
+
+  void _externalConsumer(Element? element, String site) {
+    final library = element?.library;
+    if (!_hasFonts ||
+        library == null ||
+        library.isInSdk ||
+        !library.uri.isScheme('package') ||
+        library.uri.pathSegments.first == 'flutter' ||
+        library.uri.pathSegments.first == 'flutter_test' ||
+        library.fragments.any(
+          (fragment) => isWorkspaceSource(fragment.source.fullName),
+        )) {
+      return;
+    }
+    // External bodies are opaque consumers. An actual manifest literal in the
+    // selected library's same-package import/part closure establishes a reason
+    // to retain candidate fonts, not proof that each family is rendered.
+    if (_consumerLibraries.putIfAbsent(library, () {
+      final pending = [library];
+      final seen = <LibraryElement>{};
+      final package = library.uri.pathSegments.first;
+      while (pending.isNotEmpty) {
+        final current = pending.removeLast();
+        if (!seen.add(current)) continue;
+        final known = current == library ? null : _consumerLibraries[current];
+        if (known == true) return true;
+        if (known == false) continue;
+        for (final fragment in current.fragments) {
+          final source = fragment.source;
+          final text = source.contents.data;
+          if (text.contains('FontManifest.json')) {
+            final manifest = _ManifestLiteralVisitor();
+            parseString(
+              content: text,
+              path: source.fullName,
+            ).unit.accept(manifest);
+            if (manifest.fonts) return true;
+          }
+          pending.addAll(
+            [...fragment.importedLibraries, ...current.exportedLibraries].where(
+              (dependency) =>
+                  dependency.uri.isScheme('package') &&
+                  dependency.uri.pathSegments.first == package,
+            ),
+          );
+        }
+      }
+      return false;
+    })) {
+      _manifest('FontManifest.json', site);
+    }
+  }
 
   String? _id(Element? element) {
     if (element == null) return null;
@@ -36,11 +137,13 @@ class AssetUsage {
   Map<String, Set<String>> _indexPaths() {
     final result = <String, Set<String>>{};
     for (final asset in assets) {
-      for (final key in [
-        '${asset.packageName}|${asset.name}',
-        'packages/${asset.packageName}/${asset.name}',
-      ]) {
-        result.putIfAbsent(key, () => {}).add(asset.id);
+      for (final path in {asset.name, ...asset.fontFiles}) {
+        for (final key in [
+          '${asset.packageName}|$path',
+          'packages/${asset.packageName}/$path',
+        ]) {
+          result.putIfAbsent(key, () => {}).add(asset.id);
+        }
       }
     }
     return result;
@@ -48,14 +151,14 @@ class AssetUsage {
 
   Set<String> _matches(String value, String packageName) {
     // Directly requested density variants also retain the logical image.
-    final logical = value.replaceAll(RegExp(r'/\d+(?:\.\d+)?x/'), '/');
+    final logical = value.replaceAll(_densityDirectory, '/');
     return {
       for (final path in {value, logical}) ...{
         ...?_paths['$packageName|$path'],
         ...?_paths[path],
         if (packageName == '*')
           for (final asset in assets)
-            if (asset.name == path) asset.id,
+            if (asset.name == path || asset.fontFiles.contains(path)) asset.id,
       },
     };
   }
@@ -87,6 +190,13 @@ class AssetUsage {
       if (!seen.add(id)) continue;
       used.addAll(_resources[id] ?? const {});
       pending.addAll(_edges[id] ?? const {});
+    }
+    for (final font in assets.where(
+      (asset) => asset.font && used.contains(asset.id),
+    )) {
+      for (final file in font.fontFiles) {
+        used.addAll(_matches(file, font.packageName));
+      }
     }
   }
 }
@@ -130,6 +240,12 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
       }
     } else {
       usage.used.addAll(matches);
+      if (ownerPackage == '*' && matches.isNotEmpty) {
+        usage.warnings.add(
+          'Unknown asset package at $path; matching resources retained conservatively.',
+        );
+      }
+      usage._manifest(value, path);
     }
   }
 
@@ -146,7 +262,9 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
         }
       }
     }
-    if (element is VariableElement && element.isConst) {
+    if (element is VariableElement &&
+        element.isConst &&
+        element.type.isDartCoreString) {
       final value = element.computeConstantValue()?.toStringValue();
       if (value != null) _record(value);
     }
@@ -192,7 +310,9 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitPatternField(PatternField node) {
-    final id = usage._id(node.element);
+    final id = usage._generatedElement(node.element)
+        ? usage._id(node.element)
+        : null;
     if (!generated && id != null) usage._references.add(id);
     super.visitPatternField(node);
   }
@@ -216,7 +336,9 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
     final variable = element is PropertyAccessorElement
         ? element.variable
         : element;
-    if (variable is VariableElement && variable.isConst) {
+    if (variable is VariableElement &&
+        variable.isConst &&
+        variable.type.isDartCoreString) {
       return variable.computeConstantValue()?.toStringValue();
     }
     return null;
@@ -234,19 +356,19 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
     if (!node.inDeclarationContext() &&
         node.parent is! Combinator &&
         node.parent is! Label) {
-      final id = usage._id(node.element);
-      if (id != null) {
-        if (generated) {
-          if (_owner != null) {
-            usage._edges.putIfAbsent(_owner!, () => {}).add(id);
-          }
-        } else {
-          usage._references.add(id);
-          final value = _value(node);
-          if (value != null) {
-            _record(value, ownerPackage: _argumentPackage(node));
-          }
+      if (generated) {
+        final id = usage._id(node.element);
+        if (_owner != null && id != null) {
+          usage._edges.putIfAbsent(_owner!, () => {}).add(id);
         }
+      } else {
+        final generatedMember = usage._generatedElement(node.element);
+        if (generatedMember) {
+          final id = usage._id(node.element);
+          if (id != null) usage._references.add(id);
+        }
+        final value = generatedMember ? null : _value(node);
+        if (value != null) _record(value, ownerPackage: _argumentPackage(node));
       }
     }
     super.visitSimpleIdentifier(node);
@@ -270,7 +392,7 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
         }
       }
       if (known) {
-        _record(buffer.toString());
+        _record(buffer.toString(), ownerPackage: _argumentPackage(node));
       } else if (buffer.isNotEmpty) {
         final prefix = buffer.toString();
         final retained = {
@@ -296,8 +418,39 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
 
   void _escape(Expression expression) {
     if (generated) return;
-    final type = usage._classId(expression.staticType);
+    final staticType = expression.staticType;
+    if (staticType is! InterfaceType ||
+        !usage._generatedElement(staticType.element)) {
+      return;
+    }
+    final type = usage._classId(staticType);
     if (type != null) usage._escapedTypes.add(type);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    if (!generated) {
+      usage._externalConsumer(node.methodName.element, '$path:${node.offset}');
+      final element = node.methodName.element;
+      if (element?.enclosingElement?.name == 'AssetManifest' &&
+          element?.library?.uri.toString() ==
+              'package:flutter/src/services/asset_manifest.dart' &&
+          node.methodName.name == 'loadFromAssetBundle') {
+        usage._manifest('AssetManifest.bin', '$path:${node.offset}');
+      }
+    }
+    super.visitMethodInvocation(node);
+  }
+
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    if (!generated) {
+      usage._externalConsumer(
+        node.constructorName.element,
+        '$path:${node.offset}',
+      );
+    }
+    super.visitInstanceCreationExpression(node);
   }
 
   @override
@@ -325,4 +478,14 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitCommentReference(CommentReference node) {}
+}
+
+class _ManifestLiteralVisitor extends RecursiveAstVisitor<void> {
+  bool fonts = false;
+
+  @override
+  void visitSimpleStringLiteral(SimpleStringLiteral node) {
+    if (node.stringValue == 'FontManifest.json') fonts = true;
+    super.visitSimpleStringLiteral(node);
+  }
 }

@@ -187,14 +187,19 @@ interpolation count as uses. FlutterGen member references such as
 count. Generated literals alone and imports/comments do not. Generated headers
 identify FlutterGen output, so custom class names and output locations within
 scanned source directories are supported. Tests, unreachable bodies, and other
-generated/excluded Dart sources remain consumers. Workspace references use
+generated/excluded Dart sources remain consumers. Literal asset/font file paths
+in build workflows, native configuration, and scripts also count. Supported text
+formats up to 1 MiB are scanned; pubspec registrations and cache/build outputs
+do not establish usage. Workspace references use
 resolved member identity; `packages/<name>/...` and constant `package` /
 `fontPackage` arguments select the owning package.
 
 An interpolated asset path with a known prefix retains matching candidates and
 emits a warning. Passing/returning a generated directory object retains its
-members conservatively. Arbitrary runtime-computed paths/families, native code,
-and references inside non-Dart files are not fully tracked: exclude resources
+members conservatively. FontManifest/AssetManifest consumers retain candidate
+resources with a warning. For external font consumers, actual manifest literals
+are checked in the selected library’s same-package import/part closure; imports
+and comments alone do not establish usage. Arbitrary runtime-computed paths/families and unsupported non-Dart formats are not fully tracked: exclude resources
 that are used only through those mechanisms. Generated output freshness is not
 validated against pubspec; regenerate after changing assets.
 

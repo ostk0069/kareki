@@ -81,7 +81,6 @@ class ResolvedReachability {
       }
       return ResolvedReachability._({}, {}, [], {}, {}, {}, {}, {}, {}, [], {});
     }
-    final assetUsage = AssetUsage(assets);
     final assetDependencies = <String, Set<String>>{};
     final presets = PresetRegistry(
       enabledPresetNames: config.enabledPresetNames,
@@ -94,6 +93,11 @@ class ResolvedReachability {
       trackArguments: trackArguments,
       keepDriftColumns: presets.keepDriftColumns,
       keepFreezedFactories: presets.keepFreezedFactories,
+    );
+    final assetUsage = AssetUsage(
+      assets,
+      (path) => graph.files.containsKey(graph.canonical(path)),
+      graph.canonical,
     );
     final l10n = L10nUsage(
       localizations,
