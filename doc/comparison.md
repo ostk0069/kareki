@@ -82,7 +82,7 @@ See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
 Find dependencies declared in `pubspec.yaml` that have no recognized use.
 Kareki's `unused_pub_dependency` also recognizes supported annotation,
 build-configuration, native-plugin, and asset usage, beyond Dart imports.
-See [dependency usage beyond imports](configuration.md#dependency-usage-beyond-imports).
+See [dependency usage beyond imports](how-it-works.md#dependency-usage-beyond-imports).
 
 ### Optional public API parameters never supplied by callers {#unsupplied-optional-parameters}
 

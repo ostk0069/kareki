@@ -22,6 +22,8 @@ void main() {
         'example/main.dart',
         'tool/nested/helper.dart',
         'tools/helper.dart',
+        'hook/build.dart',
+        'hook/link.dart',
       ];
       for (final path in [
         ...sources,
@@ -43,6 +45,38 @@ void main() {
         ).map((file) => p.relative(file.path, from: workspace.path)),
         unorderedEquals(sources),
       );
+    },
+  );
+
+  test(
+    'nested pubspec boundaries also apply to source trees and ARB files',
+    () {
+      final workspace = TestWorkspace.create(
+        'kareki_package_boundaries_',
+        bootstrap: false,
+      );
+      addTearDown(workspace.dispose);
+      workspace.write('pubspec.yaml', 'name: parent');
+      workspace.write('lib/main.dart', '');
+      workspace.write('lib/l10n/app_en.arb', '{}');
+      workspace.write('example/pubspec.yaml', 'name: child');
+      workspace.write('example/main.dart', '');
+      workspace.write('example/lib/l10n/app_en.arb', '{}');
+      workspace.write('tool/nested/pubspec.yaml', 'name: tooling');
+      workspace.write('tool/nested/main.dart', '');
+      expect(
+        packageDartFiles(
+          workspace.path,
+        ).map((file) => p.relative(file.path, from: workspace.path)),
+        ['lib/main.dart'],
+      );
+      expect(
+        packageArbFiles(
+          workspace.path,
+        ).map((file) => p.relative(file.path, from: workspace.path)),
+        ['lib/l10n/app_en.arb'],
+      );
+      expect(packageDartFiles(p.join(workspace.path, 'example')), hasLength(1));
     },
   );
 }

@@ -10,6 +10,8 @@ import 'package:kareki/src/cli/doctor_cli.dart' deferred as coverage03;
 import 'package:kareki/src/config/kareki_config.dart' deferred as coverage04;
 import 'package:kareki/src/dependency/analysis_options_dependencies.dart'
     deferred as coverage27;
+import 'package:kareki/src/dependency/builder_dependencies.dart'
+    deferred as coverage36;
 import 'package:kareki/src/dependency/flutter_asset_dependencies.dart'
     deferred as coverage28;
 import 'package:kareki/src/dependency/native_plugin_dependencies.dart'
@@ -87,6 +89,7 @@ void main() {
     );
 
     await Future.wait([
+      coverage36.loadLibrary(),
       coverage29.loadLibrary(),
       coverage30.loadLibrary(),
       coverage31.loadLibrary(),

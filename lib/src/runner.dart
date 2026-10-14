@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:glob/glob.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/dependency/analysis_options_dependencies.dart';
+import 'package:kareki/src/dependency/builder_dependencies.dart';
 import 'package:kareki/src/dependency/native_plugin_dependencies.dart';
 import 'package:kareki/src/dependency/pub_dependency_checker.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
@@ -689,10 +690,13 @@ class KarekiRunner {
               pkg,
               strict: request.strictDependencies,
             ),
-            configurationDependencies: AnalysisOptionsDependencies().forPackage(
-              pkg,
-              filesByPackage[pkg.name] ?? const [],
-            ),
+            configurationDependencies: {
+              ...AnalysisOptionsDependencies().forPackage(
+                pkg,
+                filesByPackage[pkg.name] ?? const [],
+              ),
+              ...BuilderDependencies().forPackage(pkg),
+            },
             assetDependencies:
                 resolved?.assetDependencies[pkg.name] ?? const {},
           ),

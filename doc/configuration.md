@@ -19,10 +19,9 @@ decides whether code is used, see [How it works](how-it-works.md).
 | `entry_points.files` | File globs | `**/*.story.dart`, `**/widgetbook/**/*.dart`. Retains declarations in matching files. |
 | `entry_points.names` | Exact declaration names | None. Retains matching declarations. |
 
-Kareki collects Dart files at each package root and in `lib/`, `bin/`, `test/`,
-`integration_test/`, `example/`, `tool/`, and `tools/`. `entry_points.files`
-cannot add other source directories. `build/`, `.dart_tool/`, and `.git/` are
-skipped; nested packages own their files.
+`entry_points.files` retains declarations in matching files within the
+[scanned source scope](how-it-works.md#source-scope-and-reporting-scope);
+it does not add source directories.
 
 Dart / Flutter entry-point conventions remain active regardless of these
 settings: top-level `main`, `main.dart` / `main_*.dart`, `flutter_test_config.dart`,
@@ -169,21 +168,6 @@ Findings point to keys in the template ARB. Suppress them with `exclude.names`,
 ARB globs in `exclude.files`, `ignore.rules`, or a baseline. Exclusions do not
 skip input validation. See [localization-key analysis](how-it-works.md#localization-key-analysis)
 for what counts as usage, warnings, and validation failures.
-
-## Dependency usage beyond imports
-
-Before adding a dependency exception, check whether kareki already recognizes it:
-
-- Native Flutter plugins with `ffiPlugin: true` or a nonempty `pluginClass` in
-  their resolved `pubspec.yaml`.
-- Packages included by `analysis_options.yaml`, including transitive includes.
-- Font packages in resolved Flutter `IconData` constants or literal `fontPackage`
-  constructor arguments.
-
-Run `pub get` first, including for Flutter dependency-only checks. Dynamic asset
-paths and arbitrary build scripts are not inferred: use `ignore.dependencies`
-for dependencies they require. A native-plugin exemption does not establish
-that the plugin is needed on every target platform.
 
 ## SDK packages and output
 

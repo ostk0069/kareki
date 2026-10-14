@@ -62,8 +62,11 @@ void main() => LocalStore().save();
 
 `--packages` and `ignore.packages` only limit reporting: consumers in other
 discovered packages still contribute references. In contrast, `packages.exclude`
-removes packages from discovery. See [configuration](configuration.md) for source
-directories and scope settings.
+removes packages from discovery. See [configuration](configuration.md) for scope settings.
+
+Kareki collects Dart files at each package root and in `lib/`, `bin/`, `test/`,
+`integration_test/`, `example/`, `tool/`, `tools/`, and `hook/`. `build/`,
+`.dart_tool/`, and `.git/` are skipped; nested packages own their files.
 
 ### Entry points
 
@@ -105,6 +108,34 @@ can skip graph construction; each rule uses different evidence:
 | `unused_file` | Whether another scanned file imports, exports, or parts the file, or it is an entry point. This is not declaration reachability. |
 | `unused_pub_dependency` | Imports and recognized annotation, build-configuration, native-plugin, and asset usage. |
 | `unused_l10n` | Resolved references to generated localization getters/methods outside their configured output files. Tests and unreachable bodies count. |
+
+### Dependency usage beyond imports
+
+Before adding a dependency exception, check whether kareki already recognizes it:
+
+- Dart imports and exports, including imports in `hook/build.dart` and
+  `hook/link.dart`, and documentation-only `@docImport` references. Doc imports
+  retain dependencies without making runtime declarations reachable.
+- Builder references in `build.yaml` targets (except `enabled: false`) and
+  resolved builders with `auto_apply: dependents`, `all_packages`, or
+  `root_package`. Each analyzed package is considered a possible build root;
+  a builder disabled on every configured target is not counted as used.
+- Native Flutter plugins with `ffiPlugin: true` or a nonempty `pluginClass` in
+  their resolved `pubspec.yaml`.
+- Packages included by `analysis_options.yaml`, including transitive includes.
+- Font packages in resolved Flutter `IconData` constants or literal `fontPackage`
+  constructor arguments.
+
+Run `pub get` first, including for Flutter dependency-only checks. Dynamic asset
+paths and arbitrary build scripts are not inferred: use `ignore.dependencies`
+for dependencies they require. A native-plugin exemption does not establish
+that the plugin is needed on every target platform.
+
+Nested directories with their own `pubspec.yaml` belong to a separate package.
+Their imports do not retain the parent's dependencies, even when the child is
+not listed in the workspace. Workspace members are scanned separately.
+Executable-only dependencies still require an explicit `ignore.dependencies`
+entry when strict dependency checks are enabled.
 
 ### Localization-key analysis
 
