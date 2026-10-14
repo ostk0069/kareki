@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:kareki/kareki.dart';
+import 'package:kareki/src/assets/flutter_assets.dart';
+import 'package:kareki/src/assets/non_dart_asset_usage.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -411,6 +413,17 @@ void main() { print('assets/data.json'); }
       "Unused font family 'DeadFont'.",
     });
   });
+
+  test('large embedded SVG data is scanned without repeated backtracking', () {
+    setup();
+    workspace.write(
+      'native/embedded.svg',
+      '<svg><image href="data:image/png;base64,${'A' * 200000}"/><image href="assets/images/used.png"/></svg>',
+    );
+    final assets = FlutterAsset.load(workspace.path, 'runner_fixture');
+    final used = NonDartAssetUsage.collect(workspace.path, assets);
+    expect(used, {'runner_fixture|asset:assets/images/used.png'});
+  }, timeout: const Timeout(Duration(seconds: 10)));
 
   test('quoted Unicode paths and file-relative native references', () async {
     workspace.write('pubspec.yaml', '''

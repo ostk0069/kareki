@@ -7,8 +7,10 @@ import 'package:path/path.dart' as p;
 /// Literal resource paths used by build workflows, native configuration, and
 /// scripts. Registrations and generated/cache files do not establish usage.
 abstract final class NonDartAssetUsage {
+  // Start at a token boundary: retrying a filename suffix at every character
+  // makes long embedded SVG/base64 data take quadratic time.
   static final _pathToken = RegExp(
-    r"""[^\s"'<>:=(){}\[\],;$]+\.[a-zA-Z0-9_-]+""",
+    r"""(?:^|[\s"'<>:=(){}\[\],;$])([^\s"'<>:=(){}\[\],;$]+\.[a-zA-Z0-9_-]+)""",
   );
   static final _quotedPath = RegExp(
     r"""["']([^"'$\r\n]+\.[a-zA-Z0-9_-]+)["']""",
@@ -80,7 +82,7 @@ abstract final class NonDartAssetUsage {
         continue;
       }
       final references = {
-        for (final match in _pathToken.allMatches(text)) match.group(0)!,
+        for (final match in _pathToken.allMatches(text)) match.group(1)!,
         for (final match in _quotedPath.allMatches(text)) match.group(1)!,
       };
       for (final reference in references) {
