@@ -46,7 +46,7 @@ Seven key features at a glance. ✅ Supported (including opt-in features), — n
 | [Unused private declarations and members](doc/comparison.md#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
 | [Public declaration cycles unreachable from entry points](doc/comparison.md#analysis-differences) | ✅ | — | — | — | — |
 | [Unused Dart files](doc/how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
-| [Unused pub dependencies](doc/configuration.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
+| [Unused pub dependencies](doc/how-it-works.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
 | [Unused localization keys (l10n)](doc/comparison.md#unused-l10n) | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](doc/baseline.md) | ✅ | — | — | — | — |
 
