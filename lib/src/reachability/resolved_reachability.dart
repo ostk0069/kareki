@@ -7,6 +7,8 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:kareki/src/assets/asset_usage.dart';
+import 'package:kareki/src/assets/flutter_assets.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/dependency/flutter_asset_dependencies.dart';
 import 'package:kareki/src/entry_points/entry_point_resolver.dart';
@@ -44,6 +46,7 @@ class ResolvedReachability {
     this.l10nUses,
     this.l10nUnknown,
     this.localizationUsage,
+    this.usedAssets,
   );
 
   final Set<DeclarationRecord> reachable;
@@ -57,6 +60,7 @@ class ResolvedReachability {
   final Map<FlutterL10n, Set<String>> l10nUses;
   final Map<FlutterL10n, Set<String>> l10nUnknown;
   final List<LocalizationUsage> localizationUsage;
+  final Set<String> usedAssets;
 
   static Future<ResolvedReachability> build({
     required List<ParsedFile> files,
@@ -67,6 +71,7 @@ class ResolvedReachability {
     bool trackArguments = false,
     bool trackAssets = false,
     List<FlutterL10n> localizations = const [],
+    List<FlutterAsset> assets = const [],
   }) async {
     if (files.isEmpty) {
       if (localizations.any((family) => family.keys.isNotEmpty)) {
@@ -74,8 +79,9 @@ class ResolvedReachability {
           'Generated localization APIs were not collected; run flutter gen-l10n.',
         ]);
       }
-      return ResolvedReachability._({}, {}, [], {}, {}, {}, {}, {}, {}, []);
+      return ResolvedReachability._({}, {}, [], {}, {}, {}, {}, {}, {}, [], {});
     }
+    final assetUsage = AssetUsage(assets);
     final assetDependencies = <String, Set<String>>{};
     final presets = PresetRegistry(
       enabledPresetNames: config.enabledPresetNames,
@@ -170,6 +176,24 @@ class ResolvedReachability {
           }
           unit.unit.accept(_ResolvedVisitor(graph, path, file));
           if (localizations.isNotEmpty) l10n.visit(path, unit.unit);
+          if (assets.isNotEmpty) {
+            final header = unit.content.substring(
+              0,
+              unit.content.length.clamp(0, 1000),
+            );
+            assetUsage.visit(
+              path,
+              file.packageName,
+              unit.unit,
+              generated:
+                  file.isGeneratedByHeader &&
+                  (header.contains('FlutterGen') ||
+                      {
+                        'assets.gen.dart',
+                        'fonts.gen.dart',
+                      }.contains(p.basename(path))),
+            );
+          }
           if (trackAssets) {
             unit.unit.accept(
               FlutterAssetDependencies(
@@ -188,6 +212,8 @@ class ResolvedReachability {
         }
       }
       if (problems.isNotEmpty) throw ResolvedAnalysisException(problems);
+      assetUsage.finish();
+      graph.warnings.addAll(assetUsage.warnings);
       l10n.finish();
       graph.warnings.addAll(l10n.warnings);
       await graph.summarizeExternalCallbacks();
@@ -221,6 +247,7 @@ class ResolvedReachability {
         l10n.used,
         l10n.unknown,
         l10n.summaries,
+        assetUsage.used,
       );
     } on ResolvedAnalysisException {
       rethrow;

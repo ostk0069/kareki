@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:glob/glob.dart';
+import 'package:kareki/src/assets/flutter_assets.dart';
 import 'package:kareki/src/baseline/baseline.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/doctor/doctor_finding.dart';
@@ -217,6 +218,8 @@ class DoctorRunner {
         final parts = finding.stableId.split('|');
         if (finding.ruleId == RuleId.unusedL10n) {
           matchedNames.add(parts.last.substring(5));
+        } else if (finding.ruleId == RuleId.unusedAsset) {
+          matchedNames.add(parts.last.substring(parts.last.indexOf(':') + 1));
         } else if (parts.length >= 5) {
           matchedNames.add(parts[3]);
         }
@@ -270,6 +273,9 @@ class DoctorRunner {
       for (final file in [
         ...packageDartFiles(pkg.rootPath),
         ...packageArbFiles(pkg.rootPath),
+        File(p.join(pkg.rootPath, 'pubspec.yaml')),
+        for (final asset in FlutterAsset.load(pkg.rootPath, pkg.name))
+          if (!asset.font) File(p.join(pkg.rootPath, asset.name)),
       ]) {
         final rel = p.relative(file.path, from: request.rootPath);
         final base = p.basename(file.path);

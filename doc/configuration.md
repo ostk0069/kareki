@@ -169,6 +169,42 @@ ARB globs in `exclude.files`, `ignore.rules`, or a baseline. Exclusions do not
 skip input validation. See [localization-key analysis](how-it-works.md#localization-key-analysis)
 for what counts as usage, warnings, and validation failures.
 
+## Unused assets and fonts
+
+Run `dart run kareki --rule unused_asset` after resolving workspace dependencies
+and, when using FlutterGen, regenerating its outputs. No additional configuration
+is required. The rule reads `flutter.assets` (string or `path` map entries) and
+`flutter.fonts` in each package's pubspec. Images, SVG, JSON, audio, and other
+bundled files are covered equally; flavors/platforms do not filter analysis.
+Directory entries include immediate files and image density variants, following
+[Flutter's asset bundling rules](https://docs.flutter.dev/ui/assets/assets-and-images).
+A logical image is reported once, and a font family once, preserving all font
+weights/styles when its family is used. Unregistered files are not checked.
+
+Raw path/family strings, const references, concatenated strings, and constant
+interpolation count as uses. FlutterGen member references such as
+`Assets.images.logo.image()`, `.path`, `FontFamily.example`, and `values` also
+count. Generated literals alone and imports/comments do not. Generated headers
+identify FlutterGen output, so custom class names and output locations within
+scanned source directories are supported. Tests, unreachable bodies, and other
+generated/excluded Dart sources remain consumers. Workspace references use
+resolved member identity; `packages/<name>/...` and constant `package` /
+`fontPackage` arguments select the owning package.
+
+An interpolated asset path with a known prefix retains matching candidates and
+emits a warning. Passing/returning a generated directory object retains its
+members conservatively. Arbitrary runtime-computed paths/families, native code,
+and references inside non-Dart files are not fully tracked: exclude resources
+that are used only through those mechanisms. Generated output freshness is not
+validated against pubspec; regenerate after changing assets.
+
+Findings point at pubspec entries (directory findings include the individual
+logical path in their message). Suppress with `exclude.names` using the exact
+logical path or font family, `exclude.files` using asset paths or pubspec globs,
+`ignore.rules: [unused_asset]`, or a baseline. Doctor recognizes these exclusions.
+Malformed asset configuration or unresolved Dart sources stops analysis rather
+than publishing unused findings. The rule does not remove files.
+
 ## SDK packages and output
 
 | Key | Value | Default / effect |

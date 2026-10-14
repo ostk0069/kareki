@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `unused_asset` detects unused Flutter bundled assets and font families,
+  including resolved FlutterGen references, directory entries, density variants,
+  cross-package references, and asset suppressions recognized by doctor.
+
 - Recognize explicit build.yaml builder references and resolved auto-applied
   builders, respecting per-target `enabled: false` settings.
 

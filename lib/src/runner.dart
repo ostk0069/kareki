@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:glob/glob.dart';
+import 'package:kareki/src/assets/flutter_assets.dart';
 import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/dependency/analysis_options_dependencies.dart';
 import 'package:kareki/src/dependency/builder_dependencies.dart';
@@ -30,6 +31,7 @@ class _AnalysisInput {
     this.packageRoots,
     this.entryPoints,
     this.localizations,
+    this.assets,
   );
 
   final List<PackageInfo> packages;
@@ -38,6 +40,7 @@ class _AnalysisInput {
   final Map<String, String> packageRoots;
   final EntryPointSet entryPoints;
   final List<FlutterL10n> localizations;
+  final List<FlutterAsset> assets;
 }
 
 /// Configurable input for [KarekiRunner.run].
@@ -161,7 +164,14 @@ class KarekiRunner {
     final trackL10n = requests.any(
       (variant) => _ruleEnabled(RuleId.unusedL10n, variant),
     );
-    final input = _prepare(request, trackL10n: trackL10n);
+    final trackUnusedAssets = requests.any(
+      (variant) => _ruleEnabled(RuleId.unusedAsset, variant),
+    );
+    final input = _prepare(
+      request,
+      trackL10n: trackL10n,
+      trackUnusedAssets: trackUnusedAssets,
+    );
     final trackAssets = requests.any(
       (variant) => _ruleEnabled(RuleId.unusedPubDependency, variant),
     );
@@ -180,6 +190,7 @@ class KarekiRunner {
         );
     final resolved =
         needsGraph ||
+            input.assets.isNotEmpty ||
             needsAssets ||
             (trackL10n &&
                 input.localizations.any(
@@ -195,6 +206,7 @@ class KarekiRunner {
             packageRoots: input.packageRoots,
             trackAssets: trackAssets,
             localizations: input.localizations,
+            assets: input.assets,
             trackArguments: requests.any(
               (variant) =>
                   _ruleEnabled(RuleId.unusedParameterOptional, variant),
@@ -207,7 +219,11 @@ class KarekiRunner {
     ];
   }
 
-  _AnalysisInput _prepare(RunRequest request, {required bool trackL10n}) {
+  _AnalysisInput _prepare(
+    RunRequest request, {
+    required bool trackL10n,
+    required bool trackUnusedAssets,
+  }) {
     final workspaceLoader = WorkspaceLoader(rootPath: request.rootPath);
     final allPackages = workspaceLoader.load(
       include: request.config.includePackages,
@@ -231,6 +247,7 @@ class KarekiRunner {
     final parsedFiles = <ParsedFile>[];
     final generatedPaths = <String>{};
     final localizations = <FlutterL10n>[];
+    final assets = <FlutterAsset>[];
 
     // Reporting filters never remove reference sources.
     final sourcePackages = [...allPackages];
@@ -265,6 +282,15 @@ class KarekiRunner {
         throw ResolvedAnalysisException([
           'Cannot read Flutter localization inputs in ${pkg.rootPath}: $error',
         ]);
+      }
+      if (trackUnusedAssets) {
+        try {
+          assets.addAll(FlutterAsset.load(pkg.rootPath, pkg.name));
+        } on Object catch (error) {
+          throw ResolvedAnalysisException([
+            'Cannot read Flutter assets in ${pkg.rootPath}: $error',
+          ]);
+        }
       }
       // Configured gen-l10n outputs may live outside the ordinary Dart source
       // directories. Resolve those exact files too, never an entire directory.
@@ -336,6 +362,7 @@ class KarekiRunner {
       packageRoots,
       entryPoints,
       localizations,
+      assets,
     );
   }
 
@@ -743,6 +770,50 @@ class KarekiRunner {
             ),
           );
         }
+      }
+    }
+
+    if (_ruleEnabled(RuleId.unusedAsset, request)) {
+      final globs = request.config.excludeFiles
+          .map((pattern) => Glob(pattern, recursive: true))
+          .toList();
+      for (final asset in input.assets) {
+        if (resolved?.usedAssets.contains(asset.id) ?? false) continue;
+        if (!request.disregardNameExcludes &&
+            request.config.excludeNames.contains(asset.name)) {
+          continue;
+        }
+        final root = input.packageRoots[asset.packageName]!;
+        final relative = p.relative(asset.pubspecPath, from: request.rootPath);
+        final assetRelative = p.relative(
+          p.join(root, asset.name),
+          from: request.rootPath,
+        );
+        if (globs.any(
+          (glob) =>
+              glob.matches(relative) ||
+              glob.matches('pubspec.yaml') ||
+              (!asset.font &&
+                  (glob.matches(assetRelative) ||
+                      glob.matches(p.basename(asset.name)))),
+        )) {
+          continue;
+        }
+        findings.add(
+          Finding(
+            ruleId: RuleId.unusedAsset,
+            severity: Severity.warning,
+            message:
+                "Unused ${asset.font ? 'font family' : 'asset'} '${asset.name}'.",
+            packageName: asset.packageName,
+            filePath: asset.pubspecPath,
+            line: asset.node.span.start.line + 1,
+            column: asset.node.span.start.column + 1,
+            length: asset.node.span.length,
+            stableId:
+                '${asset.packageName}|${asset.pubspecPath}|${asset.font ? 'font' : 'asset'}:${asset.name}',
+          ),
+        );
       }
     }
 
