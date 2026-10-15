@@ -15,6 +15,23 @@ dart run kareki
 
 SDK と analyzer は、プロジェクトで使う言語機能に対応している必要があります。実験的な構文をパースできるだけでは不十分です。参照の解決が不要なルールは、依存パッケージの準備なしでも実行できます。
 
+## ネイティブ実行形式
+
+kareki のチェックアウトで依存を解決し、一度コンパイルします。kareki や依存を更新したら再ビルドしてください。
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+./build/kareki doctor --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+```
+
+SDK のルートを明示します。Flutter では `<flutter>/bin/cache/dart-sdk` です。
+ランタイムは実行形式に含まれますが、解析では SDK のライブラリが必要です。
+同じ検出結果で速度を比較する際は、通常実行と同じ SDK・設定・ルールを使ってください。
+Windows の出力名は `build/kareki.exe` にします。
+
 ## オプション
 
 | オプション | 説明 |

@@ -27,7 +27,7 @@ dart run kareki doctor
 Only user-supplied entries are checked. Built-in defaults, such as the
 `**/*.g.dart` exclusion, are not flagged.
 
-`doctor` also accepts `--sdk-path <path>` for native executables. See the [native build workflow](../README.md#faster-repeated-runs).
+`doctor` also accepts `--sdk-path <path>` for native executables. See the [native build workflow](cli.md#native-executable).
 
 ## Exit codes
 

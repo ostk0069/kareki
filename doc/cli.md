@@ -19,6 +19,24 @@ The SDK and analyzer must support the project's language features; parsing
 experimental syntax alone is not enough. Rules that do not require resolution
 can run without dependency setup.
 
+## Native executable
+
+From a kareki checkout, resolve dependencies and compile once. Rebuild after
+updating kareki or its dependencies:
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+./build/kareki doctor --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+```
+
+Pass the SDK root explicitly; Flutter uses `<flutter>/bin/cache/dart-sdk`.
+The runtime is embedded, but analysis still requires installed SDK libraries.
+Use the same SDK, configuration, and rules for direct comparisons with normal
+execution. Windows builds use `build/kareki.exe`.
+
 ## Options
 
 | Option | Description |
