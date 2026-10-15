@@ -261,6 +261,15 @@ targets:
       flutter_gen_runner: {options: {colors: {inputs: [other.xml]}}}
 ''');
       expect(load, throwsFormatException);
+      workspace.write('pubspec.yaml', 'name: runner_fixture\n');
+      workspace.write('build.yaml', r'''
+targets:
+  $default:
+    builders:
+      flutter_gen: {options: {assets: {enabled: true}}}
+      flutter_gen_runner: {options: {assets: {enabled: true}}}
+''');
+      expect(load(), isEmpty);
     },
   );
 

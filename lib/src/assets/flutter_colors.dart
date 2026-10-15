@@ -36,7 +36,8 @@ class FlutterColor {
     if (declared is Map) config.addAll(declared);
     final build = File(p.join(root, 'build.yaml'));
     if (build.existsSync()) {
-      var configuredTarget = false;
+      var configuredTargets = 0;
+      var hasColorOptions = config['colors'] != null;
       final data = loadYaml(build.readAsStringSync());
       if (data is Map && data['targets'] is Map) {
         for (final target in (data['targets'] as Map).values) {
@@ -52,16 +53,17 @@ class FlutterColor {
             }
             final builder = entry.value;
             if (builder is Map && builder['options'] is Map) {
-              if (configuredTarget) {
-                throw const FormatException(
-                  'Multiple FlutterGen builder options are ambiguous; use one configured target.',
-                );
-              }
-              configuredTarget = true;
+              configuredTargets++;
+              hasColorOptions |= (builder['options'] as Map)['colors'] != null;
               config = _merge(config, builder['options'] as Map);
             }
           }
         }
+      }
+      if (configuredTargets > 1 && hasColorOptions) {
+        throw const FormatException(
+          'Multiple FlutterGen builder options are ambiguous; use one configured target.',
+        );
       }
     }
     final colors = config['colors'];
