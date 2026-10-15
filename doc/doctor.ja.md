@@ -13,8 +13,8 @@ dart run kareki doctor
 
 | 種別 | 意味 |
 |---|---|
-| `unused-exclude` | `exclude.files` の項目に一致する Dart／ARB ファイルがワークスペース内にない。 |
-| `unused-exclude-name` | `exclude.names` の項目が、翻訳キーを含む現在の指摘を抑制していない。 |
+| `unused-exclude` | `exclude.files` の項目に一致するソースやリソースのパスがない。 |
+| `unused-exclude-name` | `exclude.names` の項目が現在の指摘を抑制していない。 |
 | `unused-exclude-parameter-name` | `exclude.parameter_names` の項目が、現在の `unused_parameter`・`unused_parameter_optional` の指摘を抑制していない。 |
 | `unused-ignore-package` | `ignore.packages` の項目に一致するワークスペース内のパッケージがない。 |
 | `unused-ignore-dependencies-package` | `ignore.dependencies` のキーに一致するワークスペース内のパッケージがない。 |
@@ -23,8 +23,6 @@ dart run kareki doctor
 | `unused-baseline-entry` | ベースライン項目が現在の指摘に一致しない。コードの削除・移動のほか、使用されるようになった場合も含む。 |
 
 ユーザーが追加した項目だけを検査します。`**/*.g.dart` の除外など、組み込みのデフォルト設定は指摘しません。
-
-`doctor` もネイティブ実行形式用に `--sdk-path <path>` を受け付けます。[ビルド手順](cli.ja.md#ネイティブ実行形式)を参照してください。
 
 ## 終了コード
 

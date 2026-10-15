@@ -108,7 +108,7 @@ can skip graph construction; each rule uses different evidence:
 | `unused_file` | Whether another scanned file imports, exports, or parts the file, or it is an entry point. This is not declaration reachability. |
 | `unused_pub_dependency` | Imports and recognized annotation, build-configuration, native-plugin, and asset usage. |
 | `unused_l10n` | Resolved references to generated localization getters/methods outside their configured output files. Tests and unreachable bodies count. |
-| `unused_asset` | Bundled logical asset paths, font families, and FlutterGen XML colors used outside FlutterGen; generated member edges are followed only from consumer references. |
+| `unused_asset` | References to registered Flutter resources outside their FlutterGen declarations. See [asset and color usage](#asset-and-color-usage). |
 
 ### Dependency usage beyond imports
 
@@ -169,6 +169,26 @@ changed dependency sources, custom matchers, and escaped/mutated lists restore
 conservative warnings.
 See [localization configuration](configuration.md#unused-localization-keys)
 for supported generators and settings.
+
+### Asset and color usage
+
+`unused_asset` checks resources registered in Flutter settings; unregistered
+files are not checked. Image density variants share a logical path, and all
+font weights/styles are retained together when their family is used. A FlutterGen
+color's base and Accent members also share one XML definition.
+
+Constant paths/font names and resolved FlutterGen member references count as
+uses, including tests and unreachable bodies. Generated declarations, imports
+and comments alone do not. Colors require a member reference, not an equal hex
+value or a color-name string. Literal asset paths in supported text files up to
+1 MiB, such as YAML, XML and shell scripts, also count.
+
+Known dynamic-path prefixes and manifest enumeration retain candidates with
+warnings. Arbitrary runtime computation and consumers outside the workspace may
+be missed; exclude resources used only through those routes. Invalid inputs or
+unresolved Dart sources stop analysis; mismatched generated color APIs require
+regeneration. Color analysis supports one FlutterGen builder-options configuration.
+See [configuration](configuration.md#flutter-resources) for inputs and exclusions.
 
 ### Optional-argument usage
 

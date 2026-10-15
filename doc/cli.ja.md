@@ -15,23 +15,6 @@ dart run kareki
 
 SDK と analyzer は、プロジェクトで使う言語機能に対応している必要があります。実験的な構文をパースできるだけでは不十分です。参照の解決が不要なルールは、依存パッケージの準備なしでも実行できます。
 
-## ネイティブ実行形式
-
-kareki のチェックアウトで依存を解決し、一度コンパイルします。kareki や依存を更新したら再ビルドしてください。
-
-```sh
-dart pub get
-mkdir -p build
-dart compile exe bin/kareki.dart -o build/kareki
-./build/kareki --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
-./build/kareki doctor --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
-```
-
-SDK のルートを明示します。Flutter では `<flutter>/bin/cache/dart-sdk` です。
-ランタイムは実行形式に含まれますが、解析では SDK のライブラリが必要です。
-同じ検出結果で速度を比較する際は、通常実行と同じ SDK・設定・ルールを使ってください。
-Windows の出力名は `build/kareki.exe` にします。
-
 ## オプション
 
 | オプション | 説明 |
@@ -68,3 +51,18 @@ dart run kareki --rule unused_element,test_only_used,unused_parameter_optional
 `kareki doctor` は扱いが異なります。警告があると抑制設定やベースラインの整理可否を安全に判断できないため、`2` で終了します。[doctor](doctor.ja.md)を参照してください。
 
 更新後もコマンドは `dart run kareki` のままです。専用の移行コマンドやベースラインの形式変換は不要ですが、ベースラインを書き換える前に新しい指摘を確認してください。`analysis_mode` / `--analysis-mode` を指定していた場合は削除します。これらの廃止されたオプションを指定すると終了コード `64` になります。
+
+## ネイティブ実行形式
+
+繰り返し実行の起動時間を減らすには、kareki のチェックアウトでビルドします。
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /path/to/dart-sdk --root /path/to/workspace
+```
+
+解析用の SDK は引き続き必要です。Flutter では `<flutter>/bin/cache/dart-sdk` を指定します。
+`doctor` も同じオプションを使えます。kareki や依存の更新後は再ビルドしてください。
+Windows の出力名は `build/kareki.exe` です。

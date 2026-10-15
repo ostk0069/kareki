@@ -71,53 +71,21 @@ Flutter Intl／`intl_utils`、`easy_localization`、`slang`、旧 synthetic pack
 パッケージ外のパスは未対応です。生成コマンドだけで指定した設定は検出できないため、
 入力・出力・クラス・テンプレートの設定を `l10n.yaml` に保存してください。
 
-## 未使用のassetとfont
+## Flutter リソース
 
-```sh
-dart run kareki --rule unused_asset
-```
+`unused_asset` は各パッケージの次の設定を読み取ります。kareki 側の追加設定は不要です。
+依存の解決と FlutterGen の再生成を済ませてから実行してください。
 
-`flutter.assets` の文字列／`path` 形式と `flutter.fonts` を読み取ります。
-画像、SVG、JSON、音声などの登録ファイルが対象です。ディレクトリ登録では直下のファイルと
-解像度variantを収集し、画像は論理パス単位、fontはfamily単位で各1件報告します。
-familyが使われていれば全weight／styleを保持します。flavor／platform別の登録も対象です。
-未登録ファイルは検査しません。
+| 入力 | 指摘位置 |
+|---|---|
+| `flutter.assets` | pubspec の登録箇所。ディレクトリ登録も対象。 |
+| `flutter.fonts` | pubspec のフォントファミリー。 |
+| `flutter_gen.colors.inputs` | XML の色定義。 |
 
-文字列のパス／family、const参照、文字列結合、定数補間に対応します。
-FlutterGenの `Assets.images.logo.image()`、`.path`、`FontFamily.example`、`values`
-は解決済みの参照から判定し、生成出力内のパスだけでは使用扱いにしません。
-import、コメントも使用の証拠にはしません。生成ヘッダーで出力を識別するため、
-独自のクラス名や、通常のソース収集範囲内にある出力先にも対応します。
-テスト、到達不能なコード、FlutterGen以外の生成／除外されたDartコードからの参照も含みます。
-別パッケージからの生成member参照、`packages/<name>/...`、定数の `package`／`fontPackage`
-引数も考慮します。実行前に依存を解決し、FlutterGenを使う場合は再生成してください。
-生成出力とpubspecの鮮度の一致までは検証しません。
-
-FlutterGen の `flutter_gen.colors.inputs` にある XML も、`<color name="...">` 単位で検査します。
-`ColorName.foo` の解決済み参照を追跡し、MaterialColor／MaterialAccentColor は元の色定義にまとめます。
-通常色と Accent の両方を生成する場合は、どちらか一方の参照で保持します。
-同じ色値、色名の文字列、import、生成宣言だけでは使用扱いにしません。
-クラス名・出力先の変更と、`build.yaml` の単一 builder target の options による設定の上書きに対応します。
-複数の builder options がある場合は曖昧な判定を避けて終了します。
-重複 input／色名は FlutterGen と同様に最初の定義を採用します。
-生成クラスの欠落や定数メンバー名の不一致では再生成を促して終了します。色値の鮮度は検証しません。
-指摘は XML の開始タグに表示し、`exclude.names` の元の色名、`exclude.files` の XML パス、
-baseline で抑制できます。reflection や解析対象外の Dart コードからだけ使う色は除外してください。
-
-既知のprefixがある動的なパス補間は候補を保持して警告します。
-生成ディレクトリobjectを引数／戻り値として渡す場合は、そのmemberを保守的に保持します。
-FontManifest／AssetManifestを列挙するコードでは該当リソースを保守的に保持し、警告します。
-外部ライブラリがFontManifestを読む場合も、呼び出されたライブラリの同一パッケージ内の
-import／part先を確認します。コメントやimportだけでは使用扱いにしません。
-CIワークフロー、native設定、scriptなどのテキストにある明示的なasset／fontファイルのパスも収集します。
-pubspecの登録やcache／build出力は使用の証拠にしません。1 MiB以下の対応形式が対象です。
-任意の動的パス／familyや、対応形式以外の非Dart参照は完全には追跡しません。
-そうした仕組みだけで使うリソースは除外してください。
-
-指摘位置はpubspecの登録箇所です。ディレクトリ登録の場合もメッセージには各論理パスを示します。
-`exclude.names` の論理パス／family、`exclude.files` のassetパス／pubspecパス、
-`ignore.rules: [unused_asset]`、baselineで抑制でき、doctorもこれらの除外を認識します。
-設定の破損やDart参照の解決失敗では指摘を公開せず終了します。ファイルの削除は行いません。
+`exclude.names` には論理アセットパス・フォントファミリー・XML の色名を指定します。
+`exclude.files` には pubspec・アセット・色の XML のパスを指定でき、`ignore.rules` と baseline も使えます。
+除外しても入力の検証は省略しません。
+使用の判定と警告については[アセットと色の使用判定](how-it-works.ja.md#アセットと色の使用判定)を参照してください。
 
 ## 組み込みプリセット
 

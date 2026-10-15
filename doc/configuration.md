@@ -41,8 +41,8 @@ exclusions still contribute references to other code.
 
 | Key | Value | Suppresses |
 |---|---|---|
-| `exclude.files` | File globs | Findings in matching Dart or ARB files. See defaults below. |
-| `exclude.names` | Exact names | Matching declaration or localization-key findings. |
+| `exclude.files` | File globs | Findings in matching source or resource paths. See defaults below. |
+| `exclude.names` | Exact names | Matching declaration, localization-key, or resource findings. |
 | `exclude.parameter_names` | Exact names | Only `unused_parameter` and `unused_parameter_optional` findings. |
 | `ignore.packages` | Pub package names | All findings in those packages. |
 | `ignore.rules` | Rule IDs | All findings for those rules. |
@@ -169,61 +169,22 @@ ARB globs in `exclude.files`, `ignore.rules`, or a baseline. Exclusions do not
 skip input validation. See [localization-key analysis](how-it-works.md#localization-key-analysis)
 for what counts as usage, warnings, and validation failures.
 
-## Unused assets and fonts
+## Flutter resources
 
-Run `dart run kareki --rule unused_asset` after resolving workspace dependencies
-and, when using FlutterGen, regenerating its outputs. No additional configuration
-is required. The rule reads `flutter.assets` (string or `path` map entries) and
-`flutter.fonts` in each package's pubspec. Images, SVG, JSON, audio, and other
-bundled files are covered equally; flavors/platforms do not filter analysis.
-Directory entries include immediate files and image density variants, following
-[Flutter's asset bundling rules](https://docs.flutter.dev/ui/assets/assets-and-images).
-A logical image is reported once, and a font family once, preserving all font
-weights/styles when its family is used. Unregistered files are not checked.
+`unused_asset` reads these settings from each package; no extra kareki settings
+are needed. Resolve dependencies and regenerate FlutterGen output before running.
 
-Raw path/family strings, const references, concatenated strings, and constant
-interpolation count as uses. FlutterGen member references such as
-`Assets.images.logo.image()`, `.path`, `FontFamily.example`, and `values` also
-count. Generated literals alone and imports/comments do not. Generated headers
-identify FlutterGen output, so custom class names and output locations within
-scanned source directories are supported. Tests, unreachable bodies, and other
-generated/excluded Dart sources remain consumers. Literal asset/font file paths
-in build workflows, native configuration, and scripts also count. Supported text
-formats up to 1 MiB are scanned; pubspec registrations and cache/build outputs
-do not establish usage. Workspace references use
-resolved member identity; `packages/<name>/...` and constant `package` /
-`fontPackage` arguments select the owning package.
+| Input | Finding location |
+|---|---|
+| `flutter.assets` | Pubspec registration, including directory entries. |
+| `flutter.fonts` | Font family in pubspec. |
+| `flutter_gen.colors.inputs` | Color definition in XML. |
 
-FlutterGen colors declared in `flutter_gen.colors.inputs` are checked per XML
-`<color name="...">` definition. Resolved `ColorName.foo` references retain that
-color; for material colors either the base member or the `fooAccent` member
-retains the original definition. Equal hex values, color name strings, imports,
-and generated declarations alone do not count as uses. Custom output/class
-names and `build.yaml` builder options (deeply overriding pubspec options) are
-supported for one configured builder target; ambiguous multiple builder options
-stop analysis. Duplicate input paths and color names follow FlutterGen's first
-name wins behavior. Missing generated classes or mismatched constant member
-names stop analysis and request regeneration. Color findings point at XML start
-tags, and support `exclude.names` with the original XML name, `exclude.files`
-with XML paths, and baselines. Values are not compared for freshness. Color
-reflection and consumers outside the analyzed Dart workspace are not tracked;
-exclude definitions used only through those mechanisms.
-
-An interpolated asset path with a known prefix retains matching candidates and
-emits a warning. Passing/returning a generated directory object retains its
-members conservatively. FontManifest/AssetManifest consumers retain candidate
-resources with a warning. For external font consumers, actual manifest literals
-are checked in the selected library’s same-package import/part closure; imports
-and comments alone do not establish usage. Arbitrary runtime-computed paths/families and unsupported non-Dart formats are not fully tracked: exclude resources
-that are used only through those mechanisms. Generated output freshness is not
-validated against pubspec; regenerate after changing assets.
-
-Findings point at pubspec entries (directory findings include the individual
-logical path in their message). Suppress with `exclude.names` using the exact
-logical path or font family, `exclude.files` using asset paths or pubspec globs,
-`ignore.rules: [unused_asset]`, or a baseline. Doctor recognizes these exclusions.
-Malformed asset configuration or unresolved Dart sources stops analysis rather
-than publishing unused findings. The rule does not remove files.
+Use `exclude.names` with logical asset paths, font families, or XML color names.
+`exclude.files` accepts pubspec, asset, and color XML paths; rule ignores and
+baselines also apply. Exclusions do not skip input validation.
+See [asset and color usage](how-it-works.md#asset-and-color-usage)
+for how usage and warnings are determined.
 
 ## SDK packages and output
 
