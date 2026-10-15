@@ -24,3 +24,5 @@ dev_dependencies:
 # Enables gen-l10n discovery for the Dart-only localization fixture.
 flutter:
   generate: true
+  assets:
+    - assets/unused.json

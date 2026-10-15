@@ -41,8 +41,8 @@ exclusions still contribute references to other code.
 
 | Key | Value | Suppresses |
 |---|---|---|
-| `exclude.files` | File globs | Findings in matching Dart or ARB files. See defaults below. |
-| `exclude.names` | Exact names | Matching declaration or localization-key findings. |
+| `exclude.files` | File globs | Findings in matching source or resource paths. See defaults below. |
+| `exclude.names` | Exact names | Matching declaration, localization-key, or resource findings. |
 | `exclude.parameter_names` | Exact names | Only `unused_parameter` and `unused_parameter_optional` findings. |
 | `ignore.packages` | Pub package names | All findings in those packages. |
 | `ignore.rules` | Rule IDs | All findings for those rules. |
@@ -168,6 +168,23 @@ Findings point to keys in the template ARB. Suppress them with `exclude.names`,
 ARB globs in `exclude.files`, `ignore.rules`, or a baseline. Exclusions do not
 skip input validation. See [localization-key analysis](how-it-works.md#localization-key-analysis)
 for what counts as usage, warnings, and validation failures.
+
+## Flutter resources
+
+`unused_asset` reads these settings from each package; no extra kareki settings
+are needed. Resolve dependencies and regenerate FlutterGen output before running.
+
+| Input | Finding location |
+|---|---|
+| `flutter.assets` | Pubspec registration, including directory entries. |
+| `flutter.fonts` | Font family in pubspec. |
+| `flutter_gen.colors.inputs` | Color definition in XML. |
+
+Use `exclude.names` with logical asset paths, font families, or XML color names.
+`exclude.files` accepts pubspec, asset, and color XML paths; rule ignores and
+baselines also apply. Exclusions do not skip input validation.
+See [asset and color usage](how-it-works.md#asset-and-color-usage)
+for how usage and warnings are determined.
 
 ## SDK packages and output
 

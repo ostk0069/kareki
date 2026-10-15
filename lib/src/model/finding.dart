@@ -46,6 +46,9 @@ abstract final class RuleId {
   /// A gen-l10n template key has no resolved use outside its generated output.
   static const String unusedL10n = 'unused_l10n';
 
+  /// A bundled Flutter asset, font family or XML color has no use outside FlutterGen.
+  static const String unusedAsset = 'unused_asset';
+
   /// The complete set of rule ids emitted by kareki.
   static const Set<String> all = {
     unusedElement,
@@ -55,6 +58,7 @@ abstract final class RuleId {
     unusedParameter,
     unusedParameterOptional,
     unusedL10n,
+    unusedAsset,
   };
 }
 

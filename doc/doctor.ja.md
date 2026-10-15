@@ -13,8 +13,8 @@ dart run kareki doctor
 
 | 種別 | 意味 |
 |---|---|
-| `unused-exclude` | `exclude.files` の項目に一致する Dart／ARB ファイルがワークスペース内にない。 |
-| `unused-exclude-name` | `exclude.names` の項目が、翻訳キーを含む現在の指摘を抑制していない。 |
+| `unused-exclude` | `exclude.files` の項目に一致するソースやリソースのパスがない。 |
+| `unused-exclude-name` | `exclude.names` の項目が現在の指摘を抑制していない。 |
 | `unused-exclude-parameter-name` | `exclude.parameter_names` の項目が、現在の `unused_parameter`・`unused_parameter_optional` の指摘を抑制していない。 |
 | `unused-ignore-package` | `ignore.packages` の項目に一致するワークスペース内のパッケージがない。 |
 | `unused-ignore-dependencies-package` | `ignore.dependencies` のキーに一致するワークスペース内のパッケージがない。 |

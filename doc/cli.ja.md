@@ -20,6 +20,7 @@ SDK と analyzer は、プロジェクトで使う言語機能に対応してい
 | オプション | 説明 |
 |---|---|
 | `--root <path>` | ワークスペースのルート。デフォルトは現在のディレクトリ。 |
+| `--sdk-path <path>` | 解析に使う Dart SDK のルート。SDK 外のネイティブ実行形式では指定が必要。相対パスは実行ディレクトリ基準。 |
 | `-f`, `--format <name>` | 出力形式。`text` または `json`。設定ファイルより優先。 |
 | `--packages <name>` | 指定したパッケージの指摘だけを報告。参照は探索したワークスペース全体から収集。複数回指定可能。 |
 | `--rule <id>` | 指定したルールだけを有効化。複数回指定可能。 |
@@ -50,3 +51,18 @@ dart run kareki --rule unused_element,test_only_used,unused_parameter_optional
 `kareki doctor` は扱いが異なります。警告があると抑制設定やベースラインの整理可否を安全に判断できないため、`2` で終了します。[doctor](doctor.ja.md)を参照してください。
 
 更新後もコマンドは `dart run kareki` のままです。専用の移行コマンドやベースラインの形式変換は不要ですが、ベースラインを書き換える前に新しい指摘を確認してください。`analysis_mode` / `--analysis-mode` を指定していた場合は削除します。これらの廃止されたオプションを指定すると終了コード `64` になります。
+
+## ネイティブ実行形式
+
+繰り返し実行の起動時間を減らすには、kareki のチェックアウトでビルドします。
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /path/to/dart-sdk --root /path/to/workspace
+```
+
+解析用の SDK は引き続き必要です。Flutter では `<flutter>/bin/cache/dart-sdk` を指定します。
+`doctor` も同じオプションを使えます。kareki や依存の更新後は再ビルドしてください。
+Windows の出力名は `build/kareki.exe` です。

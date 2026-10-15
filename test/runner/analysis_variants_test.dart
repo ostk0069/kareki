@@ -103,6 +103,11 @@ void main() { used(option: 1); }
     final request = RunRequest(rootPath: workspace.path, config: config);
     for (final other in [
       RunRequest(rootPath: '${workspace.path}/other', config: config),
+      RunRequest(
+        rootPath: workspace.path,
+        config: config,
+        sdkPath: '/other/sdk',
+      ),
       RunRequest(rootPath: workspace.path, config: KarekiConfig.defaults()),
       RunRequest(
         rootPath: workspace.path,

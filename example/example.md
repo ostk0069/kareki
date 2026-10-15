@@ -2,7 +2,7 @@
 
 This directory is a real, runnable Dart package. Every file under `lib/`
 is wired so that running kareki produces exactly **one finding per
-rule** — seven in total. Use it to see what each rule actually catches.
+rule** — eight in total. Use it to see what each rule actually catches.
 
 The localization example uses a minimal Dart-only fixture with the same API
 shape as Flutter gen-l10n, so this example does not require the Flutter SDK.
@@ -14,6 +14,7 @@ The test suite separately exercises actual Flutter-generated code.
 example/
 ├── pubspec.yaml         # declares `collection` but never imports it → unused_pub_dependency
 ├── kareki-config.yaml   # minimum config kareki picks up by default
+├── assets/unused.json  # registered asset without a consumer → unused_asset
 ├── bin/main.dart        # entry point — keeps everything else reachable
 ├── lib/
 │   ├── api.dart         # public enum value no one uses → unused_element
@@ -39,6 +40,8 @@ $ dart run kareki --root example
     Unused public enum value 'Status.inactive'.
   [unused_file] lib/orphan.dart:1:1
     File is never imported, parted, or exported.
+  [unused_asset] pubspec.yaml:29:7
+    Unused asset 'assets/unused.json'.
   [unused_l10n] lib/l10n/app_en.arb:4:3
     Unused localization key 'unusedGreeting' (ExampleLocalizations).
   [unused_parameter] lib/parameters.dart:10:26
@@ -48,13 +51,14 @@ $ dart run kareki --root example
   [unused_pub_dependency] pubspec.yaml:1:1
     Dependency 'collection' is declared in pubspec.yaml but never imported within 'kareki_example'.
 
-kareki: 7 finding(s) across 1 package(s).
+kareki: 8 finding(s) across 1 package(s).
 ```
 
 ## Rule-by-rule walkthrough
 
 | Rule | Where it's planted | Why it fires |
 |---|---|---|
+| `unused_asset` | `assets/unused.json` | Registered in pubspec but never referenced by Dart source. |
 | `unused_element` | `lib/api.dart` — `Status.inactive` | `bin/main.dart` references `Status.active`, but nobody references `Status.inactive`. |
 | `unused_l10n` | `lib/l10n/app_en.arb` — `unusedGreeting` | The Dart-only gen-l10n fixture exposes two keys; only `greeting` is referenced. |
 | `unused_file` | `lib/orphan.dart` | The file is never imported, parted, or exported from anywhere in the package. (Its private `_OrphanWidget` declaration suppresses `unused_element` so this example demonstrates each rule exactly once.) |

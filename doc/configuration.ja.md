@@ -71,6 +71,22 @@ Flutter Intl／`intl_utils`、`easy_localization`、`slang`、旧 synthetic pack
 パッケージ外のパスは未対応です。生成コマンドだけで指定した設定は検出できないため、
 入力・出力・クラス・テンプレートの設定を `l10n.yaml` に保存してください。
 
+## Flutter リソース
+
+`unused_asset` は各パッケージの次の設定を読み取ります。kareki 側の追加設定は不要です。
+依存の解決と FlutterGen の再生成を済ませてから実行してください。
+
+| 入力 | 指摘位置 |
+|---|---|
+| `flutter.assets` | pubspec の登録箇所。ディレクトリ登録も対象。 |
+| `flutter.fonts` | pubspec のフォントファミリー。 |
+| `flutter_gen.colors.inputs` | XML の色定義。 |
+
+`exclude.names` には論理アセットパス・フォントファミリー・XML の色名を指定します。
+`exclude.files` には pubspec・アセット・色の XML のパスを指定でき、`ignore.rules` と baseline も使えます。
+除外しても入力の検証は省略しません。
+使用の判定と警告については[アセットと色の使用判定](how-it-works.ja.md#アセットと色の使用判定)を参照してください。
+
 ## 組み込みプリセット
 
 | プリセット | keep-alive アノテーション | 暗黙的に必要となる pub パッケージ |

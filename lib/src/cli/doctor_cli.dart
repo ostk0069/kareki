@@ -5,6 +5,7 @@ import 'package:kareki/src/config/kareki_config.dart';
 import 'package:kareki/src/doctor/doctor_reporter.dart';
 import 'package:kareki/src/doctor/doctor_runner.dart';
 import 'package:kareki/src/reachability/resolved_reachability.dart';
+import 'package:path/path.dart' as p;
 
 const String _usageHeader = '''
 kareki doctor — validate kareki-config.yaml against workspace state.
@@ -54,7 +55,14 @@ Future<int> runDoctor(
       : OutputFormat.values.byName(formatName);
   final reporter = _reporterFor(format);
 
-  final request = DoctorRequest(rootPath: rootPath, config: config);
+  final request = DoctorRequest(
+    rootPath: rootPath,
+    config: config,
+    sdkPath: switch (args['sdk-path'] as String?) {
+      final path? => p.normalize(p.join(workingDirectory, path)),
+      null => null,
+    },
+  );
   final code = await _analyzeAndReport(request, reporter);
   return code;
 }
@@ -104,6 +112,10 @@ DoctorReporter _reporterFor(OutputFormat format) {
 
 ArgParser _buildArgParser() {
   return ArgParser()
+    ..addOption(
+      'sdk-path',
+      help: 'Dart SDK root (required for native executables outside the SDK).',
+    )
     ..addOption(
       'root',
       help: 'Workspace root directory (defaults to current directory).',

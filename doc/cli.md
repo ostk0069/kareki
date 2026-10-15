@@ -24,6 +24,7 @@ can run without dependency setup.
 | Option | Description |
 |---|---|
 | `--root <path>` | Workspace root. Defaults to the current directory. |
+| `--sdk-path <path>` | Dart SDK root. Required for native executables outside the SDK; relative to the working directory. |
 | `-f`, `--format <name>` | Output format: `text` or `json`. Overrides configuration. |
 | `--packages <name>` | Report findings only for these packages. References are still collected across the discovered workspace. Repeatable. |
 | `--rule <id>` | Enable only these rules. Repeatable. |
@@ -66,3 +67,18 @@ After upgrading, continue using `dart run kareki`; no migration command or
 baseline conversion is needed. Review newly exposed findings before updating
 your baseline. If you previously set `analysis_mode` or `--analysis-mode`, remove
 them: these obsolete options return exit code `64`.
+
+## Native executable
+
+To reduce startup overhead on repeated runs, build from a kareki checkout:
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /path/to/dart-sdk --root /path/to/workspace
+```
+
+An installed SDK is still required for analysis; Flutter uses
+`<flutter>/bin/cache/dart-sdk`. The same option works with `doctor`.
+Rebuild after updating kareki or its dependencies. Windows uses `build/kareki.exe`.

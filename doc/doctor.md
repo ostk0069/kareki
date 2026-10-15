@@ -15,8 +15,8 @@ dart run kareki doctor
 
 | Issue kind | Meaning |
 |---|---|
-| `unused-exclude` | An `exclude.files` entry matches no workspace Dart or ARB file. |
-| `unused-exclude-name` | An `exclude.names` entry suppresses no current finding, including localization keys. |
+| `unused-exclude` | An `exclude.files` entry matches no workspace source or resource path. |
+| `unused-exclude-name` | An `exclude.names` entry suppresses no current finding. |
 | `unused-exclude-parameter-name` | An `exclude.parameter_names` entry suppresses no current `unused_parameter` or `unused_parameter_optional` finding. |
 | `unused-ignore-package` | An `ignore.packages` entry names no workspace package. |
 | `unused-ignore-dependencies-package` | An `ignore.dependencies` key names no workspace package. |
