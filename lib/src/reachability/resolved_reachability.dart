@@ -190,12 +190,13 @@ class ResolvedReachability {
               file.packageName,
               unit.unit,
               generated:
+                  assetUsage.isColorOutput(path) ||
                   file.isGeneratedByHeader &&
-                  (header.contains('FlutterGen') ||
-                      {
-                        'assets.gen.dart',
-                        'fonts.gen.dart',
-                      }.contains(p.basename(path))),
+                      (header.contains('FlutterGen') ||
+                          {
+                            'assets.gen.dart',
+                            'fonts.gen.dart',
+                          }.contains(p.basename(path))),
             );
           }
           if (trackAssets) {

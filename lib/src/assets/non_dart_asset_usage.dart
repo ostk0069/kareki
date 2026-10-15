@@ -58,6 +58,7 @@ abstract final class NonDartAssetUsage {
     final localPaths = <String, Map<String, Set<String>>>{};
     final absolutePaths = <String, Set<String>>{};
     for (final asset in assets) {
+      if (asset.color != null) continue;
       final packageRoot = p.dirname(asset.pubspecPath);
       for (final path in asset.font ? asset.fontFiles : {asset.name}) {
         final absolute = p.normalize(p.join(packageRoot, path));
@@ -75,6 +76,7 @@ abstract final class NonDartAssetUsage {
             .add(asset.id);
       }
     }
+    if (absolutePaths.isEmpty) return {};
     final used = <String>{};
     for (final file in _sources(Directory(root))) {
       final text = file.readAsStringSync();

@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:kareki/kareki.dart' deferred as coverage00;
 import 'package:kareki/src/assets/asset_usage.dart' deferred as coverage38;
 import 'package:kareki/src/assets/flutter_assets.dart' deferred as coverage37;
+import 'package:kareki/src/assets/flutter_colors.dart' deferred as coverage40;
 import 'package:kareki/src/assets/non_dart_asset_usage.dart'
     deferred as coverage39;
 import 'package:kareki/src/baseline/baseline.dart' deferred as coverage01;
@@ -93,6 +94,7 @@ void main() {
     );
 
     await Future.wait([
+      coverage40.loadLibrary(),
       coverage36.loadLibrary(),
       coverage37.loadLibrary(),
       coverage38.loadLibrary(),

@@ -108,7 +108,7 @@ can skip graph construction; each rule uses different evidence:
 | `unused_file` | Whether another scanned file imports, exports, or parts the file, or it is an entry point. This is not declaration reachability. |
 | `unused_pub_dependency` | Imports and recognized annotation, build-configuration, native-plugin, and asset usage. |
 | `unused_l10n` | Resolved references to generated localization getters/methods outside their configured output files. Tests and unreachable bodies count. |
-| `unused_asset` | Bundled logical asset paths and font families used outside FlutterGen; generated member edges are followed only from consumer references. |
+| `unused_asset` | Bundled logical asset paths, font families, and FlutterGen XML colors used outside FlutterGen; generated member edges are followed only from consumer references. |
 
 ### Dependency usage beyond imports
 

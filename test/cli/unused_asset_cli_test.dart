@@ -96,6 +96,82 @@ flutter:
     },
   );
 
+  test('XML color JSON, baseline stability and doctor exclusions', () async {
+    final pubspec = File(p.join(workspace.path, 'pubspec.yaml'));
+    pubspec.writeAsStringSync('''
+${pubspec.readAsStringSync()}
+flutter_gen:
+  colors:
+    inputs: [colors.xml]
+''');
+    workspace.write(
+      'colors.xml',
+      '<resources>\n<color name="black">#000000</color>\n</resources>',
+    );
+    workspace.write('lib/gen/colors.gen.dart', '''
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// FlutterGen
+class Color { const Color(this.value); final int value; }
+abstract final class ColorName { static const black = Color(0xff000000); }
+''');
+    final result = await run(['--rule', 'unused_asset', '--format', 'json']);
+    expect(result.exitCode, 1, reason: result.errors);
+    final json = jsonDecode(result.output) as Map<String, dynamic>;
+    final color = (json['findings'] as List)
+        .cast<Map<String, dynamic>>()
+        .singleWhere((f) => f['message'] == "Unused color 'black'.");
+    expect(color['file'], 'colors.xml');
+    expect(color['line'], 2);
+    expect(
+      (await run([
+        '--rule',
+        'unused_asset',
+        '--baseline',
+        'baseline.json',
+        '--write-baseline',
+      ])).exitCode,
+      0,
+    );
+    final xml = File(p.join(workspace.path, 'colors.xml'));
+    xml.writeAsStringSync('\n${xml.readAsStringSync()}');
+    final suppressed = await run([
+      '--rule',
+      'unused_asset',
+      '--baseline',
+      'baseline.json',
+    ]);
+    expect(suppressed.exitCode, 0, reason: suppressed.errors);
+    expect(suppressed.errors, contains('3 suppressed by baseline'));
+    workspace.write('kareki-config.yaml', 'exclude:\n  names: [black]\n');
+    final doctor = await DoctorRunner().run(
+      DoctorRequest(
+        rootPath: workspace.path,
+        config: KarekiConfig.load(workspace.path),
+      ),
+    );
+    expect(
+      doctor.findings.where(
+        (f) =>
+            f.kind == DoctorIssueKind.unusedExclude ||
+            f.kind == DoctorIssueKind.unusedExcludeName,
+      ),
+      isEmpty,
+    );
+    workspace.write('kareki-config.yaml', 'exclude:\n  files: [colors.xml]\n');
+    final filesDoctor = await DoctorRunner().run(
+      DoctorRequest(
+        rootPath: workspace.path,
+        config: KarekiConfig.load(workspace.path),
+      ),
+    );
+    expect(
+      filesDoctor.findings.where(
+        (f) => f.kind == DoctorIssueKind.unusedExclude,
+      ),
+      isEmpty,
+    );
+  });
+
   test('doctor recognizes live asset path and family exclusions', () async {
     workspace.write('kareki-config.yaml', '''
 exclude:

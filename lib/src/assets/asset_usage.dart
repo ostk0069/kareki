@@ -26,6 +26,47 @@ class AssetUsage {
   final _escapedTypes = <String>{};
   final _generatedSources = <String, bool>{};
   final _consumerLibraries = <LibraryElement, bool>{};
+  final _validatedColors = <String>{};
+
+  late final List<FlutterAsset> _colors = assets
+      .where((a) => a.color != null)
+      .toList();
+  late final Set<String> _colorOutputs = {
+    for (final asset in _colors) canonical(asset.color!.outputPath),
+  };
+
+  bool isColorOutput(String path) => _colorOutputs.contains(canonical(path));
+
+  void _colorClass(ClassElement type) {
+    if (_colors.isEmpty) return;
+    final source = type.firstFragment.libraryFragment.source.fullName;
+    final colors = _colors
+        .where(
+          (a) =>
+              canonical(a.color!.outputPath) == canonical(source) &&
+              a.color!.className == type.name,
+        )
+        .toList();
+    if (colors.isEmpty) return;
+    final expected = {for (final asset in colors) ...asset.color!.members};
+    final fields = {
+      for (final field in type.fields)
+        if (field.isStatic && field.isConst) field.name: field,
+    };
+    if (!fields.keys.toSet().containsAll(expected) ||
+        fields.length != expected.length) {
+      throw FormatException(
+        '$source: Color API does not match XML inputs. Run FlutterGen.',
+      );
+    }
+    for (final asset in colors) {
+      _validatedColors.add(asset.id);
+      for (final member in asset.color!.members) {
+        _resources.putIfAbsent(_id(fields[member])!, () => {}).add(asset.id);
+      }
+    }
+  }
+
   late final Set<String> _resourceRoots = {
     for (final asset in assets) canonical(p.dirname(asset.pubspecPath)),
   };
@@ -42,6 +83,7 @@ class AssetUsage {
         return false;
       }
       final contents = source.contents.data;
+      if (isColorOutput(source.fullName)) return true;
       final header = contents.substring(0, contents.length.clamp(0, 1000));
       return header.contains('GENERATED CODE') &&
           (header.contains('FlutterGen') ||
@@ -59,7 +101,7 @@ class AssetUsage {
       return;
     }
     final candidates = assets
-        .where((asset) => asset.font == fonts)
+        .where((asset) => asset.color == null && asset.font == fonts)
         .map((asset) => asset.id)
         .toSet();
     if (candidates.isEmpty) return;
@@ -137,6 +179,7 @@ class AssetUsage {
   Map<String, Set<String>> _indexPaths() {
     final result = <String, Set<String>>{};
     for (final asset in assets) {
+      if (asset.color != null) continue;
       for (final path in {asset.name, ...asset.fontFiles}) {
         for (final key in [
           '${asset.packageName}|$path',
@@ -158,7 +201,9 @@ class AssetUsage {
         ...?_paths[path],
         if (packageName == '*')
           for (final asset in assets)
-            if (asset.name == path || asset.fontFiles.contains(path)) asset.id,
+            if (asset.color == null &&
+                (asset.name == path || asset.fontFiles.contains(path)))
+              asset.id,
       },
     };
   }
@@ -173,6 +218,13 @@ class AssetUsage {
   }
 
   void finish() {
+    for (final asset in assets) {
+      if (asset.color != null && !_validatedColors.contains(asset.id)) {
+        throw FormatException(
+          '${asset.color!.outputPath}: Generated color class ${asset.color!.className} was not resolved. Run FlutterGen.',
+        );
+      }
+    }
     // Container values passed/returned to opaque consumers may be enumerated.
     // Expand only those containers, never an intermediate Assets.images access.
     final types = _escapedTypes.toList();
@@ -214,6 +266,13 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
   final String packageName;
   final bool generated;
   String? _owner;
+
+  @override
+  void visitClassDeclaration(ClassDeclaration node) {
+    final element = node.declaredFragment?.element;
+    if (element != null) usage._colorClass(element);
+    super.visitClassDeclaration(node);
+  }
 
   String _argumentPackage(AstNode node) {
     for (var parent = node.parent; parent != null; parent = parent.parent) {
@@ -398,6 +457,7 @@ class _AssetVisitor extends RecursiveAstVisitor<void> {
         final retained = {
           for (final asset in usage.assets)
             if (!asset.font &&
+                asset.color == null &&
                 ((asset.packageName == packageName &&
                         asset.name.startsWith(prefix)) ||
                     'packages/${asset.packageName}/${asset.name}'.startsWith(

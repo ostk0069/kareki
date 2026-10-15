@@ -301,6 +301,13 @@ class KarekiRunner {
           .map(File.new)
           .where((file) => file.existsSync())
           .toList();
+      configuredOutputs.addAll(
+        {
+          for (final asset in assets)
+            if (asset.packageName == pkg.name && asset.color != null)
+              asset.color!.outputPath,
+        }.map(File.new).where((file) => file.existsSync()),
+      );
       generatedPaths.addAll(configuredOutputs.map((file) => file.path));
       for (final file in [
         ...packageDartFiles(pkg.rootPath),
@@ -799,7 +806,10 @@ class KarekiRunner {
           continue;
         }
         final root = input.packageRoots[asset.packageName]!;
-        final relative = p.relative(asset.pubspecPath, from: request.rootPath);
+        final relative = p.relative(
+          asset.definitionPath,
+          from: request.rootPath,
+        );
         final assetRelative = p.relative(
           p.join(root, asset.name),
           from: request.rootPath,
@@ -807,8 +817,9 @@ class KarekiRunner {
         if (globs.any(
           (glob) =>
               glob.matches(relative) ||
-              glob.matches('pubspec.yaml') ||
+              glob.matches(p.basename(asset.definitionPath)) ||
               (!asset.font &&
+                  asset.color == null &&
                   (glob.matches(assetRelative) ||
                       glob.matches(p.basename(asset.name)))),
         )) {
@@ -819,14 +830,14 @@ class KarekiRunner {
             ruleId: RuleId.unusedAsset,
             severity: Severity.warning,
             message:
-                "Unused ${asset.font ? 'font family' : 'asset'} '${asset.name}'.",
+                "Unused ${asset.font ? 'font family' : asset.kind} '${asset.name}'.",
             packageName: asset.packageName,
-            filePath: asset.pubspecPath,
-            line: asset.node.span.start.line + 1,
-            column: asset.node.span.start.column + 1,
-            length: asset.node.span.length,
+            filePath: asset.definitionPath,
+            line: asset.line,
+            column: asset.column,
+            length: asset.length,
             stableId:
-                '${asset.packageName}|${asset.pubspecPath}|${asset.font ? 'font' : 'asset'}:${asset.name}',
+                '${asset.packageName}|${asset.definitionPath}|${asset.kind}:${asset.name}',
           ),
         );
       }

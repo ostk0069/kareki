@@ -93,6 +93,17 @@ import、コメントも使用の証拠にはしません。生成ヘッダー�
 引数も考慮します。実行前に依存を解決し、FlutterGenを使う場合は再生成してください。
 生成出力とpubspecの鮮度の一致までは検証しません。
 
+FlutterGen の `flutter_gen.colors.inputs` にある XML も、`<color name="...">` 単位で検査します。
+`ColorName.foo` の解決済み参照を追跡し、MaterialColor／MaterialAccentColor は元の色定義にまとめます。
+通常色と Accent の両方を生成する場合は、どちらか一方の参照で保持します。
+同じ色値、色名の文字列、import、生成宣言だけでは使用扱いにしません。
+クラス名・出力先の変更と、`build.yaml` の単一 builder target の options による設定の上書きに対応します。
+複数の builder options がある場合は曖昧な判定を避けて終了します。
+重複 input／色名は FlutterGen と同様に最初の定義を採用します。
+生成クラスの欠落や定数メンバー名の不一致では再生成を促して終了します。色値の鮮度は検証しません。
+指摘は XML の開始タグに表示し、`exclude.names` の元の色名、`exclude.files` の XML パス、
+baseline で抑制できます。reflection や解析対象外の Dart コードからだけ使う色は除外してください。
+
 既知のprefixがある動的なパス補間は候補を保持して警告します。
 生成ディレクトリobjectを引数／戻り値として渡す場合は、そのmemberを保守的に保持します。
 FontManifest／AssetManifestを列挙するコードでは該当リソースを保守的に保持し、警告します。

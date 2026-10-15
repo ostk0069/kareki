@@ -194,6 +194,21 @@ do not establish usage. Workspace references use
 resolved member identity; `packages/<name>/...` and constant `package` /
 `fontPackage` arguments select the owning package.
 
+FlutterGen colors declared in `flutter_gen.colors.inputs` are checked per XML
+`<color name="...">` definition. Resolved `ColorName.foo` references retain that
+color; for material colors either the base member or the `fooAccent` member
+retains the original definition. Equal hex values, color name strings, imports,
+and generated declarations alone do not count as uses. Custom output/class
+names and `build.yaml` builder options (deeply overriding pubspec options) are
+supported for one configured builder target; ambiguous multiple builder options
+stop analysis. Duplicate input paths and color names follow FlutterGen's first
+name wins behavior. Missing generated classes or mismatched constant member
+names stop analysis and request regeneration. Color findings point at XML start
+tags, and support `exclude.names` with the original XML name, `exclude.files`
+with XML paths, and baselines. Values are not compared for freshness. Color
+reflection and consumers outside the analyzed Dart workspace are not tracked;
+exclude definitions used only through those mechanisms.
+
 An interpolated asset path with a known prefix retains matching candidates and
 emits a warning. Passing/returning a generated directory object retains its
 members conservatively. FontManifest/AssetManifest consumers retain candidate

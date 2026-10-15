@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:kareki/src/assets/flutter_colors.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
@@ -13,6 +14,7 @@ class FlutterAsset {
     this.node, {
     this.font = false,
     this.fontFiles = const {},
+    this.color,
   });
 
   final String packageName;
@@ -21,16 +23,37 @@ class FlutterAsset {
   final YamlNode node;
   final bool font;
   final Set<String> fontFiles;
+  final FlutterColor? color;
 
-  String get id => '$packageName|${font ? 'font' : 'asset'}:$name';
+  String get kind => color != null
+      ? 'color'
+      : font
+      ? 'font'
+      : 'asset';
+  String get definitionPath => color?.path ?? pubspecPath;
+  int get line => color?.line ?? node.span.start.line + 1;
+  int get column => color?.column ?? node.span.start.column + 1;
+  int get length => color?.length ?? node.span.length;
+
+  String get id => '$packageName|$kind:$name';
 
   static List<FlutterAsset> load(String root, String packageName) {
     final file = File(p.join(root, 'pubspec.yaml'));
     final document = loadYamlNode(file.readAsStringSync(), sourceUrl: file.uri);
     if (document is! YamlMap) return [];
-    final flutter = document.nodes['flutter'];
-    if (flutter is! YamlMap) return [];
     final result = <String, FlutterAsset>{};
+    for (final color in FlutterColor.load(root, document)) {
+      final asset = FlutterAsset(
+        packageName,
+        file.path,
+        color.name,
+        document,
+        color: color,
+      );
+      result[asset.id] = asset;
+    }
+    final flutter = document.nodes['flutter'];
+    if (flutter is! YamlMap) return result.values.toList();
     void add(
       String name,
       YamlNode node, {

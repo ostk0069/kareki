@@ -275,7 +275,8 @@ class DoctorRunner {
         ...packageArbFiles(pkg.rootPath),
         File(p.join(pkg.rootPath, 'pubspec.yaml')),
         for (final asset in FlutterAsset.load(pkg.rootPath, pkg.name))
-          if (!asset.font) File(p.join(pkg.rootPath, asset.name)),
+          if (!asset.font)
+            File(asset.color?.path ?? p.join(pkg.rootPath, asset.name)),
       ]) {
         final rel = p.relative(file.path, from: request.rootPath);
         final base = p.basename(file.path);
