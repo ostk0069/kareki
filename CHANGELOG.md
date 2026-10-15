@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reuse source ownership checks during non-Dart asset scanning and cache analysis
+  context selection per source within a run.
+
 - Recognize imports in build/link hooks and documentation-only `@docImport`
   references when detecting unused pub dependencies.
 - Respect nested package boundaries even for children not registered in the
   workspace, preventing their imports from hiding unused parent dependencies.
 
 ### Added
+
+- `--sdk-path` for analysis and doctor, with a documented native executable
+  workflow to reduce startup/JIT compilation cost on repeated large runs.
 
 - `unused_asset` detects unused Flutter bundled assets, font families, and FlutterGen XML colors,
   including resolved FlutterGen references, directory entries, density variants,

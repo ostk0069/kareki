@@ -96,13 +96,16 @@ class _UserConfig {
 
 /// Configurable input for [DoctorRunner.run].
 class DoctorRequest {
-  DoctorRequest({required this.rootPath, required this.config});
+  DoctorRequest({required this.rootPath, required this.config, this.sdkPath});
 
   /// Workspace root, same semantics as [RunRequest.rootPath].
   final String rootPath;
 
   /// Parsed `kareki-config.yaml`.
   final KarekiConfig config;
+
+  /// Optional Dart SDK root for native executables.
+  final String? sdkPath;
 }
 
 /// Result of one `doctor` invocation.
@@ -143,6 +146,7 @@ class DoctorRunner {
       bool names = false,
     }) => RunRequest(
       rootPath: request.rootPath,
+      sdkPath: request.sdkPath,
       config: request.config,
       enabledRules: parameters
           ? {RuleId.unusedParameter, RuleId.unusedParameterOptional}

@@ -79,6 +79,12 @@ abstract final class NonDartAssetUsage {
     if (absolutePaths.isEmpty) return {};
     final used = <String>{};
     for (final file in _sources(Directory(root))) {
+      // Package ownership is constant for this source, not for each token.
+      final packagePaths = [
+        for (final entry in localPaths.entries)
+          if (p.isWithin(entry.key, file.path)) entry.value,
+      ];
+      final directory = p.dirname(file.path);
       final text = file.readAsStringSync();
       if (p.extension(file.path) == '.json' && _isReport(text)) {
         continue;
@@ -90,14 +96,11 @@ abstract final class NonDartAssetUsage {
       for (final reference in references) {
         final path = p.posix.normalize(reference);
         used.addAll(
-          absolutePaths[p.normalize(p.join(p.dirname(file.path), path))] ??
-              const {},
+          absolutePaths[p.normalize(p.join(directory, path))] ?? const {},
         );
         used.addAll(workspacePaths[path] ?? const {});
-        for (final entry in localPaths.entries) {
-          if (p.isWithin(entry.key, file.path)) {
-            used.addAll(entry.value[path] ?? const {});
-          }
+        for (final paths in packagePaths) {
+          used.addAll(paths[path] ?? const {});
         }
       }
     }

@@ -24,6 +24,7 @@ can run without dependency setup.
 | Option | Description |
 |---|---|
 | `--root <path>` | Workspace root. Defaults to the current directory. |
+| `--sdk-path <path>` | Dart SDK root. Required for native executables outside the SDK; relative to the working directory. |
 | `-f`, `--format <name>` | Output format: `text` or `json`. Overrides configuration. |
 | `--packages <name>` | Report findings only for these packages. References are still collected across the discovered workspace. Repeatable. |
 | `--rule <id>` | Enable only these rules. Repeatable. |

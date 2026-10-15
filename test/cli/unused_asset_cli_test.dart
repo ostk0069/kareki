@@ -73,6 +73,47 @@ flutter:
   });
 
   test(
+    'explicit SDK works for analysis and doctor; invalid SDK fails closed',
+    () async {
+      final sdk = p.dirname(p.dirname(Platform.resolvedExecutable));
+      final relative = p.relative(sdk, from: workspace.path);
+      final normal = await run(['--rule', 'unused_asset', '--format', 'json']);
+      final explicit = await run([
+        '--rule',
+        'unused_asset',
+        '--format',
+        'json',
+        '--sdk-path',
+        relative,
+      ]);
+      expect(explicit.exitCode, 1, reason: explicit.errors);
+      expect(jsonDecode(explicit.output), jsonDecode(normal.output));
+      final doctor = await run([
+        'doctor',
+        '--format',
+        'json',
+        '--sdk-path',
+        sdk,
+      ]);
+      expect(doctor.exitCode, 0, reason: doctor.errors);
+      expect(
+        (jsonDecode(doctor.output) as Map<String, dynamic>)['findings'],
+        isEmpty,
+      );
+      final invalid = p.join(workspace.path, 'missing-sdk');
+      for (final args in [
+        ['--rule', 'unused_asset', '--sdk-path', invalid],
+        ['doctor', '--sdk-path', invalid],
+      ]) {
+        final result = await run(args);
+        expect(result.exitCode, 2, reason: result.errors);
+        expect(result.output, isEmpty);
+        expect(result.errors, contains('Resolved analysis incomplete'));
+      }
+    },
+  );
+
+  test(
     'baseline suppresses assets and keeps IDs stable after pubspec movement',
     () async {
       final written = await run([

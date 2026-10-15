@@ -76,6 +76,26 @@ dart run kareki
 
 See the [CLI reference](doc/cli.md) for preparation, options, and analysis warnings.
 
+## Faster repeated runs
+
+For larger workspaces, a native executable can reduce startup/JIT compilation
+cost. Build once after resolving this checkout's dependencies, then rebuild when
+updating kareki or its dependencies:
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+./build/kareki doctor --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+```
+
+Use a Dart SDK compatible with the workspace. For Flutter, the SDK root is
+`<flutter>/bin/cache/dart-sdk`. The SDK must remain installed: the native binary
+embeds the runtime, while static analysis still reads SDK libraries. Choose the
+compiler's matching SDK for direct comparisons with `dart run`. Windows builds
+use `build/kareki.exe`. Findings, suppressions, and exit codes are unchanged.
+
 ## Adopting on an existing codebase
 
 You can adopt kareki without fixing all existing findings. Review the results,

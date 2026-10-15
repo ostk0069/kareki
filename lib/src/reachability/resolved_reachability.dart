@@ -72,6 +72,7 @@ class ResolvedReachability {
     bool trackAssets = false,
     List<FlutterL10n> localizations = const [],
     List<FlutterAsset> assets = const [],
+    String? sdkPath,
   }) async {
     if (files.isEmpty) {
       if (localizations.any((family) => family.keys.isNotEmpty)) {
@@ -125,16 +126,22 @@ class ResolvedReachability {
     var resolving = 'analysis contexts';
     try {
       collection = AnalysisContextCollection(
+        sdkPath: sdkPath == null ? null : p.normalize(p.absolute(sdkPath)),
         includedPaths: packageRoots.values
             .map(graph.canonical)
             .toSet()
             .toList(),
       );
+      final contexts = <String, AnalysisContext>{};
+      AnalysisContext contextFor(String path) => contexts.putIfAbsent(
+        path,
+        () => _contextForSource(collection!, path),
+      );
       final visitedUnits = <String>{};
       for (final entry in graph.files.entries) {
         if (visitedUnits.contains(entry.key)) continue;
         resolving = entry.value.path;
-        final context = _contextForSource(collection, entry.key);
+        final context = contextFor(entry.key);
         final units = <ResolvedUnitResult>[];
         if (File(entry.key).existsSync()) {
           final result = entry.value.partOf == null
@@ -167,7 +174,7 @@ class ResolvedReachability {
           if (!unit.exists ||
               file == null ||
               visitedUnits.contains(path) ||
-              !identical(_contextForSource(collection, path), context)) {
+              !identical(contextFor(path), context)) {
             continue;
           }
           visitedUnits.add(path);

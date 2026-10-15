@@ -60,6 +60,7 @@ class RunRequest {
     this.disregardFileLevelIgnores = false,
     this.disregardParameterNameExcludes = false,
     this.disregardNameExcludes = false,
+    this.sdkPath,
   });
 
   /// Workspace root used for package discovery, glob matching, and
@@ -96,6 +97,9 @@ class RunRequest {
 
   /// Evaluate findings hidden by exclude.names for doctor.
   final bool disregardNameExcludes;
+
+  /// Optional Dart SDK root. Useful when running a native executable.
+  final String? sdkPath;
 }
 
 /// Result of one analysis run.
@@ -158,6 +162,7 @@ class KarekiRunner {
     if (requests.any(
       (other) =>
           other.rootPath != request.rootPath ||
+          other.sdkPath != request.sdkPath ||
           !identical(other.config, request.config) ||
           !identical(other.includePackages, request.includePackages),
     )) {
@@ -210,6 +215,7 @@ class KarekiRunner {
             trackAssets: trackAssets,
             localizations: input.localizations,
             assets: input.assets,
+            sdkPath: request.sdkPath,
             trackArguments: requests.any(
               (variant) =>
                   _ruleEnabled(RuleId.unusedParameterOptional, variant),

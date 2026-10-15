@@ -78,6 +78,25 @@ dart run kareki
 
 事前準備、オプション、解析警告については、[CLI リファレンス](doc/cli.ja.md)を参照してください。
 
+## 繰り返し実行を高速化する
+
+大きなワークスペースでは、ネイティブ実行形式で起動時・JIT コンパイルの負担を減らせます。
+このチェックアウトの依存を解決して一度ビルドし、kareki や依存の更新時に再ビルドしてください。
+
+```sh
+dart pub get
+mkdir -p build
+dart compile exe bin/kareki.dart -o build/kareki
+./build/kareki --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+./build/kareki doctor --sdk-path /absolute/path/to/dart-sdk --root /path/to/workspace
+```
+
+解析対象に対応する Dart SDK を指定してください。Flutter の場合は
+`<flutter>/bin/cache/dart-sdk` です。実行形式にランタイムは含まれますが、解析では SDK の
+ライブラリを読むため SDK のインストールは引き続き必要です。`dart run` と比較する際は
+コンパイルに使った同じ SDK を指定してください。Windows の出力名は `build/kareki.exe` です。
+検出結果、除外、終了コードの扱いは同じです。
+
 ## Adopting on an existing codebase
 
 最初からすべてのデッドコードを修正する必要はありません。現在の検出結果を確認してからベースラインとして保存しておけば、それ以降に増えたデッドコードだけを CI で検出できます。

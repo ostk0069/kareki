@@ -73,6 +73,10 @@ Future<int> runCli(
     includePackages: packages,
     enabledRules: rules,
     strictDependencies: args['strict'] as bool,
+    sdkPath: switch (args['sdk-path'] as String?) {
+      final path? => p.normalize(p.join(workingDirectory, path)),
+      null => null,
+    },
   );
 
   int report(RunResult result) =>
@@ -209,6 +213,10 @@ Usage: kareki [options]
 
 ArgParser _buildArgParser() {
   return ArgParser()
+    ..addOption(
+      'sdk-path',
+      help: 'Dart SDK root (required for native executables outside the SDK).',
+    )
     ..addOption(
       'root',
       help: 'Workspace root directory (defaults to current directory).',
