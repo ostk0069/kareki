@@ -11,17 +11,17 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 
 | Feature | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart standard analysis][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|
-| [Detect unused public declarations and members](#unused-public-declarations) | ✅ | ✅ | ✅ | — | — |
-| [Detect unused private declarations and members](#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
-| [Detect unused values of public enums](#unused-enum-values) | ✅ | ✅ | ✅ | — | — |
-| [Detect cycles of public declarations unreachable from entry points](#unreachable-cycles) | ✅ | — | — | — | — |
+| [Detect unused public declarations and members](#unused-public-declarations-and-members) | ✅ | ✅ | ✅ | — | — |
+| [Detect unused private declarations and members](#unused-private-declarations-and-members) | ✅ | ✅ | ✅ | — | ✅ |
+| [Detect unused values of public enums](#unused-public-enum-values) | ✅ | ✅ | ✅ | — | — |
+| [Detect cycles of public declarations unreachable from entry points](#public-declaration-cycles-unreachable-from-entry-points) | ✅ | — | — | — | — |
 | [Detect unused Dart files](#unused-dart-files) | ✅ | — | ✅ | — | — |
 | [Detect unused pub dependencies](#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
-| [Detect optional public API parameters never supplied by callers](#unsupplied-optional-parameters) | ✅ | — | — | — | — |
-| [Detect public declarations used only by tests](#test-only-declarations) | ✅ | — | — | — | — |
-| [Dedicated unused-l10n checks](#unused-l10n) | ✅ | — | ✅ | — | — |
-| [Report only new findings using a baseline](#baseline) | ✅ | — | — | — | — |
-| [Check stale exclusions and baseline entries](#stale-configuration) | ✅ | — | — | — | — |
+| [Detect optional public API parameters never supplied by callers](#optional-public-api-parameters-never-supplied-by-callers) | ✅ | — | — | — | — |
+| [Detect public declarations used only by tests](#public-declarations-used-only-by-tests) | ✅ | — | — | — | — |
+| [Dedicated unused-l10n checks](#unused-localization-keys) | ✅ | — | ✅ | — | — |
+| [Report only new findings using a baseline](#report-only-new-findings-using-a-baseline) | ✅ | — | — | — | — |
+| [Check stale exclusions and baseline entries](#stale-exclusions-and-baseline-entries) | ✅ | — | — | — | — |
 | Automatically remove unused public declarations | Not planned | △ | — | — | — |
 
 - A ✅ still has analysis limits; for example, kareki excludes operators.
@@ -42,16 +42,12 @@ cleanup needs, so Kareki focuses on detection and reporting. See the
 
 ## Feature details
 
-<a name="unused-public-declarations"></a>
-
 ### Unused public declarations and members
 
 Find public classes, functions, fields, and methods that have no recognized use
 within the analyzed workspace. Kareki reports eligible declarations that cannot
 be reached from entry points with `unused_element`.
 See the [analysis example](how-it-works.md#analysis-flow).
-
-<a name="unused-private-declarations"></a>
 
 ### Unused private declarations and members
 
@@ -66,16 +62,12 @@ not reported separately from their type;
 operators and local declarations remain outside the reporting scope.
 `test_only_used` remains limited to public APIs.
 
-<a name="unused-enum-values"></a>
-
 ### Unused public enum values
 
 Check individual enum values, even when the enum type itself is used. For example,
 if only `Status.active` is used, `Status.archived` may be unused. Kareki checks
 values with `unused_element`; a reachable `Status.values` retains every value.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
-
-<a name="unreachable-cycles"></a>
 
 ### Public declaration cycles unreachable from entry points
 
@@ -84,8 +76,6 @@ entry points such as `main`. A reference within the cycle alone does not make
 those declarations used in kareki.
 See [analysis differences](#analysis-differences).
 
-<a name="unused-dart-files"></a>
-
 ### Unused Dart files
 
 Find Dart files that no other scanned file imports, exports, or includes with
@@ -93,16 +83,12 @@ Find Dart files that no other scanned file imports, exports, or includes with
 references separately from whether the declarations inside are reachable.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
 
-<a name="unused-pub-dependencies"></a>
-
 ### Unused pub dependencies
 
 Find dependencies declared in `pubspec.yaml` that have no recognized use.
 Kareki's `unused_pub_dependency` also recognizes supported annotation,
 build-configuration, native-plugin, and asset usage, beyond Dart imports.
 See [dependency usage beyond imports](how-it-works.md#dependency-usage-beyond-imports).
-
-<a name="unsupplied-optional-parameters"></a>
 
 ### Optional public API parameters never supplied by callers
 
@@ -112,16 +98,12 @@ function body reads the parameter's default value. Kareki's
 `unused_parameter_optional` does not report parameters with unknown call paths.
 See [optional-argument usage](how-it-works.md#optional-argument-usage).
 
-<a name="test-only-declarations"></a>
-
 ### Public declarations used only by tests
 
 Find public declarations reachable from test entry points but not production
 entry points. Kareki's `test_only_used` distinguishes test-only use from code
 with no recognized use at all.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
-
-<a name="unused-l10n"></a>
 
 ### Unused localization keys
 
@@ -143,16 +125,12 @@ Dart Code Linter's l10n check targets members of Dart classes. The default
 class-name pattern is `I18n$`; use `--class-pattern AppLocalizations` for
 `AppLocalizations`. See its [configuration][dcl-l10n].
 
-<a name="baseline"></a>
-
 ### Report only new findings using a baseline
 
 Save existing findings, then omit matching findings on later runs so CI can
 report newly introduced issues while cleanup proceeds gradually. Kareki uses
 `--baseline` and `--write-baseline` to load and save that record.
 See the [baseline guide](baseline.md).
-
-<a name="stale-configuration"></a>
 
 ### Stale exclusions and baseline entries
 

@@ -47,7 +47,7 @@ dart run kareki
 | [起点から到達できない public 宣言の循環参照](comparison.ja.md#解析方式の違い) | ✅ | — | — | — | — |
 | [未使用 Dart ファイル](how-it-works.ja.md#各ルールが使う根拠) | ✅ | — | ✅ | — | — |
 | [未使用の pub 依存パッケージ](configuration.ja.md#import-以外で使われる依存パッケージ) | ✅ | — | — | ✅ | — |
-| [未使用の翻訳キー（l10n）](comparison.ja.md#unused-l10n) | ✅ | — | ✅ | — | — |
+| [未使用の翻訳キー（l10n）](comparison.ja.md#未使用の翻訳キー) | ✅ | — | ✅ | — | — |
 | [ベースラインで新規指摘だけを報告](baseline.ja.md) | ✅ | — | — | — | — |
 
 ほかの機能、各ツールの設定条件・制限、比較した版は[詳しい比較](comparison.ja.md)を参照してください。

@@ -30,7 +30,7 @@ module:
 markup:
   goldmark:
     renderer:
-      unsafe: true
+      unsafe: false
   highlight:
     noClasses: false
 
