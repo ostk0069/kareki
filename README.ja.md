@@ -14,6 +14,8 @@
 
 `dart analyze` が検出する未使用宣言は、基本的に単一パッケージ内の private なものに限られます。`kareki` は Melos / pub workspace 内のパッケージを横断して参照関係を解析し、使われていない public API、どこからも import されていないファイル、`pubspec.yaml` に残ったままの不要な依存パッケージなどを検出します。
 
+> **kareki をお使いの方へ：** 勤務先の OSS 開発支援制度への申請のため、利用実績を集めています。よろしければ、会社名やリポジトリ名を [Issue #55](https://github.com/ostk0069/kareki/issues/55) にコメントしていただけると助かります。非公開で共有したい場合は、Issue 内の連絡先から DM でもお知らせいただけます。
+
 ## Why kareki?
 
 |  | 特徴 |
@@ -41,19 +43,22 @@
 
 ## Tool comparison
 
-主な7項目の比較です。✅ 対応（オプションでの有効化を含む）、— 該当機能なし。
-
 | 機能 | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart 標準解析](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
-| [未使用 public 宣言・メンバー](doc/how-it-works.ja.md#解析の流れ) | ✅ | ✅ | ✅ | — | — |
-| [未使用 private 宣言・メンバー](doc/comparison.ja.md#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
-| [起点から到達できない public 宣言の循環参照](doc/comparison.ja.md#解析方式の違い) | ✅ | — | — | — | — |
-| [未使用 Dart ファイル](doc/how-it-works.ja.md#各ルールが使う根拠) | ✅ | — | ✅ | — | — |
-| [未使用の pub 依存パッケージ](doc/configuration.ja.md#import-以外で使われる依存パッケージ) | ✅ | — | — | ✅ | — |
-| [未使用の翻訳キー（l10n）](doc/comparison.ja.md#unused-l10n) | ✅ | — | ✅ | — | — |
-| [ベースラインで新規指摘だけを報告](doc/baseline.ja.md) | ✅ | — | — | — | — |
+| [未使用の public 宣言・メンバーの検出](doc/comparison.ja.md#未使用の-public-宣言メンバー) | ✅ | ✅ | ✅ | — | — |
+| [未使用の private 宣言・メンバーの検出](doc/comparison.ja.md#未使用の-private-宣言メンバー) | ✅ | ✅ | ✅ | — | ✅ |
+| [public enum の未使用値の検出](doc/comparison.ja.md#public-enum-の未使用値) | ✅ | ✅ | ✅ | — | — |
+| [起点から到達できない public 宣言の循環参照の検出](doc/comparison.ja.md#起点から到達できない-public-宣言の循環参照) | ✅ | — | — | — | — |
+| [未使用 Dart ファイルの検出](doc/comparison.ja.md#未使用-dart-ファイル) | ✅ | — | ✅ | — | — |
+| [未使用の pub 依存パッケージの検出](doc/comparison.ja.md#未使用の-pub-依存パッケージ) | ✅ | — | — | ✅ | — |
+| [呼び出し元から渡されない public API の省略可能な引数の検出](doc/comparison.ja.md#呼び出し元から渡されない-public-api-の省略可能な引数) | ✅ | — | — | — | — |
+| [テストからしか使われない public 宣言の検出](doc/comparison.ja.md#テストからしか使われない-public-宣言) | ✅ | — | — | — | — |
+| [l10n 専用の未使用検査](doc/comparison.ja.md#未使用の翻訳キー) | ✅ | — | ✅ | — | — |
+| [ベースラインによる新規指摘だけの報告](doc/comparison.ja.md#ベースラインによる新規指摘だけの報告) | ✅ | — | — | — | — |
+| [不要な除外設定・ベースライン項目の検査](doc/comparison.ja.md#不要な除外設定ベースライン項目の検査) | ✅ | — | — | — | — |
+| 未使用 public 宣言の自動削除 | 対応予定なし | ✅ | — | — | — |
 
-ほかの機能、各ツールの設定条件・制限、比較した版は[詳しい比較](doc/comparison.ja.md)を参照してください。
+各ツールの設定条件・制限、比較した版は[詳しい説明](doc/comparison.ja.md)を参照してください。
 
 ## Install
 

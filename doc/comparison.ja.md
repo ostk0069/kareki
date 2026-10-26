@@ -7,66 +7,66 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 
 ## 機能比較
 
-✅ 対応（オプションでの有効化を含む）、△ 一部のみ対応、— 該当機能なし。
+解析上の制限や必要なオプションは、以下の各機能の説明を参照してください。
 
 | 機能 | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart 標準解析][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|
-| [未使用の public 宣言・メンバーの検出](#unused-public-declarations) | ✅ | ✅ | ✅ | — | — |
-| [未使用の private 宣言・メンバーの検出](#unused-private-declarations) | ✅ | ✅ | ✅ | — | ✅ |
-| [public enum の未使用値の検出](#unused-enum-values) | ✅ | ✅ | ✅ | — | — |
-| [起点から到達できない public 宣言の循環参照の検出](#unreachable-cycles) | ✅ | — | — | — | — |
-| [未使用 Dart ファイルの検出](#unused-dart-files) | ✅ | — | ✅ | — | — |
-| [未使用の pub 依存パッケージの検出](#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
-| [呼び出し元から渡されない public API の省略可能な引数の検出](#unsupplied-optional-parameters) | ✅ | — | — | — | — |
-| [テストからしか使われない public 宣言の検出](#test-only-declarations) | ✅ | — | — | — | — |
-| [l10n 専用の未使用検査](#unused-l10n) | ✅ | — | ✅ | — | — |
-| [ベースラインによる新規指摘だけの報告](#baseline) | ✅ | — | — | — | — |
-| [不要な除外設定・ベースライン項目の検査](#stale-configuration) | ✅ | — | — | — | — |
-| 未使用 public 宣言の自動削除 | 近日対応 | △ | — | — | — |
+| [未使用の public 宣言・メンバーの検出](#未使用の-public-宣言メンバー) | ✅ | ✅ | ✅ | — | — |
+| [未使用の private 宣言・メンバーの検出](#未使用の-private-宣言メンバー) | ✅ | ✅ | ✅ | — | ✅ |
+| [public enum の未使用値の検出](#public-enum-の未使用値) | ✅ | ✅ | ✅ | — | — |
+| [起点から到達できない public 宣言の循環参照の検出](#起点から到達できない-public-宣言の循環参照) | ✅ | — | — | — | — |
+| [未使用 Dart ファイルの検出](#未使用-dart-ファイル) | ✅ | — | ✅ | — | — |
+| [未使用の pub 依存パッケージの検出](#未使用の-pub-依存パッケージ) | ✅ | — | — | ✅ | — |
+| [呼び出し元から渡されない public API の省略可能な引数の検出](#呼び出し元から渡されない-public-api-の省略可能な引数) | ✅ | — | — | — | — |
+| [テストからしか使われない public 宣言の検出](#テストからしか使われない-public-宣言) | ✅ | — | — | — | — |
+| [l10n 専用の未使用検査](#未使用の翻訳キー) | ✅ | — | ✅ | — | — |
+| [ベースラインによる新規指摘だけの報告](#ベースラインによる新規指摘だけの報告) | ✅ | — | — | — | — |
+| [不要な除外設定・ベースライン項目の検査](#不要な除外設定ベースライン項目の検査) | ✅ | — | — | — | — |
+| 未使用 public 宣言の自動削除 | 対応予定なし | ✅ | — | — | — |
 
-- ✅ でも解析対象には制限があり、たとえば kareki は演算子を検査しません。
-- enum の値は宣言・メンバーの行とは分けて比較しています。
-- Dart Code Linter のメンバー検査は public / private ともオプションで有効にします。enum の値も対象です。[CLI][dcl-cli]
-- ciach の自動削除には、報告のみで削除しない指摘があります。[README][ciach-readme]
-- 引数の行は「呼び出し元が値を渡すか」の検査です。Dart Code Linter の[本体で読まれない引数の検査][dcl-parameters]や、Dart の[private 宣言向けの検査][dart-parameter]とは対象が異なります。
+kareki は、未使用 public 宣言の自動削除機能には対応しない方針です。解析結果を AI エージェントに渡し、指摘を確認したうえで必要な修正を行う方法を推奨します。この運用でクリーンアップの用途を満たせると考えているため、kareki は検出と報告に注力します。[推奨する運用](operations.ja.md#推奨する運用)を参照してください。
 
 ## 各機能の説明
 
-### 未使用の public 宣言・メンバー {#unused-public-declarations}
+### 未使用の public 宣言・メンバー
 
 解析範囲内で利用が確認できない公開クラス、関数、フィールド、メソッドなどを検出します。kareki は、解析の起点から到達できない対象宣言を `unused_element` で報告します。[解析の具体例](how-it-works.ja.md#解析の流れ)を参照してください。
 
-### 未使用の private 宣言・メンバー {#unused-private-declarations}
+Dart Code Linter のメンバー検査は public / private ともオプションで有効にし、enum の値も対象にします。[CLI][dcl-cli]を参照してください。
+
+### 未使用の private 宣言・メンバー
 
 `unused_element` は private 宣言・メンバーと、private 型に属する public 名のメンバーも検査します。未到達コード内の参照や循環参照だけでは保持しません。通常の起点ファイルでは public 宣言を保持し、private helper は到達できる参照が必要です。明示的な `entry_points.files`、生成ファイル、保守的に扱う条件分岐先はファイル全体を保持します。
 
 到達可能な型の唯一の private コンストラクタは、ライブラリ外からの生成・継承を禁止する目的があるため保持します。private 型の名前なしコンストラクタは型とは別に報告しません。operator とローカル宣言は報告対象外です。`test_only_used` は引き続き public API だけが対象です。
 
-### public enum の未使用値 {#unused-enum-values}
+### public enum の未使用値
 
 enum 型自体が使われていても、各値が使われているかを個別に検査します。例えば `Status.active` しか使わない場合、`Status.archived` は未使用の可能性があります。kareki は `unused_element` で判定し、`Status.values` に到達する場合は全値を保持します。[各ルールの判定根拠](how-it-works.ja.md#各ルールが使う根拠)を参照してください。
 
-### 起点から到達できない public 宣言の循環参照 {#unreachable-cycles}
+### 起点から到達できない public 宣言の循環参照
 
 互いに参照し合っていても、`main` などの起点から到達できない公開宣言のまとまりを検出します。kareki では、循環内に参照があるだけでは使用中とはみなしません。[解析方式の違い](#解析方式の違い)を参照してください。
 
-### 未使用 Dart ファイル {#unused-dart-files}
+### 未使用 Dart ファイル
 
 別の対象ファイルから import / export / part されておらず、解析の起点でもない Dart ファイルを検出します。kareki の `unused_file` は、ファイル内の宣言への到達可能性とは別に、ファイルへの参照を検査します。[各ルールの判定根拠](how-it-works.ja.md#各ルールが使う根拠)を参照してください。
 
-### 未使用の pub 依存パッケージ {#unused-pub-dependencies}
+### 未使用の pub 依存パッケージ
 
 `pubspec.yaml` に宣言されていても、利用が確認できない依存パッケージを検出します。kareki の `unused_pub_dependency` は Dart の import だけでなく、対応するアノテーション、ビルド設定、ネイティブプラグイン、アセットからの利用も考慮します。[import 以外の利用](configuration.ja.md#import-以外で使われる依存パッケージ)を参照してください。
 
-### 呼び出し元から渡されない public API の省略可能な引数 {#unsupplied-optional-parameters}
+### 呼び出し元から渡されない public API の省略可能な引数
 
 対象の呼び出し元が一度も値を指定しない、省略可能な名前付き引数・位置引数を検出します。関数本体で既定値を読んでいても、利用されていない API オプションを見つけられます。kareki の `unused_parameter_optional` は、不明な呼び出し経路が残る引数を報告しません。[省略可能な引数の使用状況](how-it-works.ja.md#省略可能な引数の使用状況)を参照してください。
 
-### テストからしか使われない public 宣言 {#test-only-declarations}
+この検査は「呼び出し元が値を渡すか」を判定します。Dart Code Linter の[本体で読まれない引数の検査][dcl-parameters]や、Dart の[private 宣言向けの検査][dart-parameter]とは対象が異なります。
+
+### テストからしか使われない public 宣言
 
 テストの起点からは到達できても、本番コードの起点からは到達できない公開宣言を検出します。kareki の `test_only_used` は、利用がまったく確認できないコードと、テストだけで使うコードを区別します。[各ルールの判定根拠](how-it-works.ja.md#各ルールが使う根拠)を参照してください。
 
-### 未使用の翻訳キー {#unused-l10n}
+### 未使用の翻訳キー
 
 kareki の `unused_l10n` は、Flutter 標準 gen-l10n のテンプレート ARB にあるキーを検査します。例えば、解決済みの `l10n.title` 参照があれば `title` を保持し、参照のないキーはテンプレート ARB のキー位置で一度だけ報告します。生成された翻訳実装や delegate の登録だけでは、キーを使用中とみなしません。
 
@@ -76,11 +76,11 @@ Flutter Intl／`intl_utils`、`easy_localization`、`slang` は未対応です�
 
 Dart Code Linter の l10n 検査は Dart クラスのメンバーが対象です。クラス名の既定パターンは `I18n$` で、`AppLocalizations` には `--class-pattern AppLocalizations` を指定します。[設定][dcl-l10n]を参照してください。
 
-### ベースラインによる新規指摘だけの報告 {#baseline}
+### ベースラインによる新規指摘だけの報告
 
 既存の指摘を保存し、次回以降は一致する指摘を報告から除外します。段階的に整理しながら、CI で新しく増えた問題を検出できます。kareki は `--baseline` で読み込み、`--write-baseline` で保存します。[ベースラインの使い方](baseline.ja.md)を参照してください。
 
-### 不要な除外設定・ベースライン項目の検査 {#stale-configuration}
+### 不要な除外設定・ベースライン項目の検査
 
 対象ファイルや未使用宣言の削除などにより、適用先がなくなった除外設定、抑制コメント、ベースライン項目を検出します。`kareki doctor` はファイルを変更せずに報告しますが、解析が不確かな場合は使用状況に依存する検査を完了できないことがあります。[doctor の検査項目](doctor.ja.md#検査項目)を参照してください。
 
