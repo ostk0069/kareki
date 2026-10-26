@@ -7,7 +7,7 @@ kareki は、ワークスペース全体の未使用コード検出と、CI で�
 
 ## 機能比較
 
-✅ 対応（オプションでの有効化を含む）、— 該当機能なし。解析上の制限や必要なオプションは、以下の各機能の説明を参照してください。
+解析上の制限や必要なオプションは、以下の各機能の説明を参照してください。
 
 | 機能 | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart 標準解析][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|

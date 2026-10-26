@@ -7,7 +7,6 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 
 ## Feature comparison
 
-✅ Supported (including opt-in features), — no equivalent feature.
 Analysis limits and required options are described below.
 
 | Feature | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart standard analysis][dart-unused] |
