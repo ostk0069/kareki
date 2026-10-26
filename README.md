@@ -41,19 +41,22 @@ A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze
 
 ## Tool comparison
 
-Seven key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
-
 | Feature | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart standard analysis](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
-| [Unused public declarations and members](doc/how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
-| [Unused private declarations and members](doc/comparison.md#unused-private-declarations-and-members) | ✅ | ✅ | ✅ | — | ✅ |
-| [Public declaration cycles unreachable from entry points](doc/comparison.md#analysis-differences) | ✅ | — | — | — | — |
-| [Unused Dart files](doc/how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
-| [Unused pub dependencies](doc/how-it-works.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
-| [Unused localization keys (l10n)](doc/comparison.md#unused-localization-keys) | ✅ | — | ✅ | — | — |
-| [Report only new findings using a baseline](doc/baseline.md) | ✅ | — | — | — | — |
+| [Detect unused public declarations and members](doc/comparison.md#unused-public-declarations-and-members) | ✅ | ✅ | ✅ | — | — |
+| [Detect unused private declarations and members](doc/comparison.md#unused-private-declarations-and-members) | ✅ | ✅ | ✅ | — | ✅ |
+| [Detect unused values of public enums](doc/comparison.md#unused-public-enum-values) | ✅ | ✅ | ✅ | — | — |
+| [Detect cycles of public declarations unreachable from entry points](doc/comparison.md#public-declaration-cycles-unreachable-from-entry-points) | ✅ | — | — | — | — |
+| [Detect unused Dart files](doc/comparison.md#unused-dart-files) | ✅ | — | ✅ | — | — |
+| [Detect unused pub dependencies](doc/comparison.md#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
+| [Detect optional public API parameters never supplied by callers](doc/comparison.md#optional-public-api-parameters-never-supplied-by-callers) | ✅ | — | — | — | — |
+| [Detect public declarations used only by tests](doc/comparison.md#public-declarations-used-only-by-tests) | ✅ | — | — | — | — |
+| [Dedicated unused-l10n checks](doc/comparison.md#unused-localization-keys) | ✅ | — | ✅ | — | — |
+| [Report only new findings using a baseline](doc/comparison.md#report-only-new-findings-using-a-baseline) | ✅ | — | — | — | — |
+| [Check stale exclusions and baseline entries](doc/comparison.md#stale-exclusions-and-baseline-entries) | ✅ | — | — | — | — |
+| Automatically remove unused public declarations | Not planned | ✅ | — | — | — |
 
-See the [full comparison](doc/comparison.md) for other features, required settings, limitations, and versions compared.
+See the [comparison details](doc/comparison.md) for required settings, limitations, and versions compared.
 
 ## Install
 

@@ -38,19 +38,22 @@ dart run kareki
 
 ## Tool comparison
 
-Seven key features at a glance. ✅ Supported (including opt-in features), — no equivalent feature.
-
-| Feature | **kareki** | ciach | Dart Code Linter | dependency_validator | Dart standard analysis |
+| Feature | **kareki** | [ciach](https://github.com/leancodepl/ciach) | [Dart Code Linter](https://github.com/bancolombia/dart-code-linter) | [dependency_validator](https://github.com/Workiva/dependency_validator) | [Dart standard analysis](https://dart.dev/tools/diagnostics/unused_element) |
 |---|:---:|:---:|:---:|:---:|:---:|
-| [Unused public declarations and members](how-it-works.md#analysis-flow) | ✅ | ✅ | ✅ | — | — |
-| Unused private declarations and members | — | ✅ | ✅ | — | ✅ |
-| [Public declaration cycles unreachable from entry points](comparison.md#analysis-differences) | ✅ | — | — | — | — |
-| [Unused Dart files](how-it-works.md#evidence-used-by-each-rule) | ✅ | — | ✅ | — | — |
-| [Unused pub dependencies](how-it-works.md#dependency-usage-beyond-imports) | ✅ | — | — | ✅ | — |
-| [Unused localization keys (l10n)](comparison.md#unused-localization-keys) | ✅ | — | ✅ | — | — |
-| [Report only new findings using a baseline](baseline.md) | ✅ | — | — | — | — |
+| [Detect unused public declarations and members](comparison.md#unused-public-declarations-and-members) | ✅ | ✅ | ✅ | — | — |
+| [Detect unused private declarations and members](comparison.md#unused-private-declarations-and-members) | ✅ | ✅ | ✅ | — | ✅ |
+| [Detect unused values of public enums](comparison.md#unused-public-enum-values) | ✅ | ✅ | ✅ | — | — |
+| [Detect cycles of public declarations unreachable from entry points](comparison.md#public-declaration-cycles-unreachable-from-entry-points) | ✅ | — | — | — | — |
+| [Detect unused Dart files](comparison.md#unused-dart-files) | ✅ | — | ✅ | — | — |
+| [Detect unused pub dependencies](comparison.md#unused-pub-dependencies) | ✅ | — | — | ✅ | — |
+| [Detect optional public API parameters never supplied by callers](comparison.md#optional-public-api-parameters-never-supplied-by-callers) | ✅ | — | — | — | — |
+| [Detect public declarations used only by tests](comparison.md#public-declarations-used-only-by-tests) | ✅ | — | — | — | — |
+| [Dedicated unused-l10n checks](comparison.md#unused-localization-keys) | ✅ | — | ✅ | — | — |
+| [Report only new findings using a baseline](comparison.md#report-only-new-findings-using-a-baseline) | ✅ | — | — | — | — |
+| [Check stale exclusions and baseline entries](comparison.md#stale-exclusions-and-baseline-entries) | ✅ | — | — | — | — |
+| Automatically remove unused public declarations | Not planned | ✅ | — | — | — |
 
-See the [full comparison](comparison.md) for other features, required settings, limitations, and versions compared.
+See the [comparison details](comparison.md) for required settings, limitations, and versions compared.
 
 ## Explore the documentation
 
