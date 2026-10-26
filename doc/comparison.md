@@ -7,7 +7,7 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 
 ## Feature comparison
 
-✅ Supported (including opt-in features), △ partially supported, — no equivalent feature.
+✅ Supported (including opt-in features), — no equivalent feature.
 
 | Feature | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart standard analysis][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -22,14 +22,12 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 | [Dedicated unused-l10n checks](#unused-localization-keys) | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](#report-only-new-findings-using-a-baseline) | ✅ | — | — | — | — |
 | [Check stale exclusions and baseline entries](#stale-exclusions-and-baseline-entries) | ✅ | — | — | — | — |
-| Automatically remove unused public declarations | Not planned | △ | — | — | — |
+| Automatically remove unused public declarations | Not planned | ✅ | — | — | — |
 
 - A ✅ still has analysis limits; for example, kareki excludes operators.
 - Enum values are compared separately from declarations and members.
 - Dart Code Linter's public / private member checks require opt-in flags and include enum values.
   See its [CLI][dcl-cli].
-- Some ciach findings are report-only and cannot be automatically removed.
-  See its [README][ciach-readme].
 - The parameter row checks whether callers supply values. This differs from
   Dart Code Linter's [unused-in-body check][dcl-parameters] and
   Dart's [check for private declarations][dart-parameter].
