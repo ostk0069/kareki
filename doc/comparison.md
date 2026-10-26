@@ -8,6 +8,7 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 ## Feature comparison
 
 ✅ Supported (including opt-in features), — no equivalent feature.
+Analysis limits and required options are described below.
 
 | Feature | **kareki** | [ciach][ciach-repo] | [Dart Code Linter][dcl-repo] | [dependency_validator][dependency-repo] | [Dart standard analysis][dart-unused] |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -24,14 +25,6 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 | [Check stale exclusions and baseline entries](#stale-exclusions-and-baseline-entries) | ✅ | — | — | — | — |
 | Automatically remove unused public declarations | Not planned | ✅ | — | — | — |
 
-- A ✅ still has analysis limits; for example, kareki excludes operators.
-- Enum values are compared separately from declarations and members.
-- Dart Code Linter's public / private member checks require opt-in flags and include enum values.
-  See its [CLI][dcl-cli].
-- The parameter row checks whether callers supply values. This differs from
-  Dart Code Linter's [unused-in-body check][dcl-parameters] and
-  Dart's [check for private declarations][dart-parameter].
-
 Kareki does not plan to implement automatic removal of unused public declarations.
 Kareki recommends passing its analysis results to an AI agent to review the
 findings and make the necessary changes. This workflow is expected to cover
@@ -46,6 +39,9 @@ Find public classes, functions, fields, and methods that have no recognized use
 within the analyzed workspace. Kareki reports eligible declarations that cannot
 be reached from entry points with `unused_element`.
 See the [analysis example](how-it-works.md#analysis-flow).
+
+Dart Code Linter's public / private member checks require opt-in flags and
+include enum values. See its [CLI][dcl-cli].
 
 ### Unused private declarations and members
 
@@ -95,6 +91,10 @@ a value. This can reveal an API option that is never exercised, even when the
 function body reads the parameter's default value. Kareki's
 `unused_parameter_optional` does not report parameters with unknown call paths.
 See [optional-argument usage](how-it-works.md#optional-argument-usage).
+
+This checks whether callers supply values, unlike Dart Code Linter's
+[unused-in-body check][dcl-parameters] and Dart's
+[check for private declarations][dart-parameter].
 
 ### Public declarations used only by tests
 
