@@ -14,6 +14,8 @@
 
 `dart analyze` が検出する未使用宣言は、基本的に単一パッケージ内の private なものに限られます。`kareki` は Melos / pub workspace 内のパッケージを横断して参照関係を解析し、使われていない public API、どこからも import されていないファイル、`pubspec.yaml` に残ったままの不要な依存パッケージなどを検出します。
 
+> **kareki をお使いの方へ：** 勤務先の OSS 開発支援制度への申請のため、利用実績を集めています。よろしければ、会社名やリポジトリ名を [Issue #55](https://github.com/ostk0069/kareki/issues/55) にコメントしていただけると助かります。非公開で共有したい場合は、Issue 内の連絡先から DM でもお知らせいただけます。
+
 ## Why kareki?
 
 |  | 特徴 |

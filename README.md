@@ -12,6 +12,8 @@
 
 A **workspace-wide dead code finder for Dart and Flutter**. Unlike `dart analyze`, which only flags private unused declarations inside a single package, `kareki` resolves cross-package references across Melos / pub workspaces to surface the dead code that actually accumulates in real projects: public APIs no one calls, files nobody imports, and pub dependencies that ride along unused.
 
+> **Using kareki?** Please share your company and/or repository name in [Issue #55](https://github.com/ostk0069/kareki/issues/55) to help support an application for OSS development support from my employer. If you prefer to share privately, you can send a DM via the contact link in the issue.
+
 ## Why kareki?
 
 |  | What you get |

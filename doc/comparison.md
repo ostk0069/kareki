@@ -22,7 +22,7 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
 | [Dedicated unused-l10n checks](#unused-l10n) | ✅ | — | ✅ | — | — |
 | [Report only new findings using a baseline](#baseline) | ✅ | — | — | — | — |
 | [Check stale exclusions and baseline entries](#stale-configuration) | ✅ | — | — | — | — |
-| Automatically remove unused public declarations | Coming soon | △ | — | — | — |
+| Automatically remove unused public declarations | Not planned | △ | — | — | — |
 
 - A ✅ still has analysis limits; for example, kareki excludes operators.
 - Enum values are compared separately from declarations and members.
@@ -34,16 +34,26 @@ Kareki focuses on workspace-wide unused code detection and ongoing cleanup in CI
   Dart Code Linter's [unused-in-body check][dcl-parameters] and
   Dart's [check for private declarations][dart-parameter].
 
+Kareki does not plan to implement automatic removal of unused public declarations.
+Kareki recommends passing its analysis results to an AI agent to review the
+findings and make the necessary changes. This workflow is expected to cover
+cleanup needs, so Kareki focuses on detection and reporting. See the
+[recommended operating model](operations.md#recommended-operating-model).
+
 ## Feature details
 
-### Unused public declarations and members {#unused-public-declarations}
+<a name="unused-public-declarations"></a>
+
+### Unused public declarations and members
 
 Find public classes, functions, fields, and methods that have no recognized use
 within the analyzed workspace. Kareki reports eligible declarations that cannot
 be reached from entry points with `unused_element`.
 See the [analysis example](how-it-works.md#analysis-flow).
 
-### Unused private declarations and members {#unused-private-declarations}
+<a name="unused-private-declarations"></a>
+
+### Unused private declarations and members
 
 `unused_element` also checks library-private declarations and members, including
 public-named members of private types. References in unreachable code or cycles
@@ -56,35 +66,45 @@ not reported separately from their type;
 operators and local declarations remain outside the reporting scope.
 `test_only_used` remains limited to public APIs.
 
-### Unused public enum values {#unused-enum-values}
+<a name="unused-enum-values"></a>
+
+### Unused public enum values
 
 Check individual enum values, even when the enum type itself is used. For example,
 if only `Status.active` is used, `Status.archived` may be unused. Kareki checks
 values with `unused_element`; a reachable `Status.values` retains every value.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
 
-### Public declaration cycles unreachable from entry points {#unreachable-cycles}
+<a name="unreachable-cycles"></a>
+
+### Public declaration cycles unreachable from entry points
 
 Find public declarations that reference each other but cannot be reached from
 entry points such as `main`. A reference within the cycle alone does not make
 those declarations used in kareki.
 See [analysis differences](#analysis-differences).
 
-### Unused Dart files {#unused-dart-files}
+<a name="unused-dart-files"></a>
+
+### Unused Dart files
 
 Find Dart files that no other scanned file imports, exports, or includes with
 `part`, and that are not entry-point files. Kareki's `unused_file` checks file
 references separately from whether the declarations inside are reachable.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
 
-### Unused pub dependencies {#unused-pub-dependencies}
+<a name="unused-pub-dependencies"></a>
+
+### Unused pub dependencies
 
 Find dependencies declared in `pubspec.yaml` that have no recognized use.
 Kareki's `unused_pub_dependency` also recognizes supported annotation,
 build-configuration, native-plugin, and asset usage, beyond Dart imports.
 See [dependency usage beyond imports](how-it-works.md#dependency-usage-beyond-imports).
 
-### Optional public API parameters never supplied by callers {#unsupplied-optional-parameters}
+<a name="unsupplied-optional-parameters"></a>
+
+### Optional public API parameters never supplied by callers
 
 Find optional named or positional parameters for which no scanned caller supplies
 a value. This can reveal an API option that is never exercised, even when the
@@ -92,14 +112,18 @@ function body reads the parameter's default value. Kareki's
 `unused_parameter_optional` does not report parameters with unknown call paths.
 See [optional-argument usage](how-it-works.md#optional-argument-usage).
 
-### Public declarations used only by tests {#test-only-declarations}
+<a name="test-only-declarations"></a>
+
+### Public declarations used only by tests
 
 Find public declarations reachable from test entry points but not production
 entry points. Kareki's `test_only_used` distinguishes test-only use from code
 with no recognized use at all.
 See [rule evidence](how-it-works.md#evidence-used-by-each-rule).
 
-### Unused localization keys {#unused-l10n}
+<a name="unused-l10n"></a>
+
+### Unused localization keys
 
 Kareki's `unused_l10n` checks Flutter standard gen-l10n template ARB keys.
 For example, a resolved `l10n.title` reference retains `title`; an unreferenced
@@ -119,14 +143,18 @@ Dart Code Linter's l10n check targets members of Dart classes. The default
 class-name pattern is `I18n$`; use `--class-pattern AppLocalizations` for
 `AppLocalizations`. See its [configuration][dcl-l10n].
 
-### Report only new findings using a baseline {#baseline}
+<a name="baseline"></a>
+
+### Report only new findings using a baseline
 
 Save existing findings, then omit matching findings on later runs so CI can
 report newly introduced issues while cleanup proceeds gradually. Kareki uses
 `--baseline` and `--write-baseline` to load and save that record.
 See the [baseline guide](baseline.md).
 
-### Stale exclusions and baseline entries {#stale-configuration}
+<a name="stale-configuration"></a>
+
+### Stale exclusions and baseline entries
 
 Find exclusions, suppression comments, and baseline entries that no longer
 apply, for example because the target file or unused declaration was removed.
