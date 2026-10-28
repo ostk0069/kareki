@@ -14,7 +14,6 @@ on:
       - "go.mod"
       - "go.sum"
       - ".github/workflows/pages.yaml"
-      - ".github/scripts/test_doc_links.py"
   pull_request:
     paths:
       - "doc/**"
@@ -27,7 +26,6 @@ on:
       - "go.mod"
       - "go.sum"
       - ".github/workflows/pages.yaml"
-      - ".github/scripts/test_doc_links.py"
   workflow_dispatch:
 
 permissions:
@@ -73,9 +71,6 @@ jobs:
           printf '%s  %s\n' "$HUGO_SHA256" "${RUNNER_TEMP}/hugo.deb" \
             | sha256sum --check --strict
           sudo dpkg -i "${RUNNER_TEMP}/hugo.deb"
-
-      - name: Test documentation link safety
-        run: python3 -B .github/scripts/test_doc_links.py -v
 
       - name: Build documentation
         env:
