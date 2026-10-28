@@ -15,7 +15,7 @@ Add `kareki` to your development dependencies:
 
 ```yaml {filename="pubspec.yaml"}
 dev_dependencies:
-  kareki: ^0.10.0
+  kareki: ^0.10.1
 ```
 
 Install the project's dependencies and run code generation, then execute from
