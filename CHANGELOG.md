@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.1
+
+### Changed
+
+- Expand XML dependency compatibility to include xml 7.x while retaining 6.6.1
+  support.
+- Clarify the detection-and-reporting focus and recommended AI-assisted cleanup
+  workflow, and align English and Japanese tool comparisons and links.
+- Use Hugo's native URL filtering for documentation links and update GitHub
+  Actions runner hardening and default publishing permissions.
+
 ## 0.10.0
 
 ### Fixed
