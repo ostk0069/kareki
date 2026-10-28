@@ -24,7 +24,7 @@
 {{- end -}}
 
 {{- $isExternal := strings.HasPrefix .Destination "http" -}}
-<a href="{{ $dest | safeURL }}"
+<a href="{{ $dest }}"
   {{- with .Title }} title="{{ . }}"{{ end -}}
   {{- if $isExternal }} target="_blank" rel="noopener"{{ end -}}
 >
