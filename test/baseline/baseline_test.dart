@@ -7,13 +7,12 @@ import 'package:kareki/src/runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-String _fixture(String name) =>
-    p.join(Directory.current.path, 'test', 'fixtures', name);
+import '../support/test_workspace.dart';
 
 void main() {
   group('Baseline', () {
     test('write + load round-trips the same findings', () async {
-      final root = _fixture('single_package');
+      final root = fixturePath('single_package');
       final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
@@ -37,7 +36,7 @@ void main() {
     });
 
     test('filter suppresses baselined findings and keeps the rest', () async {
-      final root = _fixture('single_package');
+      final root = fixturePath('single_package');
       final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );
@@ -59,7 +58,7 @@ void main() {
     test(
       'serialized file is portable: paths use <root>/ placeholder',
       () async {
-        final root = _fixture('single_package');
+        final root = fixturePath('single_package');
         final result = await KarekiRunner().run(
           RunRequest(rootPath: root, config: KarekiConfig.load(root)),
         );
@@ -76,7 +75,7 @@ void main() {
     );
 
     test('staleKeys reports entries no longer present in findings', () async {
-      final root = _fixture('single_package');
+      final root = fixturePath('single_package');
       final result = await KarekiRunner().run(
         RunRequest(rootPath: root, config: KarekiConfig.load(root)),
       );

@@ -4,8 +4,7 @@ import 'package:kareki/src/cli/cli.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-String _fixture(String name) =>
-    p.join(Directory.current.path, 'test', 'fixtures', name);
+import '../support/test_workspace.dart';
 
 void main() {
   group('CLI --write-baseline / --baseline', () {
@@ -13,7 +12,7 @@ void main() {
       '--write-baseline writes a file containing the current findings, '
       'and a subsequent run with --baseline suppresses them (exit 0)',
       () async {
-        final root = _fixture('single_package');
+        final root = fixturePath('single_package');
         final tmp = Directory.systemTemp.createTempSync('kareki_cli_');
         addTearDown(() => tmp.deleteSync(recursive: true));
         final baselinePath = p.join(tmp.path, 'baseline.json');
@@ -52,7 +51,7 @@ void main() {
     test(
       '--write-baseline without a configured path returns usage error 64',
       () async {
-        final root = _fixture('single_package');
+        final root = fixturePath('single_package');
         final code = await runCli([
           '--root',
           root,
