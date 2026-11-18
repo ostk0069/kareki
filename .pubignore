@@ -18,7 +18,7 @@ pubspec.lock
 
 # The Markdown sources under doc/ belong in the package, but the Hugo site
 # scaffolding, generated output, and web-only assets do not.
-assets/
+/assets/
 data/
 i18n/
 layouts/
