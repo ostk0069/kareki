@@ -15,17 +15,6 @@ on:
       - "go.sum"
       - ".github/workflows/pages.yaml"
   pull_request:
-    paths:
-      - "doc/**"
-      - "assets/**"
-      - "data/**"
-      - "layouts/**"
-      - "static/**"
-      - "i18n/**"
-      - "hugo.yaml"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/pages.yaml"
   workflow_dispatch:
 
 permissions:
